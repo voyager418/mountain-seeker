@@ -1,11 +1,11 @@
 import { BaseStrategy } from "./base-strategy.interface";
 import { Account } from "../models/account";
 import log from '../logging/log.instance';
-import { Service } from "typedi";
+import { Container, Service } from "typedi";
 import { StrategyDetails, BaseStrategyConfig } from "../models/strategy-details";
 import { TradingState } from "../models/trading-state";
 import { v4 as uuidv4 } from 'uuid';
-import * as ccxt from "ccxt";
+import { BinanceService } from "../connectors/binance-service";
 
 
 /**
@@ -17,23 +17,25 @@ import * as ccxt from "ccxt";
 export class MountainSeeker implements BaseStrategy {
     private readonly strategyDetails: StrategyDetails<MountainSeekerConfig>;
     private readonly account: Account;
+    private apiConnector: BinanceService; // TODO : this should be dynamic
 
     private state: TradingState = { // TODO : the state should be initialised
         id: uuidv4(),
         walletBalance: 100,
-        profit: 0
+        profitPercent: 0
     };
 
-    constructor(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
+    constructor(account: Account,
+        strategyDetails: StrategyDetails<MountainSeekerConfig>) {
         this.account = account;
         this.strategyDetails = strategyDetails;
+        this.apiConnector = Container.get(BinanceService);
     }
 
     public async run(): Promise<TradingState> {
         log.info("Trading has started", this.state);
-        const binance = new ccxt.binance();
-        // console.log(binance.id, await binance.loadMarkets());
-        console.log(binance.id, await binance.fetchTicker('BTC/EUR'));
+
+        console.log(await this.apiConnector.getMarkets());
 
         log.info("Trading has finished", this.state)
         return Promise.resolve(this.state);

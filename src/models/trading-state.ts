@@ -6,8 +6,10 @@ export type TradingState = {
     id: string;
     /** Actual user's wallet balance (in €) */
     walletBalance?: number;
-    /** Indicates if any profit was made (in %), can be negative */
-    profit?: number;
+    /** Indicates the made profit in %, can be negative */
+    profitPercent?: number;
+    /** Indicates the made profit in €, can be negative */
+    profitEuro?: number;
     /** The number of open positions */
     openOrders?: number;
 }
