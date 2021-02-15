@@ -5,7 +5,7 @@ import { Container, Service } from "typedi";
 import { StrategyDetails, BaseStrategyConfig } from "../models/strategy-details";
 import { TradingState } from "../models/trading-state";
 import { v4 as uuidv4 } from 'uuid';
-import { BinanceService } from "../connectors/binance-service";
+import { BinanceService } from "../api-connectors/binance-service";
 
 
 /**
