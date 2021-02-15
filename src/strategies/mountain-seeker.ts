@@ -15,7 +15,7 @@ import { BinanceService } from "../api-connectors/binance-service";
  */
 @Service({ transient: true })
 export class MountainSeeker implements BaseStrategy {
-    private readonly strategyDetails: StrategyDetails<MountainSeekerConfig>;
+    private readonly strategyDetails;
     private readonly account: Account;
     private apiConnector: BinanceService; // TODO : this should be dynamic
 
@@ -26,7 +26,7 @@ export class MountainSeeker implements BaseStrategy {
     };
 
     constructor(account: Account,
-        strategyDetails: StrategyDetails<MountainSeekerConfig>) {
+        strategyDetails: StrategyDetails<BaseStrategyConfig>) {
         this.account = account;
         this.strategyDetails = strategyDetails;
         this.apiConnector = Container.get(BinanceService);
