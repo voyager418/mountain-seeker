@@ -36,6 +36,7 @@ export class MountainSeeker implements BaseStrategy {
         log.info("Trading has started", this.state);
 
         console.log(await this.apiConnector.getMarkets());
+        await this.apiConnector.test();
 
         log.info("Trading has finished", this.state)
         return Promise.resolve(this.state);
