@@ -7,7 +7,7 @@ import { TradingPlatform } from "../enums/trading-platform.enum";
 export type StrategyDetails<T> = {
     type: TradingStrategy;
     platform: TradingPlatform;
-    /** Strategy config which is an intersection of a custom config T and a base config */
+    /** Strategy config which is a union of a custom config T and a base config */
     config: T & BaseStrategyConfig;
 }
 

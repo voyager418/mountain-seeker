@@ -20,7 +20,7 @@ export class TradingService {
         config: {
             autoRestartOnProfit: false,
             someCustomConfig: "custom"
-        },
+        }
     }
 
     private account: Account = {
