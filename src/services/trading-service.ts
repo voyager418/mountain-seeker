@@ -18,8 +18,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
-            autoRestartOnProfit: false,
-            someCustomConfig: "custom"
+            autoRestartOnProfit: false
         }
     }
 
