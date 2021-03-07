@@ -1,9 +1,10 @@
-import { Service } from "typedi";
+import { Container, Service } from "typedi";
 import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
 import { Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
 import { Market } from "../models/market";
+import { Currency } from "../enums/trading-currencies.enum";
 
 
 
@@ -14,7 +15,7 @@ import { Market } from "../models/market";
  * possibly additional/custom implementations.
  */
 @Service()
-export class BinanceService {
+export class BinanceConnector {
 
     /** Binance ccxt instance.
      * Binance API, and others, has rate limits for requests.
@@ -31,6 +32,8 @@ export class BinanceService {
 
     constructor() {
         this.binance = new ccxt.binance({
+            apiKey: Container.get("BINANCE_API_KEY"),
+            secret: Container.get("BINANCE_API_SECRET"),
             verbose: false,
             enableRateLimit: false
         });
@@ -49,6 +52,8 @@ export class BinanceService {
             .filter(market => market.percentage && market.percentage > minimumPercent)
             .forEach(market => res.push({
                 symbol: market.symbol,
+                originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
+                targetAsset: market.symbol.split('/')[0],
                 candleSticks: [],
                 candleSticksPercentageVariations: [] }));
         return res;
@@ -72,11 +77,21 @@ export class BinanceService {
         return res;
     }
 
+    /**
+     * @param currencies Array of currencies for which the balance will be retrieved
+     * @returns A map for each currency and the actual available amount
+     */
+    async getBalance(currencies: Array<Currency>): Promise<Map<Currency, number>> {
+        const balance = await this.binance.fetchBalance(); // TODO maybe refactor to only fetch info for needed currencies
+        const res = new Map<Currency, number>();
+        for (const currency of currencies) {
+            res.set(currency, balance[currency].free);
+        }
+        return res;
+    }
 
     // For testing
-    public async test(): Promise<void> {
-        // await this.getMarketsBy24hrVariation(30);
-        console.log(await this.binance.fetchTickers(["BNB/EUR"]));
+    public test(): void {
         // log.debug(await this.binance.fetchTickers(["PHB/BTC"]));
         // console.log(await this.binance.fetchOHLCV(
         //     'BNB/EUR',
@@ -84,7 +99,26 @@ export class BinanceService {
         //     undefined,
         //     3
         // ));
+        // console.log(this.binance.requiredCredentials);
+        // console.log(await this.binance.fetchBalance());
+        // console.log(await this.binance.fetchClosedOrders("BNB/EUR"));
+    }
 
+    public async getTestMarket(): Promise<Market> {
+        const market = await this.binance.fetchTicker("BTC/NGN");
+        console.log(market);
+        return {
+            symbol: market.symbol,
+            candleSticks: [],
+            candleSticksPercentageVariations: [],
+            originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
+            targetAsset: market.symbol.split('/')[0]
+        };
+    }
+
+    public async getPriceInEur(asset: Currency, amount: number): Promise<number> {
+        // TODO
+        return 22;
     }
 
 

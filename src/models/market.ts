@@ -1,7 +1,15 @@
 import assert from "assert";
+import { Currency } from "../enums/trading-currencies.enum";
 
 export type Market = {
+    /** Example : 'BNB/EUR' */
     symbol: string;
+
+    /** Currency with which we buy (e.g. 'EUR') */
+    originAsset: Currency;
+
+    /** The asset that we buy (e.g. 'BNB') */
+    targetAsset: string;
 
     /** An array of candlesticks.
      * A candlestick has the following shape : [ timestamp, open, high, low, close, volume ] */

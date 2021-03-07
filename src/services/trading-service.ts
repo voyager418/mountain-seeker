@@ -23,13 +23,14 @@ export class TradingService {
     }
 
     private account: Account = {
-        apiKey: process.env.API_KEY
+        apiKey: process.env.BINANCE_API_KEY,
+        apiSecret: process.env.BINANCE_API_SECRET
     }
 
     public async beginTrading(): Promise<void> {
         const defaultStrategy = new MountainSeeker(this.account, this.strategy);
         await defaultStrategy.run()
-            .catch((e) => log.error("Trading stopped with an error", new Error(e)));
+            .catch((e) => log.error("Trading stopped with an error : ", new Error(e)));
     }
 
 }

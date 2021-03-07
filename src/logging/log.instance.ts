@@ -12,8 +12,9 @@ const log = winston.createLogger({
             format: 'DD-MM-YYYY HH:mm:ss'
         }),
         winston.format.colorize(),
+        winston.format.splat(),
         winston.format.printf((info: { timestamp: never; level: never; message: never; }) =>
-            `${info.timestamp} ${info.level}: ${JSON.stringify(info.message)}`)
+            `${info.timestamp} ${info.level}: ${info.message}`)
     ),
     transports: [
         new winston.transports.Console(),
