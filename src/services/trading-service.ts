@@ -18,6 +18,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
+            maxMoneyToTrade: 10,
             autoRestartOnProfit: false
         }
     }
@@ -30,7 +31,7 @@ export class TradingService {
     public async beginTrading(): Promise<void> {
         const defaultStrategy = new MountainSeeker(this.account, this.strategy);
         await defaultStrategy.run()
-            .catch((e) => log.error("Trading stopped with an error : ", new Error(e)));
+            .catch((e) => log.error("Trading was aborted.", new Error(e)));
     }
 
 }

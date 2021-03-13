@@ -1,11 +1,11 @@
 import { Container, Service } from "typedi";
-import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
+import * as ccxt from "ccxt";
 import { Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
 import { Market } from "../models/market";
+import { Order } from "../models/order";
 import { Currency } from "../enums/trading-currencies.enum";
-
 
 
 /**
@@ -15,7 +15,7 @@ import { Currency } from "../enums/trading-currencies.enum";
  * possibly additional/custom implementations.
  */
 @Service()
-export class BinanceConnector {
+export class BinanceConnector { // TODO: this should implement an interface
 
     /** Binance ccxt instance.
      * Binance API, and others, has rate limits for requests.
@@ -42,11 +42,12 @@ export class BinanceConnector {
 
     /**
      * @param minimumPercent The minimal percent of variation.
-     * @returns Markets that have at least `minimumPercent` as their 24hr change variation.
+     * @return Markets that have at least `minimumPercent` as their 24hr change variation.
      * Example: when called with '0', returns only the markets that had a positive change.
      */
     public async getMarketsBy24hrVariation(minimumPercent: number): Promise<Array<Market>> {
-        const tickers: Dictionary<Ticker> = await this.binance.fetchTickers();
+        const tickers: Dictionary<Ticker> = await this.binance.fetchTickers()
+            .catch(e => Promise.reject(`Failed to fetch tickers. ${e}`));
         const res: Array<Market> = [];
         Object.values(tickers)
             .filter(market => market.percentage && market.percentage > minimumPercent)
@@ -63,32 +64,70 @@ export class BinanceConnector {
      * @param market The name/symbol of the market. Example: 'BNB/EUR'
      * @param interval Example: '1m', '15m', '1h' ...
      * @param numberOfCandlesticks The number of most recent candlesticks including the current one
-     * @returns An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
+     * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
     public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number): Promise<any[]> {
-        this.binance.enableRateLimit = true;
-        const res = await this.binance.fetchOHLCV(
+        // this.binance.enableRateLimit = true;
+        return await this.binance.fetchOHLCV(
             market,
             interval,
             undefined,
             numberOfCandlesticks
-        );
-        this.binance.enableRateLimit = true;
-        return res;
+        ).catch(e => Promise.reject(`Failed to fetch candle sticks. ${e}`));
     }
 
     /**
      * @param currencies Array of currencies for which the balance will be retrieved
-     * @returns A map for each currency and the actual available amount
+     * @return A map for each currency and the actual available amount
      */
-    async getBalance(currencies: Array<Currency>): Promise<Map<Currency, number>> {
-        const balance = await this.binance.fetchBalance(); // TODO maybe refactor to only fetch info for needed currencies
+    public async getBalance(currencies: Array<Currency>): Promise<Map<Currency, number>> {
+        // TODO maybe refactor to only fetch info for needed currencies
+        const balance = await this.binance.fetchBalance()
+            .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
         const res = new Map<Currency, number>();
         for (const currency of currencies) {
             res.set(currency, balance[currency].free);
         }
         return res;
     }
+
+    /**
+     * This method always returns a valid result or exits with an error.
+     * @return a @type {Promise<number>} that stands for the amount of `inCurrency` needed to buy 1 unit of `ofCurrency`
+     */
+    public async getUnitPrice(inCurrency: Currency, ofCurrency: Currency): Promise<number> {
+        const marketSymbol = ofCurrency.toString() + '/' + inCurrency.toString();
+        let lastPrice: number | undefined = undefined;
+        await this.binance.fetchTicker(marketSymbol)
+            .then(market => lastPrice = market.last)
+            .catch(error => `Failed to get information for ${marketSymbol} market. ${error}`);
+        if (lastPrice === undefined) {
+            return Promise.reject(`Last price of ${marketSymbol} was not found`);
+        }
+        log.info(`1 ${ofCurrency} ≈ ${lastPrice} ${inCurrency}`);
+        return Promise.resolve(lastPrice);
+    }
+
+    /**
+     * Places a new order on the market.
+     * @param order Information about the order that will be executed.
+     * @return The updated `order` object
+     */
+    public async createOrder(order: Order) : Promise<Order> {
+        // TODO : there is always a minimum amount allowed to buy depending on a market
+        //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
+        log.info(`Creating new order %O`, order);
+        const binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
+            order.type, order.action, order.amount)
+            .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order)} order. ${e}`));
+        log.debug(`Created binance order : ${binanceOrder}`);
+        order.id = binanceOrder.id;
+        order.status = binanceOrder.status;
+        order.datetime = binanceOrder.datetime;
+        order.info = binanceOrder.info;
+        return Promise.resolve(order);
+    }
+
 
     // For testing
     public test(): void {
@@ -105,22 +144,17 @@ export class BinanceConnector {
     }
 
     public async getTestMarket(): Promise<Market> {
-        const market = await this.binance.fetchTicker("BTC/NGN");
-        console.log(market);
+        // const market = await this.binance.fetchTicker("BNB/BTC");
+        const market = await this.binance.fetchTicker("CHZ/BNB");
+        // console.log(market);
         return {
             symbol: market.symbol,
-            candleSticks: [],
-            candleSticksPercentageVariations: [],
             originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
-            targetAsset: market.symbol.split('/')[0]
+            targetAsset: market.symbol.split('/')[0],
+            candleSticks: [],
+            candleSticksPercentageVariations: []
         };
     }
-
-    public async getPriceInEur(asset: Currency, amount: number): Promise<number> {
-        // TODO
-        return 22;
-    }
-
 
 }
 
