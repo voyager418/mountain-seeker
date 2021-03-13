@@ -1,6 +1,6 @@
 import { Container, Service } from "typedi";
-// eslint-disable-next-line no-duplicate-imports
 import * as ccxt from "ccxt";
+// eslint-disable-next-line no-duplicate-imports
 import { Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
 import { Market } from "../models/market";
