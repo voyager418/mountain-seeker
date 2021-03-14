@@ -30,7 +30,10 @@ export class BinanceConnector { // TODO: this should implement an interface
      * */
     private binance;
 
+    private static IS_SIMULATION: boolean;
+
     constructor() {
+        BinanceConnector.IS_SIMULATION = Container.get("IS_SIMULATION");
         this.binance = new ccxt.binance({
             apiKey: Container.get("BINANCE_API_KEY"),
             secret: Container.get("BINANCE_API_SECRET"),
@@ -93,10 +96,10 @@ export class BinanceConnector { // TODO: this should implement an interface
 
     /**
      * This method always returns a valid result or exits with an error.
-     * @return a @type {Promise<number>} that stands for the amount of `inCurrency` needed to buy 1 unit of `ofCurrency`
+     * @return A number that stands for the amount of `inAsset` needed to buy 1 unit of `ofAsset`
      */
-    public async getUnitPrice(inCurrency: Currency, ofCurrency: Currency): Promise<number> {
-        const marketSymbol = ofCurrency.toString() + '/' + inCurrency.toString();
+    public async getUnitPrice(inAsset: Currency, ofAsset: string): Promise<number> {
+        const marketSymbol = ofAsset.toString() + '/' + inAsset.toString();
         let lastPrice: number | undefined = undefined;
         await this.binance.fetchTicker(marketSymbol)
             .then(market => lastPrice = market.last)
@@ -104,7 +107,7 @@ export class BinanceConnector { // TODO: this should implement an interface
         if (lastPrice === undefined) {
             return Promise.reject(`Last price of ${marketSymbol} was not found`);
         }
-        log.info(`1 ${ofCurrency} ≈ ${lastPrice} ${inCurrency}`);
+        log.info(`Currently 1 ${ofAsset} ≈ ${lastPrice} ${inAsset}`);
         return Promise.resolve(lastPrice);
     }
 
@@ -116,12 +119,16 @@ export class BinanceConnector { // TODO: this should implement an interface
     public async createOrder(order: Order) : Promise<Order> {
         // TODO : there is always a minimum amount allowed to buy depending on a market
         //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
-        log.info(`Creating new order %O`, order);
+        log.info(`Executing new order %O`, order);
+        if (BinanceConnector.IS_SIMULATION) {
+            return Promise.resolve(order);
+        }
+
         const binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
             order.type, order.action, order.amount)
             .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order)} order. ${e}`));
         log.debug(`Created binance order : ${binanceOrder}`);
-        order.id = binanceOrder.id;
+        order.externalId = binanceOrder.id;
         order.status = binanceOrder.status;
         order.datetime = binanceOrder.datetime;
         order.info = binanceOrder.info;
@@ -146,6 +153,7 @@ export class BinanceConnector { // TODO: this should implement an interface
     public async getTestMarket(): Promise<Market> {
         // const market = await this.binance.fetchTicker("BNB/BTC");
         const market = await this.binance.fetchTicker("CHZ/BNB");
+        // const market = await this.binance.fetchTicker("BNB/EUR");
         // console.log(market);
         return {
             symbol: market.symbol,
