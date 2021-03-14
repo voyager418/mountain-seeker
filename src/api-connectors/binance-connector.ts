@@ -119,11 +119,12 @@ export class BinanceConnector { // TODO: this should implement an interface
     public async createOrder(order: Order) : Promise<Order> {
         // TODO : there is always a minimum amount allowed to buy depending on a market
         //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
-        log.info(`Executing new order %O`, order);
         if (BinanceConnector.IS_SIMULATION) {
+            log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
         }
 
+        log.info(`Executing new order %O`, order);
         const binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
             order.type, order.action, order.amount)
             .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order)} order. ${e}`));

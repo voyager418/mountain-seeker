@@ -20,13 +20,13 @@ import { OrderAction } from "../enums/order-action.enum";
  */
 @Service({ transient: true })
 export class MountainSeeker implements BaseStrategy {
+    private readonly IS_SIMULATION = true; // IF false THEN REAL ORDERS WILL BE MADE !!
     private readonly strategyDetails;
     private readonly account: Account;
     private apiConnector: BinanceConnector;
     private readonly CANDLE_STICKS_TO_FETCH = 5;
-    private readonly IS_SIMULATION = true; // IF false THEN REAL ORDERS WILL BE MADE !!
 
-    private state: TradingState = { // TODO : the state should be initialised
+    private state: TradingState = {
         id: uuidv4(),
         profitPercent: 0
     };
@@ -54,7 +54,7 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.candleStickInterval = "15m";
         }
         if (!strategyDetails.config.minimumPercentFor24hrVariation) {
-            this.strategyDetails.config.minimumPercentFor24hrVariation = 200;
+            this.strategyDetails.config.minimumPercentFor24hrVariation = 500;
         }
     }
 
@@ -112,18 +112,21 @@ export class MountainSeeker implements BaseStrategy {
             amountOfEurToInvest = Math.min(availableOriginAssetAmountInEur, this.strategyDetails.config.maxMoneyToTrade);
             amountOfTargetAssetToBuy = (1/marketUnitPrice) * amountOfEurToInvest;
         }
+
+        // First order
         log.debug("Preparing to execute the first %O order to buy %O %O on %O market. (≈ %O EUR)",
             OrderAction.BUY, amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountOfEurToInvest);
-        this.apiConnector.createOrder({
+        await this.apiConnector.createOrder({
             id: uuidv4(),
             action: OrderAction.BUY,
             amount: amountOfTargetAssetToBuy,
             originAsset: market.originAsset,
             targetAsset: market.targetAsset,
             type: OrderType.MARKET
-        });
+        }).catch(e => Promise.reject(e));
 
-        // Start trading loop
+        // Price monitor loop
+
 
 
 
@@ -140,6 +143,7 @@ export class MountainSeeker implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private selectMarketForTrading(markets: Array<Market>): Market | undefined {
+        // TODO maybe discard markets such as DF/ETH
         const potentialMarkets = [];
         for (const market of markets) {
             const candleStickVariations = market.candleSticksPercentageVariations;
