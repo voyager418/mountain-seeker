@@ -11,6 +11,7 @@ import { Currency } from "../enums/trading-currencies.enum";
 import cliProgress from 'cli-progress';
 import { OrderType } from "../enums/order-type.enum";
 import { OrderAction } from "../enums/order-action.enum";
+import { StrategyUtils } from "../utils/strategy-utils";
 
 
 /**
@@ -73,7 +74,7 @@ export class MountainSeeker implements BaseStrategy {
         markets = this.filterByAuthorizedCurrencies(markets);
         await this.fetchCandlesticks(markets, this.strategyDetails.config.candleStickInterval, this.CANDLE_STICKS_TO_FETCH)
             .catch(e => Promise.reject(e));
-        MountainSeeker.computeCandlestickPercentVariations(markets);
+        StrategyUtils.computeCandlestickPercentVariations(markets);
         // const market = this.selectMarketForTrading(markets);
         const market = await this.apiConnector.getTestMarket().catch(e => Promise.reject(e));
 
@@ -147,7 +148,7 @@ export class MountainSeeker implements BaseStrategy {
         const potentialMarkets = [];
         for (const market of markets) {
             const candleStickVariations = market.candleSticksPercentageVariations;
-            if (!MountainSeeker.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as PHB/BTC or QKC/BTC in Binance
+            if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as PHB/BTC or QKC/BTC in Binance
                 getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) > 0.1) { // if current price is increasing
                 const previousVariation = getPreviousCandleStickPercentageVariation(market.candleSticksPercentageVariations);
                 if (previousVariation >= 1 && previousVariation <= 40) { // if previous price increased between x and y%
@@ -254,42 +255,6 @@ export class MountainSeeker implements BaseStrategy {
             }
         }
         return Promise.resolve();
-    }
-
-    /**
-     * Computes percentage variations of each candlestick in each market.
-     */
-    private static computeCandlestickPercentVariations(markets: Array<Market>): void {
-        for (const market of markets) {
-            const candleSticks = market.candleSticks; // a candlestick has a format [ timestamp, open, high, low, close, volume ]
-            const candleStickVariations = [];
-            for (const candle of candleSticks) {
-                candleStickVariations.push(this.computePercentVariation(candle[1], candle[4]));
-            }
-            market.candleSticksPercentageVariations = candleStickVariations;
-        }
-    }
-
-    /**
-     * @return A variation in % between two numbers `start` and `end`. Can be negative.
-     */
-    private static computePercentVariation(start: number, end: number): number {
-        // TODO : division by zero ?
-        return 100 - ((100 / end) * start);  // TODO : check why I am not getting exact same numbers as in Binance
-    }
-
-    /**
-     * @return `true` if the array has a duplicated number after rounding them all to 5th digit
-     */
-    private static arrayHasDuplicatedNumber(array: Array<number>): boolean {
-        for (let i = 0; i < array.length; i++) {
-            for (let j = 0; j < array.length && i !== j; j++) {
-                if (array[i].toFixed(5) === array[j].toFixed(5)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     getTradingState(): TradingState {
