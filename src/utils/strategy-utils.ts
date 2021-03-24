@@ -1,7 +1,7 @@
 import { Market } from "../models/market";
 
 /**
- * Utility class for strategies package. With only static methods
+ * Utility class for strategies package
  */
 export class StrategyUtils {
     /**
@@ -27,7 +27,8 @@ export class StrategyUtils {
     }
 
     /**
-     * @return `true` if the array has a duplicated number after rounding them all to 5th digit
+     * @return `true` if the array has a duplicated number after rounding them all to 5th digit,
+     * `false` otherwise
      */
     static arrayHasDuplicatedNumber(array: Array<number>): boolean {
         for (let i = 0; i < array.length; i++) {

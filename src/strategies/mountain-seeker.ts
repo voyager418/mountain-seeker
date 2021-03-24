@@ -6,7 +6,11 @@ import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details"
 import { TradingState } from "../models/trading-state";
 import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
-import { getCurrentCandleStickPercentageVariation, getPreviousCandleStickPercentageVariation, Market } from "../models/market";
+import {
+    getCurrentCandleStickPercentageVariation,
+    Market,
+    getCandleStickPercentageVariation, getCandleStick
+} from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
 import cliProgress from 'cli-progress';
 import { OrderType } from "../enums/order-type.enum";
@@ -25,7 +29,7 @@ export class MountainSeeker implements BaseStrategy {
     private readonly strategyDetails;
     private readonly account: Account;
     private apiConnector: BinanceConnector;
-    private readonly CANDLE_STICKS_TO_FETCH = 5;
+    private readonly CANDLE_STICKS_TO_FETCH = 20;
 
     private state: TradingState = {
         id: uuidv4(),
@@ -55,7 +59,7 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.candleStickInterval = "15m";
         }
         if (!strategyDetails.config.minimumPercentFor24hrVariation) {
-            this.strategyDetails.config.minimumPercentFor24hrVariation = 500;
+            this.strategyDetails.config.minimumPercentFor24hrVariation = 100;
         }
     }
 
@@ -82,7 +86,12 @@ export class MountainSeeker implements BaseStrategy {
             log.info("No market was found");
             return Promise.resolve(this.state);
         }
-        log.info("Found market %O", market);
+        log.info("Found market %O", market.symbol);
+        log.debug("Last 3 candlesticks : %O",
+            market.candleSticks.slice(market.candleSticks.length - 3));
+        log.debug("Last 3 candlestick's percentage variations with %O interval : %O",
+            this.strategyDetails.config.candleStickInterval,
+            market.candleSticksPercentageVariations.slice(market.candleSticksPercentageVariations.length - 3));
 
         // Preparing wallet
         this.state.walletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies)
@@ -95,28 +104,28 @@ export class MountainSeeker implements BaseStrategy {
         log.info("Updated wallet balance after refill : %O", this.state.walletBalance);
         const availableOriginAssetAmount = this.state.walletBalance?.get(market.originAsset);
         if (availableOriginAssetAmount === undefined) {
-            return Promise.reject();
+            return Promise.reject("No amount of origin asset in the wallet");
         }
 
         // Computing the amount to buy
-        let marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset)
-            .catch(e => Promise.reject(e));
-        let amountOfTargetAssetToBuy;
-        let amountOfEurToInvest
+
+        let amountInEurToInvest;
         if (market.originAsset === Currency.EUR) {
-            amountOfEurToInvest = Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade);
-            amountOfTargetAssetToBuy = (1/marketUnitPrice) * amountOfEurToInvest;
+            amountInEurToInvest = Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade);
         } else {
             const marketUnitPriceOfOriginAssetInEur = await this.apiConnector.getUnitPrice(Currency.EUR, market.originAsset)
                 .catch(e => Promise.reject(e));
             const availableOriginAssetAmountInEur = marketUnitPriceOfOriginAssetInEur * availableOriginAssetAmount;
-            amountOfEurToInvest = Math.min(availableOriginAssetAmountInEur, this.strategyDetails.config.maxMoneyToTrade);
-            amountOfTargetAssetToBuy = (1/marketUnitPrice) * amountOfEurToInvest;
+            amountInEurToInvest = Math.min(availableOriginAssetAmountInEur, this.strategyDetails.config.maxMoneyToTrade);
         }
+        let marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset)
+            .catch(e => Promise.reject(e));
+        const amountOfTargetAssetToBuy = (1/marketUnitPrice) * amountInEurToInvest;
 
-        // First order
         log.debug("Preparing to execute the first %O order to buy %O %O on %O market. (≈ %O EUR)",
-            OrderAction.BUY, amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountOfEurToInvest);
+            OrderAction.BUY, amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountInEurToInvest);
+
+        // First BUY order
         await this.apiConnector.createOrder({
             id: uuidv4(),
             action: OrderAction.BUY,
@@ -124,7 +133,20 @@ export class MountainSeeker implements BaseStrategy {
             originAsset: market.originAsset,
             targetAsset: market.targetAsset,
             type: OrderType.MARKET
-        }).catch(e => Promise.reject(e));
+        }, true).catch(e => Promise.reject(e));
+
+        // First STOP-LIMIT order
+        let sellPrice = getCandleStick(market.candleSticks, market.candleSticks.length - 3)[1]; // the open price of the before before last candlestick
+        await this.apiConnector.createOrder({
+            id: uuidv4(),
+            action: OrderAction.SELL,
+            amount: amountOfTargetAssetToBuy,
+            limitPrice: sellPrice,
+            stopPrice: sellPrice,
+            originAsset: market.originAsset,
+            targetAsset: market.targetAsset,
+            type: OrderType.STOP_LOSS_LIMIT
+        }, false).catch(e => Promise.reject(e));
 
         // Price monitor loop
 
@@ -144,19 +166,20 @@ export class MountainSeeker implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private selectMarketForTrading(markets: Array<Market>): Market | undefined {
-        // TODO maybe discard markets such as DF/ETH
         const potentialMarkets = [];
         for (const market of markets) {
             const candleStickVariations = market.candleSticksPercentageVariations;
-            if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as PHB/BTC or QKC/BTC in Binance
+            if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as
+                !candleStickVariations.some(variation => variation === 0) &&      // PHB/BTC, QKC/BTC or DF/ETH in Binance
                 getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) > 0.1) { // if current price is increasing
-                const previousVariation = getPreviousCandleStickPercentageVariation(market.candleSticksPercentageVariations);
-                if (previousVariation >= 1 && previousVariation <= 40) { // if previous price increased between x and y%
+                const previousVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations,
+                    market.candleSticksPercentageVariations.length - 2);
+                if (previousVariation >= -5 && previousVariation <= 40) { // if previous price increased between x and y%
                     // const previousCandleStick = getPreviousCandleStick(market.candleSticks);
                     // if the price variation of the previous candlestick between it's highest and closing price
                     // does not exceed x%
                     // if (MountainSeeker.computePercentVariation(previousCandleStick[4], previousCandleStick[2]) <= 2) {
-                    if (!candleStickVariations.slice(1, this.CANDLE_STICKS_TO_FETCH - 2)
+                    if (!candleStickVariations.slice(1, 3)
                         .some((variation: number) => variation > 10)) { // if the third and fourth candle stick starting from the end, do not exceed x%
                         // TODO maybe add '|| variation < -y in the if
                         potentialMarkets.push(market);
@@ -167,10 +190,10 @@ export class MountainSeeker implements BaseStrategy {
         }
 
         if (potentialMarkets.length > 0) {
-            // return the market with the highest previous candlestick % variation
+            // return the market with the highest current candlestick % variation
             return potentialMarkets.reduce((prev, current) =>
-                ((getPreviousCandleStickPercentageVariation(prev.candleSticksPercentageVariations) >
-                    getPreviousCandleStickPercentageVariation(current.candleSticksPercentageVariations)) ? prev : current));
+                ((getCurrentCandleStickPercentageVariation(prev.candleSticksPercentageVariations) >
+                    getCurrentCandleStickPercentageVariation(current.candleSticksPercentageVariations)) ? prev : current));
         }
 
         // TODO : if nothing was found, maybe search markets that have >= e.g. 100% 24h variation
@@ -251,7 +274,7 @@ export class MountainSeeker implements BaseStrategy {
                     originAsset: Currency.EUR,
                     targetAsset: originAsset,
                     amount: (1/unitPriceInEur) * neededAmountInEur
-                }).catch(e => Promise.reject(e));
+                }, true).catch(e => Promise.reject(e));
             }
         }
         return Promise.resolve();

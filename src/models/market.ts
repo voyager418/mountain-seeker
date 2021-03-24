@@ -2,13 +2,13 @@ import assert from "assert";
 import { Currency } from "../enums/trading-currencies.enum";
 
 export type Market = {
-    /** Example : 'BNB/EUR' */
+    /** Example : "BNB/EUR" */
     symbol: string;
 
-    /** Currency with which we buy (e.g. 'EUR') */
+    /** Currency with which we buy (e.g. "EUR") */
     originAsset: Currency;
 
-    /** The asset that we buy (e.g. 'BNB') */
+    /** The asset that we buy (e.g. "BNB") */
     targetAsset: string;
 
     /** An array of candlesticks.
@@ -21,9 +21,9 @@ export type Market = {
     candleSticksPercentageVariations: Array<number>;
 }
 
-export function getPreviousCandleStick(array: Array<Array<number>>): Array<number> {
-    assert(array.length >= 2, `Candlestick array is too short, wanted at least 2 element but got ${array.length}`);
-    return array[array.length - 2];
+export function getCandleStick(array: Array<Array<number>>, index: number): Array<number> {
+    assert(array.length >= index, `Candlestick array is too short, wanted at least ${index} elements but got ${array.length}`);
+    return array[index];
 }
 
 export function getCurrentCandleStickPercentageVariation(array: Array<number>): number {
@@ -32,8 +32,14 @@ export function getCurrentCandleStickPercentageVariation(array: Array<number>): 
     return array[array.length - 1];
 }
 
-export function getPreviousCandleStickPercentageVariation(array: Array<number>): number {
+export function getBeforeLastCandleStickPercentageVariation(array: Array<number>): number {
     assert(array.length >= 2, `Candlestick percentage variation array is too short,
-     wanted at least 1 element but got ${array.length}`);
+     wanted at least 2 elements but got ${array.length}`);
     return array[array.length - 2];
+}
+
+export function getCandleStickPercentageVariation(array: Array<number>, index: number): number {
+    assert(array.length >= index, `Candlestick percentage variation array is too short,
+     wanted at least ${index + 1} elements but got ${array.length}`);
+    return array[index];
 }

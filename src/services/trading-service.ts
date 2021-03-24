@@ -18,7 +18,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
-            maxMoneyToTrade: 10,
+            maxMoneyToTrade: 1,
             autoRestartOnProfit: false
         }
     }
