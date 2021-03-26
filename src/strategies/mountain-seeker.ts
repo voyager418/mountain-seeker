@@ -16,6 +16,7 @@ import cliProgress from 'cli-progress';
 import { OrderType } from "../enums/order-type.enum";
 import { OrderAction } from "../enums/order-action.enum";
 import { StrategyUtils } from "../utils/strategy-utils";
+import { GlobalUtils } from "../utils/global-utils";
 
 
 /**
@@ -65,22 +66,12 @@ export class MountainSeeker implements BaseStrategy {
 
 
     public async run(): Promise<TradingState> {
-        if (this.strategyDetails.config.candleStickInterval === undefined ||
-            this.strategyDetails.config.minimumPercentFor24hrVariation === undefined ||
-            this.strategyDetails.config.authorizedCurrencies === undefined ||
-            this.strategyDetails.config.maxMoneyToTrade === undefined) {
-            return Promise.reject("Missing a config parameter");
-        }
-
-        // Preparing data
-        let markets: Array<Market> = await this.apiConnector.getMarketsBy24hrVariation(this.strategyDetails.config.minimumPercentFor24hrVariation)
+        // Fetch data and select market
+        const markets: Array<Market> = await this.fetchMarkets(this.strategyDetails.config.minimumPercentFor24hrVariation!,
+            this.strategyDetails.config.candleStickInterval!)
             .catch(e => Promise.reject(e));
-        markets = this.filterByAuthorizedCurrencies(markets);
-        await this.fetchCandlesticks(markets, this.strategyDetails.config.candleStickInterval, this.CANDLE_STICKS_TO_FETCH)
-            .catch(e => Promise.reject(e));
-        StrategyUtils.computeCandlestickPercentVariations(markets);
-        // const market = this.selectMarketForTrading(markets);
-        const market = await this.apiConnector.getTestMarket().catch(e => Promise.reject(e));
+        const market = this.selectMarketForTrading(markets);
+        // const market = await this.apiConnector.getTestMarket("BNB/EUR").catch(e => Promise.reject(e));
 
         if (!market) {
             log.info("No market was found");
@@ -93,54 +84,40 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.candleStickInterval,
             market.candleSticksPercentageVariations.slice(market.candleSticksPercentageVariations.length - 3));
 
-        // Preparing wallet
-        this.state.walletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies)
+        // Prepare wallet
+        await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
-        log.info("Current wallet balance : %O", this.state.walletBalance);
-        await this.handleOriginAssetRefill(market.originAsset, this.state.walletBalance?.get(market.originAsset))
-            .catch(e => Promise.reject(e));
-        this.state.walletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies)
-            .catch(e => Promise.reject(e));
-        log.info("Updated wallet balance after refill : %O", this.state.walletBalance);
         const availableOriginAssetAmount = this.state.walletBalance?.get(market.originAsset);
         if (availableOriginAssetAmount === undefined) {
             return Promise.reject("No amount of origin asset in the wallet");
         }
 
-        // Computing the amount to buy
-
-        let amountInEurToInvest;
-        if (market.originAsset === Currency.EUR) {
-            amountInEurToInvest = Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade);
-        } else {
-            const marketUnitPriceOfOriginAssetInEur = await this.apiConnector.getUnitPrice(Currency.EUR, market.originAsset)
-                .catch(e => Promise.reject(e));
-            const availableOriginAssetAmountInEur = marketUnitPriceOfOriginAssetInEur * availableOriginAssetAmount;
-            amountInEurToInvest = Math.min(availableOriginAssetAmountInEur, this.strategyDetails.config.maxMoneyToTrade);
-        }
+        // Compute the amount of target asset to buy
+        const amountInEurToInvest = await this.computeAmountInEuroToInvest(market, availableOriginAssetAmount)
+            .catch(e => Promise.reject(e));
         let marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset)
             .catch(e => Promise.reject(e));
-        const amountOfTargetAssetToBuy = (1/marketUnitPrice) * amountInEurToInvest;
-
+        // TODO : check the minimal amout of BUY order for the particular market
+        const amountOfTargetAssetToTrade = (1/marketUnitPrice) * amountInEurToInvest;
         log.debug("Preparing to execute the first %O order to buy %O %O on %O market. (≈ %O EUR)",
-            OrderAction.BUY, amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountInEurToInvest);
+            OrderAction.BUY, amountOfTargetAssetToTrade, market.targetAsset, market.symbol, amountInEurToInvest);
 
         // First BUY order
-        await this.apiConnector.createOrder({
+        const buyOrder = await this.apiConnector.createOrder({
             id: uuidv4(),
             action: OrderAction.BUY,
-            amount: amountOfTargetAssetToBuy,
+            amount: amountOfTargetAssetToTrade,
             originAsset: market.originAsset,
             targetAsset: market.targetAsset,
             type: OrderType.MARKET
         }, true).catch(e => Promise.reject(e));
 
         // First STOP-LIMIT order
-        let sellPrice = getCandleStick(market.candleSticks, market.candleSticks.length - 3)[1]; // the open price of the before before last candlestick
-        await this.apiConnector.createOrder({
+        const sellPrice = getCandleStick(market.candleSticks, market.candleSticks.length - 3)[1]; // the open price of the before before last candlestick
+        let stopLimitOrder = await this.apiConnector.createOrder({
             id: uuidv4(),
             action: OrderAction.SELL,
-            amount: amountOfTargetAssetToBuy,
+            amount: amountOfTargetAssetToTrade,
             limitPrice: sellPrice,
             stopPrice: sellPrice,
             originAsset: market.originAsset,
@@ -149,10 +126,37 @@ export class MountainSeeker implements BaseStrategy {
         }, false).catch(e => Promise.reject(e));
 
         // Price monitor loop
+        let newSellPrice = buyOrder.average!;
+        while (sellPrice < marketUnitPrice || newSellPrice < marketUnitPrice) {
+            await GlobalUtils.sleep(3);
+            marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset);
 
+            if (StrategyUtils.getPercentVariation(newSellPrice, marketUnitPrice) >= 3) {
+                // cancel the previous stop limit order
+                await this.apiConnector.cancelOrder(
+                    stopLimitOrder.externalId!,
+                    `${stopLimitOrder.targetAsset}/${stopLimitOrder.originAsset}`,
+                    stopLimitOrder.id).catch(e => Promise.reject(e));
 
+                // compute new stop price
+                newSellPrice = newSellPrice + (newSellPrice * 0.015);
 
-
+                // create new stop limit order
+                stopLimitOrder = await this.apiConnector.createOrder({
+                    id: uuidv4(),
+                    action: OrderAction.SELL,
+                    amount: amountOfTargetAssetToTrade,
+                    limitPrice: newSellPrice,
+                    stopPrice: newSellPrice,
+                    originAsset: market.originAsset,
+                    targetAsset: market.targetAsset,
+                    type: OrderType.STOP_LOSS_LIMIT
+                }, false).catch(e => Promise.reject(e));
+            }
+            log.debug(`Buy (${buyOrder.average}) vs current (${(marketUnitPrice).toFixed(2)}) price : ${(StrategyUtils.getPercentVariation(buyOrder.average!,
+                marketUnitPrice)).toFixed(2)}% | Sell price : ${(newSellPrice).toFixed(2)} | Profit : ${(StrategyUtils.getPercentVariation(buyOrder.average!,
+                newSellPrice)).toFixed(2)}%`);
+        }
 
 
         log.info("Trading has finished", this.state)
@@ -160,6 +164,19 @@ export class MountainSeeker implements BaseStrategy {
     }
 
 
+    /**
+     * @return The amount of EUR that will be invested
+     */
+    private async computeAmountInEuroToInvest(market: Market, availableOriginAssetAmount: number): Promise<number> {
+        if (market.originAsset === Currency.EUR) {
+            return Promise.resolve(Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade));
+        } else {
+            const marketUnitPriceOfOriginAssetInEur = await this.apiConnector.getUnitPrice(Currency.EUR, market.originAsset)
+                .catch(e => Promise.reject(e));
+            const availableOriginAssetAmountInEur = marketUnitPriceOfOriginAssetInEur * availableOriginAssetAmount;
+            return Promise.resolve(Math.min(availableOriginAssetAmountInEur, this.strategyDetails.config.maxMoneyToTrade));
+        }
+    }
 
     /**
      * Searches the best market based on some criteria.
@@ -174,17 +191,12 @@ export class MountainSeeker implements BaseStrategy {
                 getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) > 0.1) { // if current price is increasing
                 const previousVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations,
                     market.candleSticksPercentageVariations.length - 2);
-                if (previousVariation >= -5 && previousVariation <= 40) { // if previous price increased between x and y%
-                    // const previousCandleStick = getPreviousCandleStick(market.candleSticks);
-                    // if the price variation of the previous candlestick between it's highest and closing price
-                    // does not exceed x%
-                    // if (MountainSeeker.computePercentVariation(previousCandleStick[4], previousCandleStick[2]) <= 2) {
+                if (previousVariation >= 9 && previousVariation <= 40) { // if previous price increased between x and y%
                     if (!candleStickVariations.slice(1, 3)
                         .some((variation: number) => variation > 10)) { // if the third and fourth candle stick starting from the end, do not exceed x%
                         // TODO maybe add '|| variation < -y in the if
                         potentialMarkets.push(market);
                     }
-                    // }
                 }
             }
         }
@@ -203,13 +215,51 @@ export class MountainSeeker implements BaseStrategy {
 
 
     /**
+     * @return All potentially interesting markets
+     */
+    private async fetchMarkets(minimumPercentVariation: number, candleStickInterval: string): Promise<Array<Market>> {
+        let markets: Array<Market> = await this.apiConnector.getMarketsBy24hrVariation(minimumPercentVariation)
+            .catch(e => Promise.reject(e));
+        markets = this.filterByAuthorizedCurrencies(markets);
+        markets = this.filterByIgnoredMarkets(markets);
+        console.log(markets);
+        await this.fetchCandlesticks(markets, candleStickInterval, this.CANDLE_STICKS_TO_FETCH)
+            .catch(e => Promise.reject(e));
+        StrategyUtils.computeCandlestickPercentVariations(markets);
+        return Promise.resolve(markets);
+    }
+
+    /**
+     * Fetches wallet information and refills it if needed
+     */
+    private async prepareWallet(market: Market, authorizedCurrencies: Array<Currency>): Promise<void> {
+        this.state.walletBalance = await this.apiConnector.getBalance(authorizedCurrencies)
+            .catch(e => Promise.reject(e));
+        log.info("Current wallet balance : %O", this.state.walletBalance);
+        await this.handleOriginAssetRefill(market.originAsset, this.state.walletBalance?.get(market.originAsset))
+            .catch(e => Promise.reject(e));
+        this.state.walletBalance = await this.apiConnector.getBalance(authorizedCurrencies)
+            .catch(e => Promise.reject(e));
+        log.info("Updated wallet balance after refill : %O", this.state.walletBalance);
+        return Promise.resolve();
+    }
+
+    /**
      * @return Markets that can be traded with currencies defined in `MountainSeekerConfig.authorizedCurrencies`
      */
     private filterByAuthorizedCurrencies(markets: Array<Market>): Array<Market> {
         return markets.filter(market =>
-            this.strategyDetails.config.authorizedCurrencies &&
-            this.strategyDetails.config.authorizedCurrencies
+            this.strategyDetails.config.authorizedCurrencies && this.strategyDetails.config.authorizedCurrencies
                 .some(currency => market.originAsset === currency));
+    }
+
+    /**
+     * @return Markets that are not defined in `MountainSeekerConfig.ignoredMarkets`
+     */
+    private filterByIgnoredMarkets(markets: Array<Market>): Array<Market> {
+        return markets.filter(market =>
+            this.strategyDetails.config.ignoredMarkets && !this.strategyDetails.config.ignoredMarkets
+                .some(symbol => symbol === market.symbol));
     }
 
     /**
@@ -267,6 +317,7 @@ export class MountainSeeker implements BaseStrategy {
                     neededAmountInEur: neededAmountInEur,
                     maxMoneyToTrade: this.strategyDetails.config.maxMoneyToTrade
                 });
+                // TODO : before creating the order, check the minimal BUY order price
                 await this.apiConnector.createOrder({
                     id: uuidv4(),
                     action: OrderAction.BUY,
@@ -288,6 +339,10 @@ export class MountainSeeker implements BaseStrategy {
 export type MountainSeekerConfig = BaseStrategyConfig & {
     /** The maximum amount of money (in EUR) that a strategy is allowed to use for trading. */
     maxMoneyToTrade: number;
+
+    /** Markets that will be filtered out and never be selected.
+     * It is an array of market symbols, for example : ["BNB/EUR"] */
+    ignoredMarkets?: Array<string>;
 
     /** The currencies that the strategy is allowed to use for trading.
      * Example: we want to buy on GAS/BTC market but we only have EUR in the wallet.

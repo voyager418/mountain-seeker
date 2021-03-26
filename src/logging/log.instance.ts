@@ -19,7 +19,7 @@ const log = winston.createLogger({
     transports: [
         new winston.transports.Console(),
         // Write all logs with level `error` and to `error.log`
-        new winston.transports.File({ filename: 'error.log', level: 'error' })
+        new winston.transports.File({ filename: 'log.log', level: 'debug' })
     ],
 });
 

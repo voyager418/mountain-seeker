@@ -7,7 +7,7 @@ export class StrategyUtils {
     /**
      * @return A variation in % between two numbers `start` and `end`. Can be negative.
      */
-    static computePercentVariation(start: number, end: number): number {
+    static getPercentVariation(start: number, end: number): number {
         // TODO : division by zero ?
         return 100 - ((100 / end) * start);  // TODO : check why I am not getting exact same numbers as in Binance
     }
@@ -20,7 +20,7 @@ export class StrategyUtils {
             const candleSticks = market.candleSticks; // a candlestick has a format [ timestamp, open, high, low, close, volume ]
             const candleStickVariations = [];
             for (const candle of candleSticks) {
-                candleStickVariations.push(StrategyUtils.computePercentVariation(candle[1], candle[4]));
+                candleStickVariations.push(StrategyUtils.getPercentVariation(candle[1], candle[4]));
             }
             market.candleSticksPercentageVariations = candleStickVariations;
         }
