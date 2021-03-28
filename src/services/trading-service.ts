@@ -5,6 +5,7 @@ import { TradingStrategy } from "../enums/trading-strategy.enum";
 import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { Service } from "typedi";
+import { TradingState } from "../models/trading-state";
 
 /**
  * This service is responsible to start the appropriate trading strategy.
@@ -18,7 +19,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
-            maxMoneyToTrade: 10,
+            maxMoneyToTrade: 12,
             autoRestartOnProfit: false
         }
     }
@@ -29,9 +30,18 @@ export class TradingService {
     }
 
     public async beginTrading(): Promise<void> {
-        const defaultStrategy = new MountainSeeker(this.account, this.strategy);
-        await defaultStrategy.run()
-            .catch((e) => log.error("Trading was aborted.", new Error(e)));
+        let shouldTrade = true;
+        while (shouldTrade) {
+            const defaultStrategy = new MountainSeeker(this.account, this.strategy);
+            const result: TradingState = await defaultStrategy.run()
+                .catch((e) => log.error("Trading was aborted.", new Error(e)));
+            if (result && result.endedWithoutErrors) {
+                shouldTrade = false;
+                process.exit(0);
+            }
+            // GlobalUtils.sleep();
+            // process.exit(0);
+        }
     }
 
 }

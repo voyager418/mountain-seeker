@@ -100,6 +100,15 @@ export class BinanceConnector { // TODO: this should implement an interface
     }
 
     /**
+     * @return Balance for a particular `currency`
+     */
+    public async getBalanceForCurrency(currency: string): Promise<number> {
+        const balance = await this.binance.fetchBalance()
+            .catch(e => Promise.reject(`Failed to fetch balance for currency ${currency}: ${e}`));
+        return balance[currency].free;
+    }
+
+    /**
      * This method always returns a valid result or exits with an error.
      * @return A number that stands for the amount of `inAsset` needed to buy 1 unit of `ofAsset`
      */
@@ -137,7 +146,7 @@ export class BinanceConnector { // TODO: this should implement an interface
         case OrderType.MARKET:
             binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
                 "market", order.action, order.amount)
-                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order)} order. ${e}`));
+                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order, null, 4)} order. ${e}`));
             break;
         case OrderType.STOP_LOSS_LIMIT:
             assert(order.stopPrice !== undefined, "Stop price must be provided for stop-limit orders");
@@ -149,12 +158,12 @@ export class BinanceConnector { // TODO: this should implement an interface
                 "STOP_LOSS_LIMIT", order.action, order.amount, order.limitPrice, {
                     stopPrice: order.stopPrice
                 })
-                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order)} order. ${e}`));
+                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order, null, 4)} order. ${e}`));
             break;
         default:
             return Promise.reject(`Order type not recognized : ${order.type}`);
         }
-        log.debug(`Created binance order : ${JSON.stringify(binanceOrder)}`);
+
         order.externalId = binanceOrder.id;
         order.status = binanceOrder.status;
         order.datetime = binanceOrder.datetime;
@@ -163,18 +172,43 @@ export class BinanceConnector { // TODO: this should implement an interface
         order.remaining = binanceOrder.remaining;
         order.average = binanceOrder.average;
         if (!awaitCompletion) {
+            log.debug(`Created binance order : ${JSON.stringify(order, null, 4)}`);
             return Promise.resolve(order);
         }
 
+        const completedOrder = await this.waitForOrderCompletion(order, 3).catch(e => Promise.reject(e));
+        if (!completedOrder) {
+            return Promise.reject("BUY order took to much time to execute");
+        }
+        log.debug(`Created binance order : ${JSON.stringify(completedOrder, null, 4)}`);
+        return Promise.resolve(completedOrder);
+    }
+
+    /**
+     * Resolves only when the order's status changes to `closed`
+     * @return {@link Order} if order has been closed and `undefined` if still not after x `retries`
+     */
+    public async waitForOrderCompletion(order: Order, retries: number): Promise<Order | undefined> {
+        if (BinanceConnector.IS_SIMULATION) {
+            return Promise.resolve(undefined);
+        }
         let filled = false;
-        while (!filled) {
-            await GlobalUtils.sleep(1);
+        let remainingRetries = retries;
+        while (!filled && remainingRetries > 0) {
+            await GlobalUtils.sleep(2);
             order = await this.getOrder(order.externalId!,
                 `${order.targetAsset}/${order.originAsset}`, order.id)
                 .catch(e => Promise.reject(e));
             filled = order.status === "closed";
+            if (filled) {
+                return Promise.resolve(order);
+            }
+            if (remainingRetries === 0) {
+                return Promise.resolve(undefined);
+            }
+            remainingRetries--;
         }
-        return Promise.resolve(order);
+        return Promise.resolve(undefined);
     }
 
     /**
@@ -197,7 +231,7 @@ export class BinanceConnector { // TODO: this should implement an interface
             originAsset: Currency[binanceOrder.symbol.split('/')[1] as keyof typeof Currency],
             targetAsset: binanceOrder.symbol.split('/')[0]
         };
-        log.debug(`Fetched information about order : ${JSON.stringify(order)}`);
+        log.debug(`Fetched information about order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
     }
 
@@ -234,193 +268,8 @@ export class BinanceConnector { // TODO: this should implement an interface
             originAsset: Currency[binanceOrder.symbol.split('/')[1] as keyof typeof Currency],
             targetAsset: binanceOrder.symbol.split('/')[0]
         };
-        log.debug(`Cancelled order : ${JSON.stringify(order)}`);
+        log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
-    }
-
-
-    public async getTestMarket(symbol: string): Promise<Market> {
-        const market = await this.binance.fetchTicker(symbol);
-        return {
-            symbol: market.symbol,
-            originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
-            targetAsset: market.symbol.split('/')[0],
-            candleSticks: [
-                [
-                    1616435100000,
-                    0.00000629,
-                    0.00000645,
-                    0.00000622,
-                    0.00000635,
-                    76627443
-                ],
-                [
-                    1616436000000,
-                    0.00000636,
-                    0.00000636,
-                    0.00000601,
-                    0.00000607,
-                    91004794
-                ],
-                [
-                    1616436900000,
-                    0.00000607,
-                    0.00000625,
-                    0.0000058,
-                    0.00000583,
-                    126546955
-                ],
-                [
-                    1616437800000,
-                    0.00000585,
-                    0.00000587,
-                    0.00000555,
-                    0.00000577,
-                    154234636
-                ],
-                [
-                    1616438700000,
-                    0.00000579,
-                    0.00000596,
-                    0.00000568,
-                    0.00000571,
-                    117033726
-                ],
-                [
-                    1616439600000,
-                    0.00000568,
-                    0.00000579,
-                    0.00000548,
-                    0.00000553,
-                    159815251
-                ],
-                [
-                    1616440500000,
-                    0.00000554,
-                    0.00000592,
-                    0.00000543,
-                    0.00000578,
-                    118020988
-                ],
-                [
-                    1616441400000,
-                    0.00000577,
-                    0.00000596,
-                    0.00000557,
-                    0.00000595,
-                    78211596
-                ],
-                [
-                    1616442300000,
-                    0.00000596,
-                    0.00000654,
-                    0.00000586,
-                    0.00000622,
-                    194289820
-                ],
-                [
-                    1616443200000,
-                    0.00000622,
-                    0.00000643,
-                    0.00000605,
-                    0.00000629,
-                    130423883
-                ],
-                [
-                    1616444100000,
-                    0.0000063,
-                    0.00000638,
-                    0.00000591,
-                    0.00000604,
-                    98955239
-                ],
-                [
-                    1616445000000,
-                    0.00000604,
-                    0.00000615,
-                    0.00000583,
-                    0.00000586,
-                    89996580
-                ],
-                [
-                    1616445900000,
-                    0.00000586,
-                    0.00000613,
-                    0.00000581,
-                    0.00000605,
-                    83811791
-                ],
-                [
-                    1616446800000,
-                    0.00000606,
-                    0.0000063,
-                    0.00000592,
-                    0.00000626,
-                    93667225
-                ],
-                [
-                    1616447700000,
-                    0.00000627,
-                    0.0000063,
-                    0.00000599,
-                    0.00000603,
-                    73110702
-                ],
-                [
-                    1616448600000,
-                    0.00000604,
-                    0.00000614,
-                    0.00000594,
-                    0.00000598,
-                    38004172
-                ],
-                [
-                    1616449500000,
-                    0.00000597,
-                    0.00000599,
-                    0.00000577,
-                    0.00000591,
-                    53143254
-                ],
-                [
-                    1616450400000,
-                    0.00000591,
-                    0.00000593,
-                    0.00000561,
-                    0.00000592,
-                    84973857
-                ],
-                [
-                    1616451300000,
-                    0.00000592,
-                    0.00000593,
-                    0.00000573,
-                    0.0000058,
-                    52504548
-                ],
-                [
-                    1616452200000,
-                    0.00000581,
-                    0.00000625,
-                    0.00000575,
-                    0.00000606,
-                    58605962
-                ]
-            ],
-            candleSticksPercentageVariations: [
-                0.9448818897637778,  -4.777594728171337,
-                -4.116638078902227, -1.3864818024263457,
-                -1.4010507880910552,  -2.712477396021697,
-                4.152249134948079,   3.025210084033617,
-                4.180064308681679,  1.1128775834658313,
-                -4.3046357615894095, -3.0716723549488023,
-                3.1404958677685926,  3.1948881789137573,
-                -3.980099502487562,  -1.003344481605339,
-                -1.015228426395936,  0.1689189189189051,
-                -2.068965517241381,   4.125412541254121
-            ]
-
-        };
     }
 
 }
