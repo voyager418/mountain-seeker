@@ -1,3 +1,4 @@
+import log from "../logging/log.instance";
 import { Service } from "typedi";
 const nodemailer = require('nodemailer');
 
@@ -17,12 +18,16 @@ export class EmailService {
     }
 
     public async sendEmail(subject: string, text: string): Promise<void> {
-        await this.transporter.sendMail({
-            from: `"MS 🏔" <${process.env.EMAIL_ADDRESS}>`, // sender address
-            to: process.env.EMAIL_ADDRESS, // list of receivers
-            subject: subject,
-            text: text
-        });
+        try {
+            await this.transporter.sendMail({
+                from: `"MS 🏔" <aa>`, // sender address
+                to: process.env.EMAIL_ADDRESS, // list of receivers
+                subject: subject,
+                text: text
+            });
+        } catch (e) {
+            log.warn("Failed to send mail:", e);
+        }
     }
 }
 
