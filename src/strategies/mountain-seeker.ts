@@ -22,7 +22,7 @@ import { EmailService } from "../services/email-service";
  */
 @Service({ transient: true })
 export class MountainSeeker implements BaseStrategy {
-    private readonly IS_SIMULATION = true; // IF false THEN REAL ORDERS WILL BE MADE !!
+    private readonly IS_SIMULATION = false; // IF false THEN REAL ORDERS WILL BE MADE !!
     private readonly strategyDetails;
     private readonly account: Account;
     private apiConnector: BinanceConnector;
@@ -66,7 +66,7 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.minimumPercentFor24hrVariation = 0;
         }
         if (!strategyDetails.config.authorizedMarkets) {
-            this.strategyDetails.config.authorizedMarkets = ["BNB/EUR"];
+            this.strategyDetails.config.authorizedMarkets = [];
         }
     }
 
@@ -76,8 +76,8 @@ export class MountainSeeker implements BaseStrategy {
         const markets: Array<Market> = await this.fetchMarkets(this.strategyDetails.config.minimumPercentFor24hrVariation!,
             this.strategyDetails.config.candleStickInterval!)
             .catch(e => Promise.reject(e));
-        // const market = this.selectMarketForTrading(markets);
-        const market = markets[0]; // attention if the stop price is bigger than current price, it will not work
+        const market = this.selectMarketForTrading(markets);
+        // const market = markets[0]; // attention if the stop price is bigger than current price, it will not work
 
         if (!market) {
             log.info("No market was found");
