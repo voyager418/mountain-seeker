@@ -1,4 +1,4 @@
-export enum OrderAction {
+export enum OrderSide {
   BUY = "buy",
   SELL = "sell"
 }

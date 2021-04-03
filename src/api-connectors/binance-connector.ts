@@ -7,8 +7,6 @@ import { Market } from "../models/market";
 import { Order } from "../models/order";
 import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
-import assert from "assert";
-import { OrderAction } from "../enums/order-action.enum";
 import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
 
@@ -121,64 +119,169 @@ export class BinanceConnector { // TODO: this should implement an interface
         if (lastPrice === undefined) {
             return Promise.reject(`Last price of ${marketSymbol} was not found`);
         }
-        // log.debug(`Currently 1 ${ofAsset} ≈ ${lastPrice} ${inAsset}`);
+        log.debug(`Currently 1 ${ofAsset} ≈ ${lastPrice} ${inAsset}`);
         return Promise.resolve(lastPrice);
     }
 
     /**
-     * Places a new order on the market.
-     * @param order Information about the order that will be executed.
-     * @param awaitCompletion If `true` then this method will return only when the order is totally filled/completed.
-     * @return The updated `order` object
+     * Creates a market order.
+     * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
+     * change from `open` to `closed`
+     * @param retries Indicates the number of times the order will be repeated in case of a failure
+     * @param amountToInvest The number of origin asset that is going to be invested (needed for retries).
      */
-    public async createOrder(order: Order, awaitCompletion: boolean) : Promise<Order> {
+    public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
+        awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
         // TODO : there is always a minimum amount allowed to buy depending on a market
         //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
         if (BinanceConnector.IS_SIMULATION) {
+            const order: Order = {
+                amountOfTargetAsset: 0,
+                datetime: "",
+                externalId: "",
+                filled: 0,
+                id: "123",
+                originAsset,
+                remaining: 0,
+                side: side,
+                status: "open",
+                targetAsset,
+                type: OrderType.MARKET,
+                average: 200
+            };
             log.info(`Executing simulated order %O`, order);
-            order.average = 200;
             return Promise.resolve(order);
         }
 
-        log.info(`Executing new order %O`, order);
-        let binanceOrder;
-        switch (order.type) {
-        case OrderType.MARKET:
-            binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
-                "market", order.action, order.amount)
-                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order, null, 4)} order. ${e}`));
-            break;
-        case OrderType.STOP_LOSS_LIMIT:
-            assert(order.stopPrice !== undefined, "Stop price must be provided for stop-limit orders");
-            // TODO : "it would be safer for you to set the stop price (trigger price) a bit higher than the limit
-            //  price (for sell orders) or a bit lower than the limit price (for buy orders). This increases the
-            //  chances of your limit order getting filled after the stop-limit is triggered."
-            //   @see https://academy.binance.com/en/articles/what-is-a-stop-limit-order
-            binanceOrder = await this.binance.createOrder(order.targetAsset + '/' + order.originAsset,
-                "STOP_LOSS_LIMIT", order.action, order.amount, order.limitPrice, {
-                    stopPrice: order.stopPrice
-                })
-                .catch(e => Promise.reject(`Failed to execute ${JSON.stringify(order, null, 4)} order. ${e}`));
-            break;
-        default:
-            return Promise.reject(`Order type not recognized : ${order.type}`);
+        let binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
+            "market", side, amount)
+            .catch(e => Promise.reject(`Failed to execute ${side} order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`));
+        if (!binanceOrder && retries && amountToInvest) {
+            while (retries > 0) {
+                try {
+                    const unitPrice = await this.getUnitPrice(originAsset, targetAsset);
+                    const amountToBuy = amountToInvest/unitPrice;
+                    binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
+                        "market", side, amountToBuy)
+                        .catch(e => Promise.reject(`Failed to execute ${side} order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`));
+                } catch (e) {
+                    log.error("Failed to create order :%O ");
+                    retries--;
+                    if (retries > 0) {
+                        log.debug("Retrying...");
+                    }
+                }
+            }
         }
 
-        order.externalId = binanceOrder.id;
-        order.status = binanceOrder.status;
-        order.datetime = binanceOrder.datetime;
-        order.info = binanceOrder.info;
-        order.filled = binanceOrder.filled;
-        order.remaining = binanceOrder.remaining;
-        order.average = binanceOrder.average;
+        const order:Order = {
+            id: uuidv4(),
+            externalId: binanceOrder.id,
+            amountOfTargetAsset: amount,
+            filled: binanceOrder.filled,
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average,
+            amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
+            status: binanceOrder.status,
+            originAsset,
+            targetAsset,
+            side,
+            datetime: binanceOrder.datetime,
+            type: OrderType.MARKET,
+            info: binanceOrder.info
+        }
         if (!awaitCompletion) {
             log.debug(`Created binance order : ${JSON.stringify(order, null, 4)}`);
             return Promise.resolve(order);
         }
 
-        const completedOrder = await this.waitForOrderCompletion(order, 3).catch(e => Promise.reject(e));
+        const orderCompletionRetries = 3;
+        const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries).catch(e => Promise.reject(e));
         if (!completedOrder) {
-            return Promise.reject("BUY order took to much time to execute");
+            return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
+        }
+        log.debug(`Created ${order.type} order : ${JSON.stringify(completedOrder, null, 4)}`);
+        return Promise.resolve(completedOrder);
+    }
+
+    /**
+     * Creates a stop limit order.
+     * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
+     * change from `open` to `closed`
+     * @param retries Indicates the number of times the order will be repeated in case of a failure
+     */
+    public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
+        stopPrice: number, limitPrice: number, awaitCompletion?: boolean, retries?: number): Promise<Order> {
+        if (BinanceConnector.IS_SIMULATION) {
+            const order: Order = {
+                amountOfTargetAsset: 0,
+                datetime: "",
+                externalId: "",
+                filled: 0,
+                id: "",
+                originAsset,
+                remaining: 0,
+                side: side,
+                status: "open",
+                targetAsset,
+                type: OrderType.STOP_LOSS_LIMIT,
+                average: 200
+            };
+            log.info(`Executing simulated order %O`, order);
+            return Promise.resolve(order);
+        }
+
+        let binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
+            "STOP_LOSS_LIMIT", side, amount, limitPrice, {
+                stopPrice: stopPrice
+            })
+            .catch(e => Promise.reject(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}. ${e}`));
+        if (!binanceOrder && retries) {
+            while (retries > 0) {
+                try {
+                    binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
+                        "STOP_LOSS_LIMIT", side, amount, limitPrice, {
+                            stopPrice: stopPrice
+                        })
+                        .catch(e => Promise.reject(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}. ${e}`));
+                } catch (e) {
+                    log.error("Failed to create order :%O ");
+                    retries--;
+                    if (retries > 0) {
+                        log.debug("Retrying...");
+                    }
+                }
+            }
+        }
+
+        const order:Order = {
+            id: uuidv4(),
+            externalId: binanceOrder.id,
+            amountOfTargetAsset: amount,
+            stopPrice,
+            limitPrice,
+            filled: binanceOrder.filled,
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average,
+            amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
+            status: binanceOrder.status,
+            originAsset,
+            targetAsset,
+            side,
+            datetime: binanceOrder.datetime,
+            type: OrderType.STOP_LOSS_LIMIT,
+            info: binanceOrder.info
+        }
+        if (!awaitCompletion) {
+            log.debug(`Created ${order.type} order : ${JSON.stringify(order, null, 4)}`);
+            return Promise.resolve(order);
+        }
+
+        const orderCompletionRetries = 3;
+        const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries)
+            .catch(e => Promise.reject(e));
+        if (!completedOrder) {
+            return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
         }
         log.debug(`Created binance order : ${JSON.stringify(completedOrder, null, 4)}`);
         return Promise.resolve(completedOrder);
@@ -188,16 +291,14 @@ export class BinanceConnector { // TODO: this should implement an interface
      * Resolves only when the order's status changes to `closed`
      * @return {@link Order} if order has been closed and `undefined` if still not after x `retries`
      */
-    public async waitForOrderCompletion(order: Order, retries: number): Promise<Order | undefined> {
+    public async waitForOrderCompletion(order: Order, originAsset: Currency, targetAsset: string, retries: number): Promise<Order | undefined> {
         if (BinanceConnector.IS_SIMULATION) {
             return Promise.resolve(undefined);
         }
         let filled = false;
         let remainingRetries = retries;
         while (!filled && remainingRetries > 0) {
-            await GlobalUtils.sleep(2);
-            order = await this.getOrder(order.externalId!,
-                `${order.targetAsset}/${order.originAsset}`, order.id)
+            order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, order.type!)
                 .catch(e => Promise.reject(e));
             filled = order.status === "closed";
             if (filled) {
@@ -207,6 +308,7 @@ export class BinanceConnector { // TODO: this should implement an interface
                 return Promise.resolve(undefined);
             }
             remainingRetries--;
+            await GlobalUtils.sleep(2);
         }
         return Promise.resolve(undefined);
     }
@@ -214,22 +316,24 @@ export class BinanceConnector { // TODO: this should implement an interface
     /**
      * @return Order information
      */
-    public async getOrder(orderId: string, marketSymbol: string, internalOrderId: string) : Promise<Order> {
-        const binanceOrder = await this.binance.fetchOrder(orderId, marketSymbol)
+    public async getOrder(externalId: string, originAsset: Currency, targetAsset: string, internalOrderId: string, orderType: OrderType) : Promise<Order> {
+        const binanceOrder = await this.binance.fetchOrder(externalId, `${targetAsset}/${originAsset}`)
             .catch(e => Promise.reject(e));
         const order: Order = {
-            externalId: binanceOrder.id,
+            type: orderType,
             id: internalOrderId,
-            action: binanceOrder.side as OrderAction,
-            amount: binanceOrder.amount,
+            externalId: binanceOrder.id,
+            side: binanceOrder.side,
+            amountOfTargetAsset: binanceOrder.amount,
             filled: binanceOrder.filled,
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
+            amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
             status: binanceOrder.status,
             datetime: binanceOrder.datetime,
             info: binanceOrder.info,
-            originAsset: Currency[binanceOrder.symbol.split('/')[1] as keyof typeof Currency],
-            targetAsset: binanceOrder.symbol.split('/')[0]
+            originAsset,
+            targetAsset
         };
         log.debug(`Fetched information about order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
@@ -238,12 +342,17 @@ export class BinanceConnector { // TODO: this should implement an interface
     /**
      * @return The cancelled order
      */
-    public async cancelOrder(orderId: string, marketSymbol: string, internalOrderId: string) : Promise<Order> {
+    public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
         if (BinanceConnector.IS_SIMULATION) {
             const o = {
                 id: uuidv4(),
-                action: OrderAction.SELL,
-                amount: 2,
+                externalId: "",
+                filled: 0,
+                remaining: 0,
+                status: "closed" as "open" | "closed" | "canceled",
+                datetime: "",
+                side: "sell" as "buy" | "sell",
+                amountOfTargetAsset: 2,
                 average: 200,
                 originAsset: Currency.EUR,
                 targetAsset: "BNB",
@@ -252,21 +361,21 @@ export class BinanceConnector { // TODO: this should implement an interface
             log.info(`Executing simulated cancel order %O`, o);
             return Promise.resolve(o);
         }
-        const binanceOrder = await this.binance.cancelOrder(orderId, marketSymbol)
+        const binanceOrder = await this.binance.cancelOrder(orderId, `${targetAsset}/${originAsset}`)
             .catch(e => Promise.reject(e));
         const order: Order = {
             externalId: binanceOrder.id,
             id: internalOrderId,
-            action: binanceOrder.side as OrderAction,
-            amount: binanceOrder.amount,
+            side: binanceOrder.side,
+            amountOfTargetAsset: binanceOrder.amount,
             filled: binanceOrder.filled,
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             status: binanceOrder.status,
             datetime: binanceOrder.datetime,
             info: binanceOrder.info,
-            originAsset: Currency[binanceOrder.symbol.split('/')[1] as keyof typeof Currency],
-            targetAsset: binanceOrder.symbol.split('/')[0]
+            originAsset,
+            targetAsset
         };
         log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);

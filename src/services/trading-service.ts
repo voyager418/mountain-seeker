@@ -31,16 +31,19 @@ export class TradingService {
 
     public async beginTrading(): Promise<void> {
         let shouldTrade = true;
+
         while (shouldTrade) {
             const defaultStrategy = new MountainSeeker(this.account, this.strategy);
-            const result: TradingState = await defaultStrategy.run()
-                .catch((e) => log.error("Trading was aborted.", new Error(e)));
-            if (result && result.endedWithoutErrors) {
-                shouldTrade = false;
-                process.exit(0);
+            try {
+                const result: TradingState = await defaultStrategy.run();
+                if (result && result.endedWithoutErrors) {
+                    shouldTrade = false;
+                    process.exit(0);
+                }
+            } catch (e) {
+                log.error("Trading was aborted.", new Error(e));
+                process.exit(1);
             }
-            // GlobalUtils.sleep();
-            // process.exit(0);
         }
     }
 
