@@ -1,13 +1,15 @@
 import log from "../logging/log.instance";
-import { Service } from "typedi";
+import { Container, Service } from "typedi";
 const nodemailer = require('nodemailer');
 
 
 @Service()
 export class EmailService {
     private transporter;
+    private static IS_SIMULATION: false;
 
     constructor() {
+        EmailService.IS_SIMULATION = Container.get("IS_SIMULATION");
         this.transporter = nodemailer.createTransport({
             service: process.env.EMAIL_PROVIDER,
             auth: {
@@ -18,15 +20,17 @@ export class EmailService {
     }
 
     public async sendEmail(subject: string, text: string): Promise<void> {
-        try {
-            await this.transporter.sendMail({
-                from: `"MS 🏔" <aa>`, // sender address
-                to: process.env.EMAIL_ADDRESS, // list of receivers
-                subject: subject,
-                text: text
-            });
-        } catch (e) {
-            log.warn("Failed to send mail:", e);
+        if(!EmailService.IS_SIMULATION) {
+            try {
+                await this.transporter.sendMail({
+                    from: `"MS 🏔" <${process.env.EMAIL_ADDRESS}>`, // sender address
+                    to: process.env.EMAIL_ADDRESS, // list of receivers
+                    subject: subject,
+                    text: text
+                });
+            } catch (e) {
+                log.warn("Failed to send mail : ", e);
+            }
         }
     }
 }

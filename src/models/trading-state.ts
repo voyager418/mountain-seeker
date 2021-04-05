@@ -10,11 +10,11 @@ export type TradingState = {
     /** Identifier of the trading strategy that is being executed */
     id: string;
     /** User's wallet balance for before starting the trading */
-    initialWalletBalance?: Map<Currency, number>;
+    initialWalletBalance?: string;
     /** Updated user's wallet balance after refill */
-    refilledWalletBalance?: Map<Currency, number>;
+    refilledWalletBalance?: string;
     /** User's wallet balance when trading finished */
-    endWalletBalance?: Map<Currency, number>;
+    endWalletBalance?: string;
     /** Indicates the made profit in %, can be negative */
     percentChange?: number;
     /** Indicates the made profit in €, can be negative */
@@ -43,7 +43,11 @@ export type TradingState = {
     endUnitPriceOnYXMarket?: number;
     /** For example : if trading market is "CAKE/BNB", then X = EUR, Y = BNB and Z = CAKE.
      * So YX = "BNB/EUR" */
-    percentChangeOnYX?: number;
+    pricePercentChangeOnYX?: number;
+    /** Amount of Y that was bought and that will be used to buy Z */
+    amountOfYBought?: number
+    /** Amount of Y used to buy Z */
+    amountOfYSpentOnZ?: number
     /** Parameters of the strategy */
     config?: StrategyDetails<any>;
 }

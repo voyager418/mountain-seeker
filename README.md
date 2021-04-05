@@ -4,8 +4,8 @@ An automatic trading bot written in TypeScript.
 
 ### Requirements
 
-- Node.js v15.8.0
-- npm v7.5.3
+- Node.js v14.16.0
+- npm v6.14.11
 
 ### Some useful commands for development
 
