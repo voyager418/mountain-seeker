@@ -22,7 +22,7 @@ import { EmailService } from "../services/email-service";
  */
 @Service({ transient: true })
 export class MountainSeeker implements BaseStrategy {
-    private readonly IS_SIMULATION = false; // IF false THEN REAL ORDERS WILL BE MADE !!
+    private readonly IS_SIMULATION = true; // IF false THEN REAL ORDERS WILL BE MADE !!
     private readonly strategyDetails;
     private readonly account: Account;
     private readonly apiConnector: BinanceConnector;
@@ -85,9 +85,8 @@ export class MountainSeeker implements BaseStrategy {
             log.info("No market was found");
             return Promise.resolve(this.state);
         }
-        this.state.market = market;
-        await this.emailService.sendEmail(`Trading started on market ${market.symbol}`,
-            JSON.stringify(market, null, 4));
+        this.state.marketSymbol = market.symbol;
+        this.state.candleSticksPercentageVariations = market.candleSticksPercentageVariations;
         log.info("Found market %O", market.symbol);
         log.debug("Last 3 candlestick's percentage variations with %O interval : %O",
             this.strategyDetails.config.candleStickInterval,
@@ -130,6 +129,8 @@ export class MountainSeeker implements BaseStrategy {
             "sell", targetAssetAmount, sellPrice, sellPrice, false, 3)
             .catch(e => Promise.reject(e));
         this.state.stopLimitOrders?.push({ ...stopLimitOrder }); // deep copy
+        await this.emailService.sendEmail(`Trading started on ${market.symbol}`,
+            "Current state : \n" + JSON.stringify(this.state, null, 4));
 
         // Price monitor loop
         let newSellPrice = buyOrder.average!;
@@ -143,14 +144,12 @@ export class MountainSeeker implements BaseStrategy {
                 .catch(e => log.error(e));
 
             if (StrategyUtils.getPercentVariation(newSellPrice, marketUnitPrice) >= 2.5) {
-            // if (StrategyUtils.getPercentVariation(newSellPrice, marketUnitPrice) >= 0.3) {
                 // cancel the previous stop limit order
                 await this.apiConnector.cancelOrder(stopLimitOrder.externalId, stopLimitOrder.id,
                     market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
 
-                // compute new stop price
+                // compute new stop limit price
                 newSellPrice = newSellPrice + (newSellPrice * 0.01); // increasing by 1%
-                // newSellPrice = newSellPrice + (newSellPrice * 0.001); // 0.001
 
                 // create new stop limit order
                 stopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
@@ -198,9 +197,13 @@ export class MountainSeeker implements BaseStrategy {
         }
         this.state.profitEuro = this.state.retrievedAmountOfEuro - this.state.investedAmountOfEuro!;
         this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro);
-        this.state.endWalletBalance = JSON.stringify(Array.from(await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies!)
-            .catch(e => Promise.reject(e))).entries());
-        await this.emailService.sendEmail("Trading has finished", JSON.stringify(this.state, null, 4));
+        const endWalletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies!)
+            .catch(e => Promise.reject(e));
+        this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
+
+        await this.emailService.sendEmail(`Trading has finished on ${market.symbol} (${this.state.percentChange > 0
+            ? '+' : ''}${this.state.percentChange}%, ${this.state.profitEuro}EUR)`, "Final state is : \n" +
+            JSON.stringify(this.state, null, 4));
         return Promise.resolve();
     }
 
@@ -228,7 +231,7 @@ export class MountainSeeker implements BaseStrategy {
             if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as
                 !candleStickVariations.some(variation => variation === 0) &&      // PHB/BTC, QKC/BTC or DF/ETH in Binance
                 getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) > 0.1 && // if current price is increasing
-                getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) <= 5) {
+                getCurrentCandleStickPercentageVariation(market.candleSticksPercentageVariations) <= 3) {
                 const previousVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations,
                     market.candleSticksPercentageVariations.length - 2);
                 if (previousVariation >= 8 && previousVariation <= 40) { // if previous price increased between x and y%

@@ -28,7 +28,9 @@ export type TradingState = {
     /** Indicates whether the market accepts EUR currency (which is used to buy {@link Market.targetAsset}) */
     originAssetIsEur?: boolean;
     /** The market where the trading is happening */
-    market?: Market;
+    marketSymbol?: string;
+    /** Array of candlesticks percentage variations */
+    candleSticksPercentageVariations?: Array<number>;
     /** First BUY order when the trading starts */
     firstBuyOrder?: Order;
     /** All STOP LIMIT orders that are made */
