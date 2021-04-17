@@ -195,7 +195,6 @@ export class BinanceConnector {
             }
         }
         if (!binanceOrder) {
-            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Failed to execute ${side} market order on market ${targetAsset}/${originAsset}`);
         }
 
@@ -224,7 +223,6 @@ export class BinanceConnector {
         const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries)
             .catch(e => Promise.reject(e));
         if (!completedOrder) {
-            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
         }
         log.debug(`Created ${order.type} order : ${JSON.stringify(completedOrder, null, 4)}`);
@@ -285,7 +283,6 @@ export class BinanceConnector {
         }
 
         if (!binanceOrder) {
-            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Failed to execute ${side} stop limit order of ${amount} on market ${targetAsset}/${originAsset}`);
         }
 

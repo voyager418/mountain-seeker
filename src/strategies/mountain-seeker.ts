@@ -105,6 +105,9 @@ export class MountainSeeker implements BaseStrategy {
             log.info("No market was found");
             return Promise.resolve(this.state);
         }
+
+        log.debug(`Using config : ${JSON.stringify(this.strategyDetails, null, 4)}`);
+        this.apiConnector.printMarketDetails(market.symbol);
         this.state.marketSymbol = market.symbol;
         this.state.candleSticksPercentageVariations = market.candleSticksPercentageVariations;
         log.info("Found market %O", market.symbol);
@@ -226,6 +229,8 @@ export class MountainSeeker implements BaseStrategy {
         }
         this.state.profitEuro = this.state.retrievedAmountOfEuro - this.state.investedAmountOfEuro!;
         this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro);
+        log.info(`Final percent change : ${this.state.percentChange}`);
+
         const endWalletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
@@ -264,7 +269,7 @@ export class MountainSeeker implements BaseStrategy {
                 if (currentVariation >= 0.1 && currentVariation <= 3) { // if current price is increasing
                     const previousVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations,
                         market.candleSticksPercentageVariations.length - 2);
-                    if (previousVariation >= 9 && previousVariation <= 20) { // if previous price increased between x and y%
+                    if (previousVariation >= 9 && previousVariation <= 37) { // if previous price increased between x and y%
                         log.debug(`Potential market : ${JSON.stringify(market)}`);
                         if (!candleStickVariations.slice(candleStickVariations.length - 4, candleStickVariations.length - 2)
                             .some(variation => variation > 6 || variation < -5)) { // if the third and fourth candle stick starting from the end, do not exceed x% and is not less than y%
