@@ -46,6 +46,9 @@ export type TradingState = {
     /** For example : if trading market is "CAKE/BNB", then X = EUR, Y = BNB and Z = CAKE.
      * So YX = "BNB/EUR" */
     pricePercentChangeOnYX?: number;
+    /** For example : if trading market is "CAKE/BNB", then X = EUR, Y = BNB and Z = CAKE.
+     * So ZY = "CAKE/BNB" */
+    pricePercentChangeOnZY?: number;
     /** Amount of Y that was bought and that will be used to buy Z */
     amountOfYBought?: number
     /** Amount of Y used to buy Z */

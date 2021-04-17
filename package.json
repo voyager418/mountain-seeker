@@ -1,14 +1,14 @@
 {
   "name": "mountain-seeker",
-  "version": "1.0.0",
+  "version": "1.0.10",
   "description": "Trading bot",
   "license": "Unlicensed",
   "author": "G & J",
   "private": true,
-  "main": "src/main.ts",
   "scripts": {
     "dev": "nodemon src/main.ts --ignore '*'",
     "hot-reload": "nodemon src/main.ts",
+    "start": "tsc && node ./dist/main.js",
     "test": "echo \"Error: no test specified\" && exit 0"
   },
   "dependencies": {

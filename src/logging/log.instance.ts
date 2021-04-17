@@ -20,16 +20,22 @@ const defaultFormat = {
 const log = winston.createLogger({
     level: CONFIG.level,
     format: defaultFormat.format,
-    transports: [
-        new winston.transports.Console(
-            { format: winston.format.combine(
-                winston.format.colorize(),
-                defaultFormat.format
-            ) },
-        ),
-        // Write all logs with level `error` and to `error.log`
-        new winston.transports.File({ filename: 'log.log', level: 'debug' })
-    ],
+    transports: []
 });
+
+if (process.env.NODE_ENV === "prod") {
+    log.add(new winston.transports.Console());
+} else {
+    log.add(new winston.transports.Console(
+        { format: winston.format.combine(
+            winston.format.colorize(),
+            defaultFormat.format
+        ) },
+    ));
+    log.add(new winston.transports.File({
+        filename: 'log.log',
+        level: 'debug' }
+    ));
+}
 
 export default log;

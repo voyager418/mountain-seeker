@@ -19,6 +19,15 @@ export type Market = {
      * Ordered from oldest to more recent. The last number is a variation of the current price.
      */
     candleSticksPercentageVariations: Array<number>;
+
+    /** The unit price of the target asset on the moment of retrieving market information */
+    targetAssetPrice: number;
+
+    /** Volume of the origin currency traded for last 24 hours */
+    originAssetVolumeLast24h?: number;
+
+    /** Volume of the target currency traded for last 24 hours */
+    targetAssetVolumeLast24h?: number;
 }
 
 export function getCandleStick(array: Array<Array<number>>, index: number): Array<number> {
@@ -30,12 +39,6 @@ export function getCurrentCandleStickPercentageVariation(array: Array<number>): 
     assert(array.length >= 1, `Candlestick percentage variation array is too short,
      wanted at least 1 element but got ${array.length}`);
     return array[array.length - 1];
-}
-
-export function getBeforeLastCandleStickPercentageVariation(array: Array<number>): number {
-    assert(array.length >= 2, `Candlestick percentage variation array is too short,
-     wanted at least 2 elements but got ${array.length}`);
-    return array[array.length - 2];
 }
 
 export function getCandleStickPercentageVariation(array: Array<number>, index: number): number {

@@ -9,6 +9,7 @@ import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
 import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
+const CONFIG = require('config');
 
 
 /**
@@ -33,10 +34,7 @@ export class BinanceConnector {
      * */
     private binance;
 
-    private static IS_SIMULATION: boolean;
-
     constructor() {
-        BinanceConnector.IS_SIMULATION = Container.get("IS_SIMULATION");
         this.binance = new ccxt.binance({
             apiKey: Container.get("BINANCE_API_KEY"),
             secret: Container.get("BINANCE_API_SECRET"),
@@ -44,7 +42,6 @@ export class BinanceConnector {
             enableRateLimit: false
         });
     }
-
 
     /**
      * @param minimumPercent The minimal percent of variation.
@@ -61,6 +58,9 @@ export class BinanceConnector {
                 symbol: market.symbol,
                 originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
                 targetAsset: market.symbol.split('/')[0],
+                originAssetVolumeLast24h: market.quoteVolume,
+                targetAssetVolumeLast24h: market.baseVolume,
+                targetAssetPrice: market.ask, // current best ask (sell) price
                 candleSticks: [],
                 candleSticksPercentageVariations: [] }));
         return res;
@@ -73,12 +73,27 @@ export class BinanceConnector {
      * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
     public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries?: number): Promise<any[]> {
-        return await this.binance.fetchOHLCV(
-            market,
-            interval,
-            undefined,
-            numberOfCandlesticks
-        ).catch(e => Promise.reject(`Failed to fetch candle sticks. ${e}`));
+        let candleSticks;
+        while (!candleSticks || (retries && retries > 0)) {
+            try {
+                candleSticks = await this.binance.fetchOHLCV(
+                    market,
+                    interval,
+                    undefined,
+                    numberOfCandlesticks
+                );
+                return candleSticks;
+            } catch (e) {
+                if (!retries) {
+                    return Promise.reject(`Failed to fetch candle sticks.`);
+                } else {
+                    log.warn(`Failed to fetch candle sticks:  ${e}. Retrying...`);
+                    retries--;
+                    await GlobalUtils.sleep(2);
+                }
+            }
+        }
+        return Promise.reject(`Failed to fetch candle sticks.`);
     }
 
     /**
@@ -135,7 +150,7 @@ export class BinanceConnector {
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
         // TODO : there is always a minimum amount allowed to buy depending on a market
         //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
-        if (BinanceConnector.IS_SIMULATION) {
+        if (CONFIG.simulation) {
             const order: Order = {
                 amountOfTargetAsset: 0,
                 datetime: "",
@@ -195,7 +210,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: binanceOrder.datetime,
+            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -222,7 +237,7 @@ export class BinanceConnector {
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, awaitCompletion?: boolean, retries?: number): Promise<Order> {
-        if (BinanceConnector.IS_SIMULATION) {
+        if (CONFIG.simulation) {
             const order: Order = {
                 amountOfTargetAsset: 0,
                 datetime: "",
@@ -286,7 +301,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: binanceOrder.datetime,
+            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.STOP_LOSS_LIMIT,
             info: binanceOrder.info
         }
@@ -310,7 +325,7 @@ export class BinanceConnector {
      * @return {@link Order} if order has been closed and `undefined` if still not after x `retries`
      */
     public async waitForOrderCompletion(order: Order, originAsset: Currency, targetAsset: string, retries: number): Promise<Order | undefined> {
-        if (BinanceConnector.IS_SIMULATION) {
+        if (CONFIG.simulation) {
             return Promise.resolve(undefined);
         }
         let filled = order.status === "closed";
@@ -350,7 +365,7 @@ export class BinanceConnector {
         if (verbose) {
             log.debug(`Getting information about binance order ${externalId}`);
         }
-        if (BinanceConnector.IS_SIMULATION) {
+        if (CONFIG.simulation) {
             const order: Order = {
                 amountOfTargetAsset: 0,
                 datetime: "",
@@ -383,7 +398,7 @@ export class BinanceConnector {
                     average: binanceOrder.average,
                     amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
                     status: binanceOrder.status,
-                    datetime: binanceOrder.datetime,
+                    datetime: this.getBelgiumDateTime(binanceOrder.datetime),
                     info: binanceOrder.info,
                     originAsset,
                     targetAsset
@@ -414,7 +429,7 @@ export class BinanceConnector {
      * @return The cancelled order
      */
     public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
-        if (BinanceConnector.IS_SIMULATION) {
+        if (CONFIG.simulation) {
             const o = {
                 id: uuidv4(),
                 externalId: "",
@@ -443,13 +458,24 @@ export class BinanceConnector {
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             status: binanceOrder.status,
-            datetime: binanceOrder.datetime,
+            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
             originAsset,
             targetAsset
         };
         log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
+    }
+
+    private getBelgiumDateTime(date: string): string {
+        try {
+            const res = new Date(date);
+            res.setHours(res.getHours() + 2);
+            return res.toISOString();
+        } catch (e) {
+            log.warn("Failed to parse the date : %O", date, e);
+            return date;
+        }
     }
 
 }

@@ -20,7 +20,7 @@ export class TradingService {
         type: TradingStrategy.MS,
         config: {
             maxMoneyToTrade: 12,
-            autoRestartOnProfit: false
+            autoRestartOnProfit: true
         }
     }
 
@@ -30,19 +30,28 @@ export class TradingService {
     }
 
     public async beginTrading(): Promise<void> {
-        let shouldTrade = true;
-
-        while (shouldTrade) {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
             const defaultStrategy = new MountainSeeker(this.account, this.strategy);
             try {
                 const result: TradingState = await defaultStrategy.run();
-                if (result && result.endedWithoutErrors) {
-                    shouldTrade = false;
-                    process.exit(0);
+                if (result && result.endedWithoutErrors && this.strategy.config.autoRestartOnProfit) {
+                    if (result.percentChange && result.marketSymbol) {
+                        if (result.percentChange > 0) {
+                            // TODO : change this to be able to reuse the same market after x minutes
+                            this.strategy.config.ignoredMarkets = [result.marketSymbol];
+                        } else {
+                            log.warn("Loss of %O%", result.percentChange);
+                            break;
+                        }
+                    } else {
+                        log.warn(`Something went wrong. ${JSON.stringify(result)}`);
+                        break;
+                    }
                 }
             } catch (e) {
-                log.error("Trading was aborted.", new Error(e));
-                process.exit(1);
+                log.error("Trading was aborted due to an error.", new Error(e));
+                break;
             }
         }
     }

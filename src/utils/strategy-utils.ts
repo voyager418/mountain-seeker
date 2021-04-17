@@ -19,9 +19,13 @@ export class StrategyUtils {
         for (const market of markets) {
             const candleSticks = market.candleSticks; // a candlestick has a format [ timestamp, open, high, low, close, volume ]
             const candleStickVariations = [];
-            for (const candle of candleSticks) {
-                candleStickVariations.push(StrategyUtils.getPercentVariation(candle[1], candle[4]));
+            for (let i = 0; i < candleSticks.length - 1; i++) {
+                candleStickVariations.push(StrategyUtils.getPercentVariation(candleSticks[i][1], candleSticks[i][4]));
             }
+            // the last candlestick percentage variation is calculated by taking the close price of previous
+            // candle stick and the current market price
+            candleStickVariations.push((StrategyUtils.getPercentVariation(
+                candleSticks[candleSticks.length - 2][4], market.targetAssetPrice)));
             market.candleSticksPercentageVariations = candleStickVariations;
         }
     }
