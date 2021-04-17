@@ -195,6 +195,7 @@ export class BinanceConnector {
             }
         }
         if (!binanceOrder) {
+            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Failed to execute ${side} market order on market ${targetAsset}/${originAsset}`);
         }
 
@@ -223,6 +224,7 @@ export class BinanceConnector {
         const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries)
             .catch(e => Promise.reject(e));
         if (!completedOrder) {
+            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
         }
         log.debug(`Created ${order.type} order : ${JSON.stringify(completedOrder, null, 4)}`);
@@ -231,12 +233,10 @@ export class BinanceConnector {
 
     /**
      * Creates a stop limit order.
-     * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
-     * change from `open` to `closed`
      * @param retries Indicates the number of times the order will be repeated in case of a failure
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
-        stopPrice: number, limitPrice: number, awaitCompletion?: boolean, retries?: number): Promise<Order> {
+        stopPrice: number, limitPrice: number, retries?: number): Promise<Order> {
         if (CONFIG.simulation) {
             const order: Order = {
                 amountOfTargetAsset: 0,
@@ -249,14 +249,15 @@ export class BinanceConnector {
                 side: side,
                 status: "open",
                 targetAsset,
-                type: OrderType.STOP_LOSS_LIMIT,
+                type: OrderType.STOP_LIMIT,
                 average: 200
             };
             log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
         }
 
-        log.debug("Creating new stop limit order on %O/%O", targetAsset, originAsset);
+        log.debug("Creating %O stop limit order on %O/%O of %O%O. With stopPrice : %O, limitPrice: %O",
+            side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
         let binanceOrder;
         try {
             binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
@@ -284,6 +285,7 @@ export class BinanceConnector {
         }
 
         if (!binanceOrder) {
+            this.printMarketDetails(`${targetAsset}/${originAsset}`);
             return Promise.reject(`Failed to execute ${side} stop limit order of ${amount} on market ${targetAsset}/${originAsset}`);
         }
 
@@ -302,22 +304,12 @@ export class BinanceConnector {
             targetAsset,
             side,
             datetime: this.getBelgiumDateTime(binanceOrder.datetime),
-            type: OrderType.STOP_LOSS_LIMIT,
+            type: OrderType.STOP_LIMIT,
             info: binanceOrder.info
         }
-        if (!awaitCompletion) {
-            log.debug(`Created ${order.type} order : ${JSON.stringify(order, null, 4)}`);
-            return Promise.resolve(order);
-        }
 
-        const orderCompletionRetries = 3;
-        const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries)
-            .catch(e => Promise.reject(e));
-        if (!completedOrder) {
-            return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
-        }
-        log.debug(`Created binance order : ${JSON.stringify(completedOrder, null, 4)}`);
-        return Promise.resolve(completedOrder);
+        log.debug(`Created ${order.type} order : ${JSON.stringify(order, null, 4)}`);
+        return Promise.resolve(order);
     }
 
     /**
@@ -377,7 +369,7 @@ export class BinanceConnector {
                 side: "sell",
                 status: "closed",
                 targetAsset,
-                type: OrderType.STOP_LOSS_LIMIT,
+                type: OrderType.STOP_LIMIT,
                 average: 200
             };
             log.info(`Executing simulated order %O`, order);
@@ -442,7 +434,7 @@ export class BinanceConnector {
                 average: 200,
                 originAsset: Currency.EUR,
                 targetAsset: "BNB",
-                type: OrderType.STOP_LOSS_LIMIT
+                type: OrderType.STOP_LIMIT
             }
             log.info(`Executing simulated cancel order %O`, o);
             return Promise.resolve(o);
@@ -465,6 +457,13 @@ export class BinanceConnector {
         };
         log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
+    }
+
+    /**
+     * Used for debug purposes
+     */
+    public printMarketDetails(symbol: string): void {
+        log.debug(`Market details : ${JSON.stringify(this.binance.markets[symbol], null, 4)}`);
     }
 
     private getBelgiumDateTime(date: string): string {

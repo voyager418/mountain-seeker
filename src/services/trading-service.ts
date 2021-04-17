@@ -6,6 +6,7 @@ import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { Service } from "typedi";
 import { TradingState } from "../models/trading-state";
+import { EmailService } from "./email-service";
 
 /**
  * This service is responsible to start the appropriate trading strategy.
@@ -19,7 +20,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
-            maxMoneyToTrade: 12,
+            maxMoneyToTrade: 15,
             autoRestartOnProfit: true
         }
     }
@@ -50,10 +51,11 @@ export class TradingService {
                     }
                 }
             } catch (e) {
-                log.error("Trading was aborted due to an error.", new Error(e));
+                log.error("Trading was aborted due to an error.", e);
                 break;
             }
         }
+        await new EmailService().sendEmail("Trading stopped...", '');
     }
 
 }

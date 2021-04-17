@@ -139,14 +139,13 @@ export class MountainSeeker implements BaseStrategy {
 
         // First STOP-LIMIT order
         let stopLimitPrice = getCandleStick(market.candleSticks, market.candleSticks.length - 3)[3]; // low of the before before last candlestick
-        const targetAssetAmount = await this.apiConnector.getBalanceForCurrency(market.targetAsset)
-            .catch(e => Promise.reject(e));
+        const targetAssetAmount = await this.apiConnector.getBalanceForCurrency(market.targetAsset).catch(e => Promise.reject(e));
         // TODO : instead of selling everything, sell the amount that was purchased
         //  But in that case, the wallet balance refill must be adapted
-        //   (e.g. to always buy the equivalent amount in maxMoneyTotrade of Y instead of verifying the needed
+        //   (e.g. to always buy the equivalent amount in maxMoneyToTrade of Y instead of verifying the needed
         //    amount based on what is already in the wallet)
         let stopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
-            "sell", targetAssetAmount, stopLimitPrice, stopLimitPrice, false, 3)
+            "sell", targetAssetAmount, stopLimitPrice, stopLimitPrice, 3)
             .catch(e => Promise.reject(e));
         this.state.stopLimitOrders?.push({ ...stopLimitOrder }); // deep copy
         await this.emailService.sendEmail(`Trading started on ${market.symbol}`,
@@ -177,7 +176,7 @@ export class MountainSeeker implements BaseStrategy {
 
                 // create new stop limit order
                 stopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
-                    "sell", targetAssetAmount, newStopLimitPrice, newStopLimitPrice, false, 3)
+                    "sell", targetAssetAmount, newStopLimitPrice, newStopLimitPrice, 3)
                     .catch(e => Promise.reject(e));
                 this.state.stopLimitOrders?.push({ ...stopLimitOrder }); // deep copy
 
