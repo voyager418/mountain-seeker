@@ -20,7 +20,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MS,
         config: {
-            maxMoneyToTrade: 15,
+            maxMoneyToTrade: 25,
             autoRestartOnProfit: true
         }
     }
@@ -38,7 +38,7 @@ export class TradingService {
                 const result: TradingState = await defaultStrategy.run();
                 if (result && result.endedWithoutErrors && this.strategy.config.autoRestartOnProfit) {
                     if (result.percentChange && result.marketSymbol) {
-                        if (result.percentChange > 0) {
+                        if (result.percentChange > -3) {
                             // TODO : change this to be able to reuse the same market after x minutes
                             this.strategy.config.ignoredMarkets = [result.marketSymbol];
                         } else {
@@ -51,7 +51,7 @@ export class TradingService {
                     }
                 }
             } catch (e) {
-                log.error("Trading was aborted due to an error.", e);
+                log.error("Trading was aborted due to an error : ", new Error(e));
                 break;
             }
         }

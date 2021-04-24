@@ -49,10 +49,23 @@ export class BinanceConnector {
      * Example: when called with '0', returns only the markets that had a positive change.
      */
     public async getMarketsBy24hrVariation(minimumPercent: number): Promise<Array<Market>> {
-        const tickers: Dictionary<Ticker> = await this.binance.fetchTickers()
-            .catch(e => Promise.reject(`Failed to fetch tickers. ${e}`));
+        let tickers;
+        let retires = 3;
+        while (!tickers && retires-- > -1) {
+            try {
+                tickers = await this.binance.fetchTickers();
+            } catch (e) {
+                if (retires > -1) {
+                    log.warn("Failed to fetch 24h tickers. Retrying...");
+                    await GlobalUtils.sleep(30);
+                } else {
+                    return Promise.reject(`Failed to fetch tickers. ${e}`);
+                }
+            }
+        }
+
         const res: Array<Market> = [];
-        Object.values(tickers)
+        Object.values(tickers as Dictionary<Ticker>)
             .filter(market => market.percentage && market.percentage > minimumPercent)
             .forEach(market => res.push({
                 symbol: market.symbol,
@@ -70,11 +83,12 @@ export class BinanceConnector {
      * @param market The name/symbol of the market. Example: 'BNB/EUR'
      * @param interval Example: '1m', '15m', '1h' ...
      * @param numberOfCandlesticks The number of most recent candlesticks including the current one
+     * @param retries Number of times that the operation will be repeated after failure
      * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
-    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries?: number): Promise<any[]> {
+    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<any[]> {
         let candleSticks;
-        while (!candleSticks || (retries && retries > 0)) {
+        while (!candleSticks && retries-- > -1) {
             try {
                 candleSticks = await this.binance.fetchOHLCV(
                     market,
@@ -84,11 +98,10 @@ export class BinanceConnector {
                 );
                 return candleSticks;
             } catch (e) {
-                if (!retries) {
+                if (retries <= -1) {
                     return Promise.reject(`Failed to fetch candle sticks.`);
                 } else {
-                    log.warn(`Failed to fetch candle sticks:  ${e}. Retrying...`);
-                    retries--;
+                    log.warn(`Failed to fetch candle sticks: ${e}. Retrying...`);
                     await GlobalUtils.sleep(2);
                 }
             }
@@ -143,7 +156,7 @@ export class BinanceConnector {
      * Creates a market order.
      * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
      * change from `open` to `closed`
-     * @param retries Indicates the number of times the order will be repeated in case of a failure
+     * @param retries Indicates the number of times the order will be repeated after a failure
      * @param amountToInvest The number of origin asset that is going to be invested (needed for retries).
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
@@ -179,17 +192,16 @@ export class BinanceConnector {
         }
         if (!binanceOrder && retries && amountToInvest) {
             let amountToBuy;
-            while (retries > 0) {
+            while (retries-- > -1) {
                 try {
                     const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
                     amountToBuy = amountToInvest/unitPrice;
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "market", side, amountToBuy);
                 } catch (e) {
-                    log.error(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}`);
-                    retries--;
-                    if (retries > 0) {
-                        log.debug("Retrying ...");
+                    if (retries > -1) {
+                        log.warn(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}. Retrying...`);
+                        await GlobalUtils.sleep(1);
                     }
                 }
             }
@@ -210,7 +222,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -300,7 +312,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.STOP_LIMIT,
             info: binanceOrder.info
         }
@@ -319,6 +331,7 @@ export class BinanceConnector {
         }
         let filled = order.status === "closed";
         if (filled) {
+            log.debug("Skipping order completion waiting as it is already complete");
             return Promise.resolve(order);
         }
         let remainingRetries = retries;
@@ -387,7 +400,7 @@ export class BinanceConnector {
                     average: binanceOrder.average,
                     amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
                     status: binanceOrder.status,
-                    datetime: this.getBelgiumDateTime(binanceOrder.datetime),
+                    datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
                     info: binanceOrder.info,
                     originAsset,
                     targetAsset
@@ -447,7 +460,7 @@ export class BinanceConnector {
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             status: binanceOrder.status,
-            datetime: this.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
             originAsset,
             targetAsset
@@ -463,13 +476,13 @@ export class BinanceConnector {
         log.debug(`Market details : ${JSON.stringify(this.binance.markets[symbol], null, 4)}`);
     }
 
-    private getBelgiumDateTime(date: string): string {
+    private static getBelgiumDateTime(date: string): string {
         try {
             const res = new Date(date);
             res.setHours(res.getHours() + 2);
             return res.toISOString();
         } catch (e) {
-            log.warn("Failed to parse the date : %O", date, e);
+            // no date found
             return date;
         }
     }

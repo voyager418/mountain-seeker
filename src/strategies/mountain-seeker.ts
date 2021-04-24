@@ -82,7 +82,7 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.initialStopLimitPriceTriggerPercent = 1.1;
         }
         if (!strategyDetails.config.secondsToSleepInTheTradingLoop) {
-            this.strategyDetails.config.secondsToSleepInTheTradingLoop = 120;
+            this.strategyDetails.config.secondsToSleepInTheTradingLoop = 60;
         }
         if (!strategyDetails.config.stopLimitPriceIncreaseInTheTradingLoop) {
             this.strategyDetails.config.stopLimitPriceIncreaseInTheTradingLoop = 0.5;
@@ -138,6 +138,9 @@ export class MountainSeeker implements BaseStrategy {
         const buyOrder = await this.apiConnector.createMarketOrder(market.originAsset, market.targetAsset,
             "buy", amountOfTargetAssetToTrade, true, 3, amountToInvest).catch(e => Promise.reject(e));
         this.state.firstBuyOrder = buyOrder;
+        if (this.state.originAssetIsEur) {
+            this.state.investedAmountOfEuro = buyOrder.amountOfOriginAssetUsed;
+        }
         this.state.amountOfYSpentOnZ = buyOrder.amountOfOriginAssetUsed;
 
         // First STOP-LIMIT order
@@ -273,9 +276,13 @@ export class MountainSeeker implements BaseStrategy {
                         log.debug(`Potential market : ${JSON.stringify(market)}`);
                         if (!candleStickVariations.slice(candleStickVariations.length - 4, candleStickVariations.length - 2)
                             .some(variation => variation > 6 || variation < -5)) { // if the third and fourth candle stick starting from the end, do not exceed x% and is not less than y%
-                            if (market.candleSticks[market.candleSticks.length - 2][4] <= market.candleSticks[market.candleSticks.length - 1][1]) {
-                                // if closing price of previous candle stick is <= than the open price of the current one
-                                potentialMarkets.push(market);
+                            // if closing price of previous candle stick is < than the open price of the current one
+                            if (market.candleSticks[market.candleSticks.length - 2][4] < market.candleSticks[market.candleSticks.length - 1][1]) {
+                                // all candlesticks except the last two should not have variation bigger than x%
+                                if (!candleStickVariations.slice(0, candleStickVariations.length - 2)
+                                    .some(variation => variation > 10)) {
+                                    potentialMarkets.push(market);
+                                }
                             }
                         }
                     }
@@ -322,6 +329,7 @@ export class MountainSeeker implements BaseStrategy {
         log.info("Initial wallet balance : %O", this.initialWalletBalance);
         await this.handleOriginAssetRefill(market.originAsset, this.initialWalletBalance?.get(market.originAsset))
             .catch(e => Promise.reject(e));
+        await GlobalUtils.sleep(1); // it seems like the wallet balance is not updating instantly sometimes
         this.refilledWalletBalance = await this.apiConnector.getBalance(authorizedCurrencies)
             .catch(e => Promise.reject(e));
         this.state.refilledWalletBalance = JSON.stringify(Array.from(this.refilledWalletBalance!.entries()));
