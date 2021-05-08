@@ -1,9 +1,14 @@
 import { Market } from "../models/market";
+import { Currency } from "../enums/trading-currencies.enum";
 
 /**
  * Utility class for strategies package
  */
 export class StrategyUtils {
+    private constructor() {
+        // utility class
+    }
+
     /**
      * @return A variation in % between two numbers `start` and `end`. Can be negative.
      */
@@ -43,5 +48,60 @@ export class StrategyUtils {
             }
         }
         return false;
+    }
+
+    /**
+     * @return Markets that can be traded with currencies defined in `MountainSeekerConfig.authorizedCurrencies`
+     */
+    static filterByAuthorizedCurrencies(markets: Array<Market>, authorizedCurrencies?: Array<Currency>): Array<Market> {
+        return markets.filter(market => authorizedCurrencies && authorizedCurrencies
+            .some(currency => market.originAsset === currency));
+    }
+
+    /**
+     * @return Markets that are not defined in {@link MountainSeekerConfig.ignoredMarkets} and that do not have
+     * as targetAsset the one that is contained in the ignore markets array.
+     *
+     * Example: if ignored markets = ["KNC/BTC"]
+     * Then this method returns all markets except ["KNC/BTC", "KNC/BNB", ... ]
+     */
+    static filterByIgnoredMarkets(markets: Array<Market>, ignoredMarkets?: Array<string>): Array<Market> {
+        if (ignoredMarkets && ignoredMarkets.length > 0) {
+            return markets.filter(market => !ignoredMarkets
+                .some(symbol => market.symbol.startsWith(symbol.split('/')[0])));
+        }
+        return markets;
+    }
+
+    /**
+     * @return Markets that have traded at least the specified amount of volume or more
+     */
+    static filterByMinimumTradingVolume(markets: Array<Market>, minimumTradingVolumeLast24h?: number): Array<Market> {
+        if (minimumTradingVolumeLast24h) {
+            return markets.filter(market => market.originAssetVolumeLast24h &&
+                (market.originAssetVolumeLast24h >= minimumTradingVolumeLast24h));
+        }
+        return markets;
+    }
+
+    /**
+     * @return Markets that are defined in {@link MountainSeekerConfig.authorizedMarkets}
+     */
+    static filterByAuthorizedMarkets(markets: Array<Market>, authorizedMarkets?: Array<string>): Array<Market> {
+        if (authorizedMarkets && authorizedMarkets.length > 0) {
+            return markets.filter(market => authorizedMarkets.some(symbol => symbol === market.symbol));
+        }
+        return markets;
+    }
+
+    /**
+     * @return Markets that can accept at least `minimalPrecision` digits after the dot in the amounts
+     * used in buy/sell orders
+     */
+    static filterByAmountPrecision(markets: Array<Market>, minimalPrecision?: number): Array<Market> {
+        if (minimalPrecision) {
+            return markets.filter(market => market.amountPrecision && market.amountPrecision >= minimalPrecision);
+        }
+        return markets;
     }
 }

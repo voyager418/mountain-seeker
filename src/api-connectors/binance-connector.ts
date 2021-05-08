@@ -9,8 +9,28 @@ import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
 import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
+import { SimulationUtils } from "../utils/simulation-utils";
+
 const CONFIG = require('config');
 
+/**
+ * A binance buy/sell market order contains a list of fills.
+ * This allows to know the exact asset amount that was used when commission is deduced.
+ * Example of a fill object for a sell order on BTC/EUR market :
+ * {
+ *   "price": "47212.49000000",
+ *   "qty": "0.00044600",
+ *   "commission": "0.02105677",
+ *   "commissionAsset": "EUR",
+ *   "tradeId": 43143323
+ *   }
+ */
+interface MarketOrderFill {
+    price: string,
+    qty: string,
+    commission: string,
+    commissionAsset: string
+}
 
 /**
  * This service is responsible for communicating with Binance API.
@@ -101,6 +121,9 @@ export class BinanceConnector {
                 if (retries <= -1) {
                     return Promise.reject(`Failed to fetch candle sticks.`);
                 } else {
+                    if (e.message.toString().includes("DDoSProtection")) {
+                        return Promise.reject(`Failed to fetch candle sticks: ${e}`);
+                    }
                     log.warn(`Failed to fetch candle sticks: ${e}. Retrying...`);
                     await GlobalUtils.sleep(2);
                 }
@@ -114,7 +137,8 @@ export class BinanceConnector {
      * @return A map for each currency and the actual available amount
      */
     public async getBalance(currencies: Array<Currency>): Promise<Map<Currency, number>> {
-        // TODO maybe refactor to only fetch info for needed currencies
+        // TODO maybe add retries or increase the sleep interval
+        await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
         const balance = await this.binance.fetchBalance()
             .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
         const res = new Map<Currency, number>();
@@ -125,9 +149,23 @@ export class BinanceConnector {
     }
 
     /**
+     * @return Available balance for asset
+     */
+    public async getBalanceForAsset(asset: string): Promise<number> {
+        // TODO instead of wasting some time this can also be calculated by
+        //   making the sum of quantity - comission in the 'fills' array in the order object
+        await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
+        const balance = await this.binance.fetchBalance()
+            .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
+        return balance[asset].free;
+    }
+
+    /**
      * @return Balance for a particular `currency`
      */
     public async getBalanceForCurrency(currency: string): Promise<number> {
+        // TODO maybe add retries or increase the sleep interval
+        await GlobalUtils.sleep(2);
         const balance = await this.binance.fetchBalance()
             .catch(e => Promise.reject(`Failed to fetch balance for currency ${currency}: ${e}`));
         return balance[currency].free;
@@ -154,6 +192,8 @@ export class BinanceConnector {
 
     /**
      * Creates a market order.
+     * There is always a minimum amount allowed to buy depending on a market, see {@link https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits}
+     *
      * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
      * change from `open` to `closed`
      * @param retries Indicates the number of times the order will be repeated after a failure
@@ -161,23 +201,8 @@ export class BinanceConnector {
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
-        // TODO : there is always a minimum amount allowed to buy depending on a market
-        //  see https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits
         if (CONFIG.simulation) {
-            const order: Order = {
-                amountOfTargetAsset: 0,
-                datetime: "",
-                externalId: "222",
-                filled: 0,
-                id: "111",
-                originAsset,
-                remaining: 0,
-                side: side,
-                status: "open",
-                targetAsset,
-                type: OrderType.MARKET,
-                average: 200
-            };
+            const order: Order = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
             log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
         }
@@ -210,14 +235,14 @@ export class BinanceConnector {
             return Promise.reject(`Failed to execute ${side} market order on market ${targetAsset}/${originAsset}`);
         }
 
-        const order:Order = {
+        const order: Order = {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: amount,
-            filled: binanceOrder.filled,
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
-            amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET),
             status: binanceOrder.status,
             originAsset,
             targetAsset,
@@ -248,22 +273,9 @@ export class BinanceConnector {
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, retries?: number): Promise<Order> {
         if (CONFIG.simulation) {
-            const order: Order = {
-                amountOfTargetAsset: 0,
-                datetime: "",
-                externalId: "444",
-                filled: 0,
-                id: "333",
-                originAsset,
-                remaining: 0,
-                side: side,
-                status: "open",
-                targetAsset,
-                type: OrderType.STOP_LIMIT,
-                average: 200
-            };
-            log.info(`Executing simulated order %O`, order);
-            return Promise.resolve(order);
+            const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side);
+            log.info(`Executing simulated order %O`, simulatedOrder);
+            return Promise.resolve(simulatedOrder);
         }
 
         log.debug("Creating %O stop limit order on %O/%O of %O%O. With stopPrice : %O, limitPrice: %O",
@@ -307,7 +319,7 @@ export class BinanceConnector {
             filled: binanceOrder.filled,
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
-            amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT),
             status: binanceOrder.status,
             originAsset,
             targetAsset,
@@ -368,20 +380,7 @@ export class BinanceConnector {
             log.debug(`Getting information about binance order ${externalId}`);
         }
         if (CONFIG.simulation) {
-            const order: Order = {
-                amountOfTargetAsset: 0,
-                datetime: "",
-                externalId: "777",
-                filled: 200,
-                id: "555",
-                originAsset,
-                remaining: 0,
-                side: "sell",
-                status: "closed",
-                targetAsset,
-                type: OrderType.STOP_LIMIT,
-                average: 200
-            };
+            const order: Order = SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
             log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
         }
@@ -395,10 +394,10 @@ export class BinanceConnector {
                     externalId: binanceOrder.id,
                     side: binanceOrder.side,
                     amountOfTargetAsset: binanceOrder.amount,
-                    filled: binanceOrder.filled,
+                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType),
                     remaining: binanceOrder.remaining,
                     average: binanceOrder.average,
-                    amountOfOriginAssetUsed: binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining),
+                    amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType),
                     status: binanceOrder.status,
                     datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
                     info: binanceOrder.info,
@@ -470,6 +469,30 @@ export class BinanceConnector {
     }
 
     /**
+     * Sets the {@link Market.minNotional} field
+     */
+    public setMarketMinNotional(market: Market): void {
+        const minNotionalFilter = this.binance.markets[market.symbol].info.filters.filter((f: { filterType: string; }) => f.filterType === "MIN_NOTIONAL")[0];
+        if (minNotionalFilter) {
+            market.minNotional = Number(minNotionalFilter.minNotional);
+            log.debug("Market's minNotional is %O", market.minNotional);
+        }
+    }
+
+    /**
+     * Sets the {@link Market.amountPrecision} field
+     */
+    public setMarketAmountPrecision(markets: Array<Market>): void {
+        // fori and not a forof loop is needed because the array's content is modified in the loop
+        for (let i = 0; i < markets.length; i++) {
+            const amountPrecision = this.binance.markets[markets[i].symbol].precision?.amount;
+            if (amountPrecision >= 0) {
+                markets[i].amountPrecision = amountPrecision;
+            }
+        }
+    }
+
+    /**
      * Used for debug purposes
      */
     public printMarketDetails(symbol: string): void {
@@ -485,6 +508,49 @@ export class BinanceConnector {
             // no date found
             return date;
         }
+    }
+
+    /**
+     * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
+     */
+    private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType): number {
+        // if the order is incomplete
+        if (remaining > 0) {
+            return 0;
+        }
+
+        if (orderType !== OrderType.MARKET) {
+            return binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining);
+        }
+
+        const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
+        if (!fills) {
+            return binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining);
+        }
+        let amountOfOriginAsset = 0;
+        for (const fill of fills) {
+            amountOfOriginAsset += Number(fill.price) * Number(fill.qty) - Number(fill.commission);
+        }
+        return amountOfOriginAsset;
+    }
+
+    /**
+     * @return amount of target asset that was purchased when commission is deduced (for MARKET orders)
+     */
+    private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType): number {
+        if (orderType !== OrderType.MARKET) {
+            return filled;
+        }
+
+        const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
+        if (!fills) {
+            return filled;
+        }
+        let amountOfOriginAsset = 0;
+        for (const fill of fills) {
+            amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);
+        }
+        return amountOfOriginAsset;
     }
 
 }

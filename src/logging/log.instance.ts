@@ -15,7 +15,7 @@ const defaultFormat = {
 
 /**
  * Creates defaultFormat custom logger instance.
- * @see https://github.com/winstonjs/winston
+ * @link https://github.com/winstonjs/winston
  */
 const log = winston.createLogger({
     level: CONFIG.level,

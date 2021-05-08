@@ -10,8 +10,6 @@ import { EmailService } from "./email-service";
 
 /**
  * This service is responsible to start the appropriate trading strategy.
- *
- * TODO: a lot of things are hardcoded for the moment -> not good
  */
 @Service()
 export class TradingService {
@@ -39,7 +37,7 @@ export class TradingService {
                 if (result && result.endedWithoutErrors && this.strategy.config.autoRestartOnProfit) {
                     if (result.percentChange && result.marketSymbol) {
                         if (result.percentChange > -3) {
-                            // TODO : change this to be able to reuse the same market after x minutes
+                            // TODO : maybe change this to be able to reuse the same market after x minutes
                             this.strategy.config.ignoredMarkets = [result.marketSymbol];
                         } else {
                             log.warn("Loss of %O%", result.percentChange);

@@ -1,7 +1,4 @@
-import { Currency } from "../enums/trading-currencies.enum";
-import { Market } from "./market";
-import { Order } from "./order";
-import { BaseStrategyConfig, StrategyDetails } from "./strategy-details";
+import { StrategyDetails } from "./strategy-details";
 
 /**
  * Represents trading progress state and statistics
@@ -31,10 +28,6 @@ export type TradingState = {
     marketSymbol?: string;
     /** Array of candlesticks percentage variations */
     candleSticksPercentageVariations?: Array<number>;
-    /** First BUY order when the trading starts */
-    firstBuyOrder?: Order;
-    /** All STOP LIMIT orders that are made */
-    stopLimitOrders?: Array<Order>;
     /** Indicates whether the trading ended without problems */
     endedWithoutErrors?: boolean;
     /** For example : if trading market is "CAKE/BNB", then X = EUR, Y = BNB and Z = CAKE.

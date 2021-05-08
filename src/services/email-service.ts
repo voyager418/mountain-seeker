@@ -19,7 +19,7 @@ export class EmailService {
     }
 
     public async sendEmail(subject: string, text: string): Promise<void> {
-        if(!CONFIG.simulation) {
+        if (!CONFIG.simulation) {
             try {
                 await this.transporter.sendMail({
                     from: `"MS 🏔" <${process.env.EMAIL_ADDRESS}>`, // sender address
@@ -31,6 +31,7 @@ export class EmailService {
                 log.warn("Failed to send mail : ", e);
             }
         }
+        return Promise.resolve();
     }
 }
 

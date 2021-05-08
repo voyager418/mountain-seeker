@@ -5,7 +5,7 @@ export type Market = {
     /** Example : "BNB/EUR" */
     symbol: string;
 
-    /** Currency with which we buy (e.g. "EUR") */
+    /** Currency with which we buy (e.g. "EUR", "BTC", "BNB" ...) */
     originAsset: Currency;
 
     /** The asset that we buy (e.g. "BNB") */
@@ -28,6 +28,14 @@ export type Market = {
 
     /** Volume of the target currency traded for last 24 hours */
     targetAssetVolumeLast24h?: number;
+
+    /** Minimum notional value allowed for a buy order. An order's notional value
+     * is the price * quantity */
+    minNotional?: number;
+
+    /** Number of digits after the dot related to the quantity of the {@link targetAsset} that the market authorizes
+     * for buy/sell orders */
+    amountPrecision?: number;
 }
 
 export function getCandleStick(array: Array<Array<number>>, index: number): Array<number> {

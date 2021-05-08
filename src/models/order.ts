@@ -15,9 +15,9 @@ export type Order = {
     /** Example : if market symbol = BTC/EUR then {@link Order.amountOfTargetAsset} is the number of
      *  BTC that we want to buy/sell */
     amountOfTargetAsset: number,
-    /** Example : if market symbol = BTC/EUR then {@link Order.amountOfOriginAssetUsed} is the number of
+    /** Example : if market symbol = BTC/EUR then {@link Order.amountOfOriginAsset} is the number of
      *  EUR that was spent to buy BTC or received by selling BTC. */
-    amountOfOriginAssetUsed?: number,
+    amountOfOriginAsset?: number,
     /** Filled amount of target asset */
     filled: number,
     /** Remaining amount to fill */
