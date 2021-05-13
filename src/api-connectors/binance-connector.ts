@@ -3,7 +3,7 @@ import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
 import { Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
-import { Market } from "../models/market";
+import { Market, OHLCV } from "../models/market";
 import { Order } from "../models/order";
 import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
@@ -91,6 +91,7 @@ export class BinanceConnector {
                 symbol: market.symbol,
                 originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
                 targetAsset: market.symbol.split('/')[0],
+                percentChangeLast24h: market.percentage,
                 originAssetVolumeLast24h: market.quoteVolume,
                 targetAssetVolumeLast24h: market.baseVolume,
                 targetAssetPrice: market.ask, // current best ask (sell) price
@@ -106,7 +107,7 @@ export class BinanceConnector {
      * @param retries Number of times that the operation will be repeated after failure
      * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
-    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<any[]> {
+    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<OHLCV[]> {
         let candleSticks;
         while (!candleSticks && retries-- > -1) {
             try {
@@ -239,10 +240,10 @@ export class BinanceConnector {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: amount,
-            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET),
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
-            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET),
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, side),
             status: binanceOrder.status,
             originAsset,
             targetAsset,
@@ -319,7 +320,7 @@ export class BinanceConnector {
             filled: binanceOrder.filled,
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
-            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT),
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT, side),
             status: binanceOrder.status,
             originAsset,
             targetAsset,
@@ -394,10 +395,10 @@ export class BinanceConnector {
                     externalId: binanceOrder.id,
                     side: binanceOrder.side,
                     amountOfTargetAsset: binanceOrder.amount,
-                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType),
+                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side),
                     remaining: binanceOrder.remaining,
                     average: binanceOrder.average,
-                    amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType),
+                    amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
                     status: binanceOrder.status,
                     datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
                     info: binanceOrder.info,
@@ -485,8 +486,8 @@ export class BinanceConnector {
     public setMarketAmountPrecision(markets: Array<Market>): void {
         // fori and not a forof loop is needed because the array's content is modified in the loop
         for (let i = 0; i < markets.length; i++) {
-            const amountPrecision = this.binance.markets[markets[i].symbol].precision?.amount;
-            if (amountPrecision >= 0) {
+            const amountPrecision = this.binance.markets[markets[i].symbol]?.precision?.amount;
+            if (amountPrecision && amountPrecision >= 0) {
                 markets[i].amountPrecision = amountPrecision;
             }
         }
@@ -513,7 +514,7 @@ export class BinanceConnector {
     /**
      * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
      */
-    private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType): number {
+    private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType, side: "buy" | "sell"): number {
         // if the order is incomplete
         if (remaining > 0) {
             return 0;
@@ -529,7 +530,11 @@ export class BinanceConnector {
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
-            amountOfOriginAsset += Number(fill.price) * Number(fill.qty) - Number(fill.commission);
+            if (side === "buy") {
+                amountOfOriginAsset += Number(fill.price) * Number(fill.qty);
+            } else {
+                amountOfOriginAsset += Number(fill.price) * Number(fill.qty) - Number(fill.commission);
+            }
         }
         return amountOfOriginAsset;
     }
@@ -537,7 +542,7 @@ export class BinanceConnector {
     /**
      * @return amount of target asset that was purchased when commission is deduced (for MARKET orders)
      */
-    private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType): number {
+    private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType, side: "buy" | "sell"): number {
         if (orderType !== OrderType.MARKET) {
             return filled;
         }
@@ -548,7 +553,11 @@ export class BinanceConnector {
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
-            amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);
+            if (side === "sell") {
+                amountOfOriginAsset += Number(fill.qty);
+            } else {
+                amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);
+            }
         }
         return amountOfOriginAsset;
     }

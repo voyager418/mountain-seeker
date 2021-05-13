@@ -46,6 +46,7 @@ export type TradingState = {
     amountOfYBought?: number
     /** Amount of Y used to buy Z */
     amountOfYSpentOnZ?: number
+    /* eslint-disable  @typescript-eslint/no-explicit-any */
     /** Parameters of the strategy */
     config?: StrategyDetails<any>;
 }
