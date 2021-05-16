@@ -1,7 +1,7 @@
 import { Container, Service } from "typedi";
 import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
-import { Dictionary, Ticker } from "ccxt";
+import { binance, Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
 import { Market, OHLCV } from "../models/market";
 import { Order } from "../models/order";
@@ -10,8 +10,11 @@ import { OrderType } from "../enums/order-type.enum";
 import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
 import { SimulationUtils } from "../utils/simulation-utils";
+import hmacSHA256 from 'crypto-js/hmac-sha256';
 
 const CONFIG = require('config');
+const axios = require('axios').default;
+
 
 /**
  * A binance buy/sell market order contains a list of fills.
@@ -52,30 +55,36 @@ export class BinanceConnector {
      *
      * @see https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md for more info
      * */
-    private binance;
+    private readonly binance;
+
+    private readonly V1_URL_BASE_PATH = "https://api.binance.com/sapi/v1";
 
     constructor() {
         this.binance = new ccxt.binance({
-            apiKey: Container.get("BINANCE_API_KEY"),
-            secret: Container.get("BINANCE_API_SECRET"),
+            apiKey: process.env.BINANCE_API_KEY,
+            secret: process.env.BINANCE_API_SECRET,
             verbose: false,
             enableRateLimit: false
         });
     }
 
+    getBinanceInstance(): binance {
+        return this.binance;
+    }
+
     /**
      * @param minimumPercent The minimal percent of variation.
-     * @return Markets that have at least `minimumPercent` as their 24hr change variation.
-     * Example: when called with '0', returns only the markets that had a positive change.
+     * @return Markets that have at least `minimumPercent` as their 24h change variation.
+     * Example: when called with '0', returns only the markets that had a positive or 0 change.
      */
     public async getMarketsBy24hrVariation(minimumPercent: number): Promise<Array<Market>> {
         let tickers;
-        let retires = 3;
-        while (!tickers && retires-- > -1) {
+        let retries = 3;
+        while (!tickers && retries-- > -1) {
             try {
                 tickers = await this.binance.fetchTickers();
             } catch (e) {
-                if (retires > -1) {
+                if (retries > -1) {
                     log.warn("Failed to fetch 24h tickers. Retrying...");
                     await GlobalUtils.sleep(30);
                 } else {
@@ -86,7 +95,7 @@ export class BinanceConnector {
 
         const res: Array<Market> = [];
         Object.values(tickers as Dictionary<Ticker>)
-            .filter(market => market.percentage && market.percentage > minimumPercent)
+            .filter(market => market.percentage !== undefined && market.percentage >= minimumPercent)
             .forEach(market => res.push({
                 symbol: market.symbol,
                 originAsset: Currency[market.symbol.split('/')[1] as keyof typeof Currency],
@@ -122,7 +131,7 @@ export class BinanceConnector {
                 if (retries <= -1) {
                     return Promise.reject(`Failed to fetch candle sticks.`);
                 } else {
-                    if (e.message.toString().includes("DDoSProtection")) {
+                    if (e.message?.toString().includes("DDoSProtection")) {
                         return Promise.reject(`Failed to fetch candle sticks: ${e}`);
                     }
                     log.warn(`Failed to fetch candle sticks: ${e}. Retrying...`);
@@ -134,17 +143,19 @@ export class BinanceConnector {
     }
 
     /**
-     * @param currencies Array of currencies for which the balance will be retrieved
-     * @return A map for each currency and the actual available amount
+     * @param currencies Array of currencies for which the balance will be retrieved even if it's 0
+     * @return A map for each currency where the balance > 0
      */
-    public async getBalance(currencies: Array<Currency>): Promise<Map<Currency, number>> {
+    public async getBalance(currencies: Array<string>): Promise<Map<string, number>> {
         // TODO maybe add retries or increase the sleep interval
         await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
         const balance = await this.binance.fetchBalance()
             .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
-        const res = new Map<Currency, number>();
-        for (const currency of currencies) {
-            res.set(currency, balance[currency].free);
+        const res = new Map<string, number>();
+        for (const currency of balance.info.balances) {
+            if (currencies.indexOf(currency.asset) >= 0 || Number(currency.free) > 0) {
+                res.set(currency.asset, Number(currency.free));
+            }
         }
         return res;
     }
@@ -157,19 +168,37 @@ export class BinanceConnector {
         //   making the sum of quantity - comission in the 'fills' array in the order object
         await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
         const balance = await this.binance.fetchBalance()
-            .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
+            .catch(e => Promise.reject(`Failed to fetch balance for currency ${asset}: ${e}`));
         return balance[asset].free;
     }
 
     /**
-     * @return Balance for a particular `currency`
+     * Converts the array of small amounts of assets in `fromCurrencies` to BNB.
+     * Can be executed once every 6 hours
+     *
+     * @param fromCurrencies The assets to convert
      */
-    public async getBalanceForCurrency(currency: string): Promise<number> {
-        // TODO maybe add retries or increase the sleep interval
-        await GlobalUtils.sleep(2);
-        const balance = await this.binance.fetchBalance()
-            .catch(e => Promise.reject(`Failed to fetch balance for currency ${currency}: ${e}`));
-        return balance[currency].free;
+    public async convertSmallAmountsToBNB(fromCurrencies: Array<string>): Promise<void> {
+        let assetsInURLPath = "";
+        for (const asset of fromCurrencies) {
+            if (assetsInURLPath.length === 0) {
+                assetsInURLPath += "asset=" + asset;
+            } else {
+                assetsInURLPath += "&asset=" + asset;
+            }
+        }
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-MBX-APIKEY': this.binance.apiKey
+        };
+        const queryString = `${assetsInURLPath}&timestamp=${Date.now()}`;
+        const urlPath = `${this.V1_URL_BASE_PATH}/asset/dust?${queryString}`;
+        const signature = hmacSHA256(queryString, this.binance.secret).toString();
+        axios.post(`${urlPath}&signature=${signature}`, undefined,
+            {
+                headers: headers
+            }).then((response: any) => log.debug("%O HTTP status %O", response.response?.data, response.response?.status))
+            .catch((error: any) => log.error("%O HTTP status %O", error.response?.data, error.response?.status));
     }
 
     /**
@@ -240,7 +269,7 @@ export class BinanceConnector {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: amount,
-            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side),
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side, targetAsset),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, side),
@@ -395,7 +424,7 @@ export class BinanceConnector {
                     externalId: binanceOrder.id,
                     side: binanceOrder.side,
                     amountOfTargetAsset: binanceOrder.amount,
-                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side),
+                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset),
                     remaining: binanceOrder.remaining,
                     average: binanceOrder.average,
                     amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
@@ -542,7 +571,8 @@ export class BinanceConnector {
     /**
      * @return amount of target asset that was purchased when commission is deduced (for MARKET orders)
      */
-    private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType, side: "buy" | "sell"): number {
+    private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
+        side: "buy" | "sell", targetAsset: string): number {
         if (orderType !== OrderType.MARKET) {
             return filled;
         }
@@ -553,7 +583,7 @@ export class BinanceConnector {
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
-            if (side === "sell") {
+            if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in a different currency
                 amountOfOriginAsset += Number(fill.qty);
             } else {
                 amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);

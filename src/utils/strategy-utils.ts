@@ -14,7 +14,15 @@ export class StrategyUtils {
      */
     static getPercentVariation(start: number, end: number): number {
         // TODO : division by zero ?
-        return 100 - ((100 / end) * start); // TODO : check why I am not getting exact same numbers as in Binance
+        if (start <= end) {
+            if (start >= 0) {
+                return ((end - start) / (start)) * 100;
+            } else {
+                return ((start - end) / (start)) * 100;
+            }
+        } else {
+            return -((start - end) / (start)) * 100;
+        }
     }
 
     /**

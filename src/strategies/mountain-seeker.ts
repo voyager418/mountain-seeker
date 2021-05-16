@@ -13,6 +13,7 @@ import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
+
 const CONFIG = require('config');
 
 
@@ -29,16 +30,14 @@ export class MountainSeeker implements BaseStrategy {
     private readonly emailService: EmailService;
     private readonly CANDLE_STICKS_TO_FETCH = 60;
     private marketUnitPriceOfOriginAssetInEur = -1;
-    private initialWalletBalance?: Map<Currency, number>;
-    private refilledWalletBalance?: Map<Currency, number>;
+    private initialWalletBalance?: Map<string, number>;
+    private refilledWalletBalance?: Map<string, number>;
 
     private state: TradingState = {
         id: uuidv4()
     };
 
     constructor(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
-        Container.set("BINANCE_API_KEY", account.apiKey);
-        Container.set("BINANCE_API_SECRET", account.apiSecret);
         this.account = account;
         this.strategyDetails = strategyDetails;
         this.apiConnector = Container.get(BinanceConnector);
@@ -118,7 +117,7 @@ export class MountainSeeker implements BaseStrategy {
         // Prepare wallet
         await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
-        const availableOriginAssetAmount = this.refilledWalletBalance?.get(market.originAsset);
+        const availableOriginAssetAmount = this.refilledWalletBalance?.get(market.originAsset.toString());
         if (availableOriginAssetAmount === undefined) {
             return Promise.reject("No amount of origin asset in the wallet");
         }
@@ -138,7 +137,7 @@ export class MountainSeeker implements BaseStrategy {
                 log.info(`Trading canceled for market ${JSON.stringify(market, null, 4)}`);
                 return Promise.resolve(this.state);
             } else {
-                await this.handleSellY(market, availableOriginAssetAmount);
+                await this.handleSellOriginAsset(market, availableOriginAssetAmount);
                 this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
                 this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
                 log.info(`Final percent change : ${this.state.percentChange}`);
@@ -230,18 +229,6 @@ export class MountainSeeker implements BaseStrategy {
     }
 
     /**
-     * If the market is 'WIN/BNB' then 'Y' stands for 'BNB'
-     */
-    private async handleSellY(market: Market, amountToSell: number) {
-        const order = await this.apiConnector.createMarketOrder(Currency.EUR, market.originAsset,
-            "sell", amountToSell, true).catch(e => Promise.reject(e));
-        this.state.retrievedAmountOfEuro = order.amountOfOriginAsset;
-        this.state.endUnitPriceOnYXMarket = order.average;
-        this.state.pricePercentChangeOnYX = StrategyUtils.getPercentVariation(this.state.initialUnitPriceOnYXMarket!,
-            this.state.endUnitPriceOnYXMarket!);
-    }
-
-    /**
      * If the initial selected market was not accepting EUR (e.g. "CAKE/BNB")
      * then the full amount of origin asset is traded for EUR (e.g. => BNB is sold on "BNB/EUR" market)
      */
@@ -259,8 +246,10 @@ export class MountainSeeker implements BaseStrategy {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
             const amountOfYToSell = (this.state.amountOfYBought! - this.state.amountOfYSpentOnZ!) + completedOrder!.amountOfOriginAsset!
-            await this.handleSellY(market, amountOfYToSell);
+            await this.handleSellOriginAsset(market, amountOfYToSell);
         }
+
+        await this.convertRemainingTargetAssetToBNB(market);
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
         this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
         log.info(`Final percent change : ${this.state.percentChange}`);
@@ -273,19 +262,6 @@ export class MountainSeeker implements BaseStrategy {
             ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
             JSON.stringify(this.state, null, 4));
         return Promise.resolve();
-    }
-
-    /**
-     * @return The amount of ${@link Market.originAsset} that will be invested
-     */
-    private computeAmountToInvest(market: Market, availableOriginAssetAmount: number): number {
-        if (market.originAsset === Currency.EUR) {
-            this.state.originAssetIsEur = true;
-            return Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade);
-        } else {
-            this.state.originAssetIsEur = false;
-            return this.state.amountOfYBought!;
-        }
     }
 
     /**
@@ -332,10 +308,11 @@ export class MountainSeeker implements BaseStrategy {
                                 market.candleSticks[market.candleSticks.length - 2][4]) >= 9) {
                             log.debug(`Potential market : ${JSON.stringify(market)}`);
                             // if all variations except the last x, do not exceed x%
-                            // OR the open price of last candle is < than open price of xth candle
+                            // OR the price percent difference between open price of last candle and xth candle is at least x%
                             if (!candleStickVariations.slice(0, candleStickVariations.length - 16)
                                 .some(variation => Math.abs(variation) > 2.5) ||
-                                market.candleSticks[0][1] < market.candleSticks[market.candleSticks.length - 16][1]
+                                StrategyUtils.getPercentVariation(market.candleSticks[0][1],
+                                    market.candleSticks[market.candleSticks.length - 16][1]) >= 0.5
                             ) {
                                 potentialMarkets.push(market);
                             }
@@ -383,7 +360,7 @@ export class MountainSeeker implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.initialWalletBalance = JSON.stringify(Array.from(this.initialWalletBalance!.entries()));
         log.info("Initial wallet balance : %O", this.initialWalletBalance);
-        await this.handleOriginAssetRefill(market, this.initialWalletBalance?.get(market.originAsset))
+        await this.handleOriginAssetRefill(market, this.initialWalletBalance?.get(market.originAsset.toString()))
             .catch(e => Promise.reject(e));
         this.refilledWalletBalance = await this.apiConnector.getBalance(authorizedCurrencies)
             .catch(e => Promise.reject(e));
@@ -462,8 +439,66 @@ export class MountainSeeker implements BaseStrategy {
         return Promise.resolve();
     }
 
-    getTradingState(): TradingState {
-        return this.state;
+    /**
+     * Tries to convert the remaining {@link market.targetAsset} into {@link Currency.BNB} in order to compute the total equivalent of the converted
+     * {@link Currency.BNB} in EUR of and add the result to {@link this.state.retrievedAmountOfEuro}.
+     * If the conversion is not possible, then computes the EUR equivalent of
+     * {@link market.targetAsset} and adds it to {@link this.state.retrievedAmountOfEuro}.
+     */
+    private async convertRemainingTargetAssetToBNB(market: Market): Promise<void> {
+        const walletBalance = await this.apiConnector.getBalance([Currency.BNB, market.targetAsset])
+            .catch(e => Promise.reject(e));
+        const initialBNBAmount = walletBalance.get(Currency.BNB)!;
+        if (walletBalance.get(market.targetAsset)! > 0) {
+            await this.apiConnector.convertSmallAmountsToBNB([market.targetAsset]);
+            const finalBNBAmount = await this.apiConnector.getBalanceForAsset(Currency.BNB).catch(e => Promise.reject(e));
+
+            if (!this.state.retrievedAmountOfEuro) {
+                this.state.retrievedAmountOfEuro = 0;
+            }
+
+            if (initialBNBAmount === finalBNBAmount) {
+                log.warn(`Was unable to convert ${walletBalance.get(market.targetAsset)}${market.targetAsset} to ${Currency.BNB}`);
+                const priceOfTargetAssetInOriginAsset = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset, true)
+                    .catch(e => Promise.reject(e));
+                const priceOfOriginAssetInEUR = await this.apiConnector.getUnitPrice(Currency.EUR, market.originAsset, true)
+                    .catch(e => Promise.reject(e));
+                const equivalentInEUR = walletBalance.get(market.targetAsset)! * priceOfTargetAssetInOriginAsset * priceOfOriginAssetInEUR;
+                log.debug(`Remaining ${walletBalance.get(market.targetAsset)!}${market.targetAsset} equals to ${equivalentInEUR}€`);
+                this.state.retrievedAmountOfEuro += equivalentInEUR;
+            } else {
+                const priceOfBNBInEUR = await this.apiConnector.getUnitPrice(Currency.EUR, Currency.BNB, true)
+                    .catch(e => Promise.reject(e));
+                const equivalentInEUR = priceOfBNBInEUR * (finalBNBAmount - initialBNBAmount);
+                log.debug(`Converted ${finalBNBAmount - initialBNBAmount}${Currency.BNB} equals to ${equivalentInEUR}€`);
+                this.state.retrievedAmountOfEuro += equivalentInEUR;
+            }
+        }
+    }
+
+    /**
+     * If the market is 'WIN/BNB' then it sells 'BNB'
+     */
+    private async handleSellOriginAsset(market: Market, amountToSell: number) {
+        const order = await this.apiConnector.createMarketOrder(Currency.EUR, market.originAsset,
+            "sell", amountToSell, true).catch(e => Promise.reject(e));
+        this.state.retrievedAmountOfEuro = order.amountOfOriginAsset;
+        this.state.endUnitPriceOnYXMarket = order.average;
+        this.state.pricePercentChangeOnYX = StrategyUtils.getPercentVariation(this.state.initialUnitPriceOnYXMarket!,
+            this.state.endUnitPriceOnYXMarket!);
+    }
+
+    /**
+     * @return The amount of ${@link Market.originAsset} that will be invested
+     */
+    private computeAmountToInvest(market: Market, availableOriginAssetAmount: number): number {
+        if (market.originAsset === Currency.EUR) {
+            this.state.originAssetIsEur = true;
+            return Math.min(availableOriginAssetAmount, this.strategyDetails.config.maxMoneyToTrade);
+        } else {
+            this.state.originAssetIsEur = false;
+            return this.state.amountOfYBought!;
+        }
     }
 }
 

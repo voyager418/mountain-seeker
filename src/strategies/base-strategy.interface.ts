@@ -11,12 +11,4 @@ export interface BaseStrategy {
      * @return A promise with the final trading state
      */
     run(account: Account): Promise<TradingState>;
-
-    /**
-     * Each strategy should keep an internal state.
-     * For example the current profit that the strategy is making.
-     *
-     * @return The current state
-     */
-    getTradingState(): TradingState;
 }
