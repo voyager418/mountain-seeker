@@ -15,11 +15,7 @@ export class StrategyUtils {
     static getPercentVariation(start: number, end: number): number {
         // TODO : division by zero ?
         if (start <= end) {
-            if (start >= 0) {
-                return ((end - start) / (start)) * 100;
-            } else {
-                return ((start - end) / (start)) * 100;
-            }
+            return Math.abs(((end - start) / (start)) * 100);
         } else {
             return -((start - end) / (start)) * 100;
         }

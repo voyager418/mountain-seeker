@@ -3,7 +3,7 @@ import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
 import { binance, Dictionary, Ticker } from "ccxt";
 import log from '../logging/log.instance';
-import { Market, OHLCV } from "../models/market";
+import { Market, TOHLCV } from "../models/market";
 import { Order } from "../models/order";
 import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
@@ -116,7 +116,7 @@ export class BinanceConnector {
      * @param retries Number of times that the operation will be repeated after failure
      * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
-    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<OHLCV[]> {
+    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<TOHLCV[]> {
         let candleSticks;
         while (!candleSticks && retries-- > -1) {
             try {
@@ -255,7 +255,7 @@ export class BinanceConnector {
                         "market", side, amountToBuy);
                 } catch (e) {
                     if (retries > -1) {
-                        log.warn(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}. Retrying...`);
+                        log.warn(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}: ${e}. Retrying...`);
                         await GlobalUtils.sleep(1);
                     }
                 }
@@ -317,7 +317,7 @@ export class BinanceConnector {
                     stopPrice: stopPrice
                 });
         } catch (e) {
-            log.error(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}. ${e}`);
+            log.error(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}: ${e}`);
         }
         if (!binanceOrder && retries) {
             while (retries > 0) {

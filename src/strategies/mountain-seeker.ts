@@ -108,6 +108,7 @@ export class MountainSeeker implements BaseStrategy {
         this.apiConnector.setMarketMinNotional(market);
         this.apiConnector.printMarketDetails(market.symbol);
         this.state.marketSymbol = market.symbol;
+        this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = market.candleSticksPercentageVariations;
         log.info("Found market %O", market.symbol);
         log.debug("Last 3 candlestick's percentage variations with %O interval : %O",
@@ -161,17 +162,14 @@ export class MountainSeeker implements BaseStrategy {
 
         // minimum between low of xth and yth candlestick starting from end
         let stopLimitPrice = Math.min(
-            getCandleStick(market.candleSticks, market.candleSticks.length - 13)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 12)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 11)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 10)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 9)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 8)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 7)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 6)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 5)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 4)[3],
-            getCandleStick(market.candleSticks, market.candleSticks.length - 3)[3]);
+            getCandleStick(market.candleSticks, market.candleSticks.length - 20)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 19)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 18)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 17)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 16)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 15)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 14)[3],
+            getCandleStick(market.candleSticks, market.candleSticks.length - 13)[3]);
 
         const targetAssetAmount = buyOrder.filled;
         let stopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
@@ -189,7 +187,7 @@ export class MountainSeeker implements BaseStrategy {
         while (stopLimitPrice < marketUnitPrice) {
             await GlobalUtils.sleep(secondsToSleepInTheTradingLoop);
             if ((await this.apiConnector.getOrder(stopLimitOrder.externalId, stopLimitOrder.originAsset, stopLimitOrder.targetAsset,
-                stopLimitOrder.id, stopLimitOrder.type!, 3)).status === "closed") {
+                stopLimitOrder.id, stopLimitOrder.type!, 300)).status === "closed") {
                 break;
             }
             marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset)
@@ -308,11 +306,11 @@ export class MountainSeeker implements BaseStrategy {
                                 market.candleSticks[market.candleSticks.length - 2][4]) >= 9) {
                             log.debug(`Potential market : ${JSON.stringify(market)}`);
                             // if all variations except the last x, do not exceed x%
-                            // OR the price percent difference between open price of last candle and xth candle is at least x%
+                            // and there is no candle in the first 15 candles that has a close price > than the open price of first candle
                             if (!candleStickVariations.slice(0, candleStickVariations.length - 16)
-                                .some(variation => Math.abs(variation) > 2.5) ||
-                                StrategyUtils.getPercentVariation(market.candleSticks[0][1],
-                                    market.candleSticks[market.candleSticks.length - 16][1]) >= 0.5
+                                .some(variation => Math.abs(variation) > 3 &&
+                                !market.candleSticks.slice(market.candleSticks.length - 16, market.candleSticks.length - 1)
+                                    .some(candle => candle[4] > market.candleSticks[market.candleSticks.length - 1][1]))
                             ) {
                                 potentialMarkets.push(market);
                             }

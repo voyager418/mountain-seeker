@@ -26,6 +26,8 @@ export type TradingState = {
     originAssetIsEur?: boolean;
     /** The market where the trading is happening */
     marketSymbol?: string;
+    /** The market price percent change last 24h */
+    marketPercentChangeLast24h?: number;
     /** Array of candlesticks percentage variations */
     candleSticksPercentageVariations?: Array<number>;
     /** Indicates whether the trading ended without problems */

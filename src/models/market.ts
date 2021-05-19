@@ -13,7 +13,7 @@ export type Market = {
 
     /** An array of candlesticks.
      * A candlestick has the following shape : [ timestamp, open, high, low, close, volume ] */
-    candleSticks: Array<OHLCV>;
+    candleSticks: Array<TOHLCV>;
 
     /** An array of variations in percent for each candleStick defined in `Market.candleSticks` array.
      * Ordered from oldest to more recent. The last number is a variation of the current price.
@@ -42,7 +42,7 @@ export type Market = {
 }
 
 /** [ timestamp, open, high, low, close, volume ] */
-export type OHLCV = [number, number, number, number, number, number];
+export type TOHLCV = [number, number, number, number, number, number];
 
 export function getCandleStick(array: Array<Array<number>>, index: number): Array<number> {
     assert(array.length >= index, `Candlestick array is too short, wanted at least ${index} elements but got ${array.length}`);

@@ -4,6 +4,20 @@ import { GlobalUtils } from "../../src/utils/global-utils";
 
 beforeAll(() => {
     jest.spyOn(GlobalUtils, 'sleep').mockImplementation(async() => Promise.resolve());
+    process.env = Object.assign(process.env, { BINANCE_API_KEY: 'api key', BINANCE_API_SECRET: 'api secret' });
+
+});
+
+test("Should create binance instance with correct configuration", () => {
+    // arrange
+    const binanceConnector = new BinanceConnector();
+    const binanceInstance = binanceConnector.getBinanceInstance();
+
+    // assert
+    expect(binanceInstance.verbose).toBe(false);
+    expect(binanceInstance.enableRateLimit).toBe(false);
+    expect(binanceInstance.apiKey).toBe('api key');
+    expect(binanceInstance.secret).toBe('api secret');
 });
 
 describe("getMarketsBy24hrVariation", () => {

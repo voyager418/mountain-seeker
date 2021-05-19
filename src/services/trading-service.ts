@@ -29,9 +29,11 @@ export class TradingService {
     }
 
     public async beginTrading(): Promise<void> {
+        let errorMessage;
         // eslint-disable-next-line no-constant-condition
         while (true) {
             const defaultStrategy = new MountainSeeker(this.account, this.strategy);
+            errorMessage = "";
             try {
                 const result: TradingState = await defaultStrategy.run();
                 if (result && result.endedWithoutErrors && this.strategy.config.autoRestartOnProfit) {
@@ -50,10 +52,11 @@ export class TradingService {
                 }
             } catch (e) {
                 log.error("Trading was aborted due to an error : ", new Error(e));
+                errorMessage = e;
                 break;
             }
         }
-        await new EmailService().sendEmail("Trading stopped...", '');
+        await new EmailService().sendEmail("Trading stopped...", errorMessage);
     }
 
 }
