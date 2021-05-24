@@ -24,7 +24,7 @@ export class StrategyUtils {
     /**
      * Computes percentage variations of each candlestick in each market.
      */
-    static computeCandlestickPercentVariations(markets: Array<Market>): void {
+    static setCandlestickPercentVariations(markets: Array<Market>): void {
         for (const market of markets) {
             const candleSticks = market.candleSticks; // a candlestick has a format [ timestamp, open, high, low, close, volume ]
             const candleStickVariations = [];

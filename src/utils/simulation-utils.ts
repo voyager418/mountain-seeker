@@ -1,6 +1,7 @@
 import { Order } from "../models/order";
 import { OrderType } from "../enums/order-type.enum";
 import { Currency } from "../enums/trading-currencies.enum";
+import { v4 as uuidv4 } from "uuid";
 
 export class SimulationUtils {
     private constructor() {
@@ -55,6 +56,23 @@ export class SimulationUtils {
             targetAsset,
             type: OrderType.STOP_LIMIT,
             average: 200
+        };
+    }
+
+    public static getSimulatedCancelOrder(): Order {
+        return {
+            id: uuidv4(),
+            externalId: "",
+            filled: 0,
+            remaining: 0,
+            status: "closed" as "open" | "closed" | "canceled",
+            datetime: "",
+            side: "sell" as "buy" | "sell",
+            amountOfTargetAsset: 2,
+            average: 200,
+            originAsset: Currency.EUR,
+            targetAsset: "BNB",
+            type: OrderType.STOP_LIMIT
         };
     }
 }

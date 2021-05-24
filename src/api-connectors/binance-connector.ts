@@ -1,4 +1,4 @@
-import { Container, Service } from "typedi";
+import { Service } from "typedi";
 import * as ccxt from "ccxt";
 // eslint-disable-next-line no-duplicate-imports
 import { binance, Dictionary, Ticker } from "ccxt";
@@ -11,6 +11,7 @@ import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
 import { SimulationUtils } from "../utils/simulation-utils";
 import hmacSHA256 from 'crypto-js/hmac-sha256';
+import cliProgress from "cli-progress";
 
 const CONFIG = require('config');
 const axios = require('axios').default;
@@ -232,9 +233,9 @@ export class BinanceConnector {
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
         if (CONFIG.simulation) {
-            const order: Order = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
-            log.info(`Executing simulated order %O`, order);
-            return Promise.resolve(order);
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
+            log.info(`Executing simulated order %O`, o);
+            return Promise.resolve(o);
         }
 
         log.debug("Creating new market order on %O/%O", targetAsset, originAsset);
@@ -461,26 +462,13 @@ export class BinanceConnector {
      */
     public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
         if (CONFIG.simulation) {
-            const o = {
-                id: uuidv4(),
-                externalId: "",
-                filled: 0,
-                remaining: 0,
-                status: "closed" as "open" | "closed" | "canceled",
-                datetime: "",
-                side: "sell" as "buy" | "sell",
-                amountOfTargetAsset: 2,
-                average: 200,
-                originAsset: Currency.EUR,
-                targetAsset: "BNB",
-                type: OrderType.STOP_LIMIT
-            }
+            const o = SimulationUtils.getSimulatedCancelOrder();
             log.info(`Executing simulated cancel order %O`, o);
             return Promise.resolve(o);
         }
         const binanceOrder = await this.binance.cancelOrder(orderId, `${targetAsset}/${originAsset}`)
             .catch(e => Promise.reject(e));
-        const order: Order = {
+        let order: Order = {
             externalId: binanceOrder.id,
             id: internalOrderId,
             side: binanceOrder.side,
@@ -494,6 +482,15 @@ export class BinanceConnector {
             originAsset,
             targetAsset
         };
+        while (order.status !== "canceled") {
+            try {
+                // the OrderType.MARKET here has no importance
+                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.MARKET);
+            } catch (e) {
+                log.warn(`Failed to get the cancelled order ${order.externalId} : ${e}`);
+            }
+            await GlobalUtils.sleep(2);
+        }
         log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
         return Promise.resolve(order);
     }
@@ -520,6 +517,44 @@ export class BinanceConnector {
                 markets[i].amountPrecision = amountPrecision;
             }
         }
+    }
+
+    /**
+     * Finds candlesticks for each market.
+     */
+    public async fetchCandlesticks(markets: Array<Market>, interval: string, numberOfCandleSticks: number): Promise<void> {
+        log.info(`Fetching candlesticks for ${markets.length} markets`);
+        const progress = new cliProgress.SingleBar({}, cliProgress.Presets.shades_grey);
+        progress.start(markets.length, 0);
+        let index = 0;
+        const oneThird = ~~(markets.length/3);
+        async function firstHalf(apiConnector: BinanceConnector) {
+            for (let i = 0; i < oneThird; i++) {
+                const market = markets[i];
+                progress.update(++index);
+                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+            }
+        }
+        async function secondHalf(apiConnector: BinanceConnector) {
+            for (let i = oneThird; i < oneThird * 2; i++) {
+                const market = markets[i];
+                progress.update(++index);
+                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+            }
+        }
+        async function thirdHalf(apiConnector: BinanceConnector) {
+            for (let j = oneThird * 2; j < markets.length; j++) {
+                const market = markets[j];
+                progress.update(++index);
+                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+            }
+        }
+        // if this method ends faster than around 6 seconds then we reach a limit for binance API calls per minute
+        await Promise.all([firstHalf(this),
+            secondHalf(this),
+            thirdHalf(this),
+            GlobalUtils.sleep(6)]);
+        progress.stop();
     }
 
     /**
@@ -569,7 +604,7 @@ export class BinanceConnector {
     }
 
     /**
-     * @return amount of target asset that was purchased when commission is deduced (for MARKET orders)
+     * @return Amount of target asset that was purchased when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
         side: "buy" | "sell", targetAsset: string): number {
