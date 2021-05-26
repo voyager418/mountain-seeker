@@ -1,7 +1,5 @@
 import { Service } from "typedi";
-import * as ccxt from "ccxt";
-// eslint-disable-next-line no-duplicate-imports
-import { binance, Dictionary, Ticker } from "ccxt";
+import ccxt from "ccxt";
 import log from '../logging/log.instance';
 import { Market, TOHLCV } from "../models/market";
 import { Order } from "../models/order";
@@ -69,7 +67,7 @@ export class BinanceConnector {
         });
     }
 
-    getBinanceInstance(): binance {
+    getBinanceInstance(): ccxt.binance {
         return this.binance;
     }
 
@@ -95,7 +93,7 @@ export class BinanceConnector {
         }
 
         const res: Array<Market> = [];
-        Object.values(tickers as Dictionary<Ticker>)
+        Object.values(tickers as ccxt.Dictionary<ccxt.Ticker>)
             .filter(market => market.percentage !== undefined && market.percentage >= minimumPercent)
             .forEach(market => res.push({
                 symbol: market.symbol,

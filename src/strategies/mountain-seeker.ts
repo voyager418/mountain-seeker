@@ -283,7 +283,7 @@ export class MountainSeeker implements BaseStrategy {
     private selectMarketForTrading(markets: Array<Market>): Market | undefined {
         const potentialMarkets = [];
         for (const market of markets) {
-            const candleStickVariations: number[] = market.candleSticksPercentageVariations;
+            const candleStickVariations = market.candleSticksPercentageVariations;
             const currentVariation = getCurrentCandleStickPercentageVariation(candleStickVariations);
 
             if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as
@@ -318,7 +318,6 @@ export class MountainSeeker implements BaseStrategy {
                     getCandleStickPercentageVariation(current.candleSticksPercentageVariations,
                         current.candleSticksPercentageVariations.length - 2)) ? prev : current));
         }
-
         return undefined;
     }
 
