@@ -3,16 +3,22 @@ import { TestHelper } from "../test-helper";
 import { GlobalUtils } from "../../src/utils/global-utils";
 import { Currency } from "../../src/enums/trading-currencies.enum";
 import { binance } from "ccxt";
+import { ConfigService } from "../../src/services/config-service";
+import createMockInstance from "jest-create-mock-instance";
 
 
 describe("Binance connector", () => {
     let binanceConnector: BinanceConnector;
+    let configService: ConfigService;
     let binanceInstance: binance;
 
     beforeAll(() => {
-        jest.spyOn(GlobalUtils, 'sleep').mockImplementation(async () => Promise.resolve());
+        jest.spyOn(GlobalUtils, 'sleep').mockImplementation(async() => Promise.resolve());
         process.env = Object.assign(process.env, { BINANCE_API_KEY: 'api key', BINANCE_API_SECRET: 'api secret' });
-        binanceConnector = new BinanceConnector();
+        configService = createMockInstance(ConfigService);
+        configService.isSimulation = jest.fn(() => false);
+
+        binanceConnector = new BinanceConnector(configService);
         binanceInstance = binanceConnector.getBinanceInstance();
     });
 
@@ -26,10 +32,10 @@ describe("Binance connector", () => {
 
     describe("getMarketsBy24hrVariation", () => {
         beforeAll(() => {
-            binanceInstance.fetchTickers = jest.fn(async () => TestHelper.getBinanceFetchTickers());
+            binanceInstance.fetchTickers = jest.fn(async() => TestHelper.getBinanceFetchTickers());
         });
 
-        test("Should correctly filter based on minimum percent for 24h change", async () => {
+        test("Should correctly filter based on minimum percent for 24h change", async() => {
             // act
             const res = await binanceConnector.getMarketsBy24hrVariation(1);
 
@@ -38,7 +44,7 @@ describe("Binance connector", () => {
             expect(res).toHaveLength(TestHelper.getAllMarkets().length);
         });
 
-        test("Should return unfiltered if the minimum percent is too low", async () => {
+        test("Should return unfiltered if the minimum percent is too low", async() => {
             // act
             const res = await binanceConnector.getMarketsBy24hrVariation(-Infinity);
 
@@ -46,9 +52,9 @@ describe("Binance connector", () => {
             expect(res).toHaveLength(Object.values(TestHelper.getBinanceFetchTickers()).length);
         });
 
-        test("Should retry several times on failure", async () => {
+        test("Should retry several times on failure", async() => {
             // arrange
-            binanceInstance.fetchTickers = jest.fn(async () => Promise.reject("Test error msg"));
+            binanceInstance.fetchTickers = jest.fn(async() => Promise.reject("Test error msg"));
 
             // act
             try {
@@ -64,10 +70,10 @@ describe("Binance connector", () => {
 
     describe("getCandlesticks", () => {
         beforeAll(() => {
-            binanceInstance.fetchOHLCV = jest.fn(async () => TestHelper.getBinanceFetchOHLCV());
+            binanceInstance.fetchOHLCV = jest.fn(async() => TestHelper.getBinanceFetchOHLCV());
         });
 
-        test("Should call fetchOHLCV with correct arguments", async () => {
+        test("Should call fetchOHLCV with correct arguments", async() => {
             // act
             await binanceConnector.getCandlesticks("OMG/BNB", "1m", 60, 3);
 
@@ -75,9 +81,9 @@ describe("Binance connector", () => {
             expect(binanceInstance.fetchOHLCV).toBeCalledWith("OMG/BNB", "1m", undefined, 60);
         });
 
-        test("Should retry on failure", async () => {
+        test("Should retry on failure", async() => {
             // arrange
-            binanceInstance.fetchOHLCV = jest.fn(async () => Promise.reject("Error msg"));
+            binanceInstance.fetchOHLCV = jest.fn(async() => Promise.reject("Error msg"));
 
             // act
             try {
@@ -93,10 +99,10 @@ describe("Binance connector", () => {
 
     describe("getBalance & getBalanceForAsset", () => {
         beforeAll(() => {
-            binanceInstance.fetchBalance = jest.fn(async () => TestHelper.getBinanceFetchBalance());
+            binanceInstance.fetchBalance = jest.fn(async() => TestHelper.getBinanceFetchBalance());
         });
 
-        test("Should correctly return wallet balance for all expected assets", async () => {
+        test("Should correctly return wallet balance for all expected assets", async() => {
             // act
             const res = await binanceConnector.getBalance(["EUR", "BNB", "BTC", "ETH"]);
 
@@ -108,7 +114,7 @@ describe("Binance connector", () => {
             expect(res.get("ETH")).toEqual(0);
         });
 
-        test("Should correctly return wallet balance for a particular asset", async () => {
+        test("Should correctly return wallet balance for a particular asset", async() => {
             // act
             const res = await binanceConnector.getBalanceForAsset("BNB");
 
@@ -119,10 +125,10 @@ describe("Binance connector", () => {
 
     describe("getUnitPrice", () => {
         beforeAll(() => {
-            binanceInstance.fetchTicker = jest.fn(async () => TestHelper.getBinanceFetchTicker());
+            binanceInstance.fetchTicker = jest.fn(async() => TestHelper.getBinanceFetchTicker());
         });
 
-        test("Should correctly return a unit price for an asset", async () => {
+        test("Should correctly return a unit price for an asset", async() => {
             // act
             const res = await binanceConnector.getUnitPrice(Currency.EUR, "BNB");
 
@@ -131,17 +137,167 @@ describe("Binance connector", () => {
             expect(res).toEqual(295.75);
         });
 
-        test("Should reject if the last price is not found", async () => {
+        test("Should reject if the last price not found", async() => {
             // arrange
-            binanceInstance.fetchTicker = jest.fn(async () => Promise.reject());
+            binanceInstance.fetchTicker = jest.fn(async() => Promise.reject());
 
             try {
                 // act
                 await binanceConnector.getUnitPrice(Currency.EUR, "BNB");
+                fail("Should reject");
             } catch (e) {
                 // assert
                 expect(binanceInstance.fetchTicker).toHaveBeenCalledWith("BNB/EUR");
                 expect(e).toEqual("Last price of BNB/EUR was not found");
+            }
+        });
+    });
+
+    describe("createMarketOrder", () => {
+        beforeAll(() => {
+            binanceInstance.createOrder = jest.fn(async () => TestHelper.getBinanceCreateBuyMarketOrder());
+        });
+
+        test("Should not call binance API if it is a simulation", async() => {
+            // arrange
+            configService.isSimulation = jest.fn(() => true);
+
+            // act
+            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10, true);
+
+            // assert
+            expect(binanceInstance.createOrder).not.toHaveBeenCalled();
+            expect(res).toBeDefined();
+            configService.isSimulation = jest.fn(() => false);
+        });
+
+        test("Should correctly create a MARKET BUY order", async() => {
+            // arrange
+            const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
+
+            // act
+            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10, true);
+
+            // assert
+            expect(binanceInstance.createOrder).toHaveBeenCalled();
+            expect(waitForOrderCompletionSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    externalId: "234063358",
+                    status: "closed"
+                }),
+                Currency.EUR,
+                "BNB",
+                3
+            );
+            expect(res).toMatchObject({
+                side: "buy",
+                externalId: "234063358",
+                amountOfTargetAsset: 10,
+                amountOfOriginAsset: 11.971475,
+                filled: 0.038870829999999995,
+                remaining: 0,
+                average: 307.75,
+                status: "closed",
+                originAsset: "EUR",
+                targetAsset: "BNB",
+                type: "MARKET",
+                datetime: "2021-05-27T13:39:24.641Z",
+                info : {
+                    fills: [
+                        {
+                            "price": "307.75000000",
+                            "qty": "0.03890000",
+                            "commission": "0.00002917",
+                            "commissionAsset": "BNB",
+                            "tradeId": 14693522
+                        }
+                    ]
+                }
+            });
+        });
+
+        test("Should retry and recalculate the amount to buy when order creation fails and retries are set", async() => {
+            // arrange
+            binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
+            binanceInstance.createOrder = jest.fn(async () => Promise.reject());
+
+            try {
+                // act
+                await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy",
+                    0.0389, false, 5, 12);
+                fail("Should reject");
+            } catch (e) {
+                // assert
+                expect(e).toEqual("Failed to execute buy market order on market BNB/EUR");
+                expect(binanceConnector.getUnitPrice).toHaveBeenCalledTimes(5);
+                expect(binanceInstance.createOrder).toHaveBeenCalledTimes(6);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(1, "BNB/EUR", "market", "buy", 0.0389);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03870967741935484);
+            }
+        });
+    });
+
+    describe("createStopLimitOrder", () => {
+        beforeAll(() => {
+            binanceInstance.createOrder = jest.fn(async () => TestHelper.getBinanceCreateSellStopLimitOrder());
+        });
+
+        test("Should not call binance API if it is a simulation", async() => {
+            // arrange
+            configService.isSimulation = jest.fn(() => true);
+
+            // act
+            const res = await binanceConnector.createStopLimitOrder(Currency.EUR, "BNB", "sell",
+                10, 390, 390);
+
+            // assert
+            expect(binanceInstance.createOrder).not.toHaveBeenCalled();
+            expect(res).toBeDefined();
+            configService.isSimulation = jest.fn(() => false);
+        });
+
+        test("Should correctly create a STOP_LIMIT SELL order", async() => {
+            // act
+            const res = await binanceConnector.createStopLimitOrder(Currency.EUR, "BNB", "sell",
+                10, 390, 390);
+
+            // assert
+            expect(binanceInstance.createOrder).toHaveBeenCalledWith("BNB/EUR", "STOP_LOSS_LIMIT",
+                "sell", 10, 390, { stopPrice: 390 });
+            expect(res).toMatchObject({
+                side: "sell",
+                externalId: "234063358",
+                amountOfTargetAsset: 10,
+                amountOfOriginAsset: 11.971475,
+                filled: 0.0389,
+                remaining: 0,
+                average: 307.75,
+                status: "closed",
+                originAsset: "EUR",
+                targetAsset: "BNB",
+                type: "STOP_LIMIT",
+                datetime: "2021-05-27T13:39:24.641Z",
+                info : {
+                    status: "FILLED",
+                    type: "STOP_LOSS_LIMIT",
+                    side: "SELL"
+                }
+            });
+        });
+
+        test("Should retry if order creation failed and retries are enabled", async() => {
+            // arrange
+            binanceInstance.createOrder = jest.fn(async () => Promise.reject(new Error("api error")));
+
+            try {
+                // act
+                await binanceConnector.createStopLimitOrder(Currency.EUR, "BNB", "sell",
+                    10, 390, 390, 3);
+                fail("Should reject");
+            } catch (e) {
+                // assert
+                expect(e).toEqual("Failed to execute sell stop limit order of 10 on market BNB/EUR");
+                expect(binanceInstance.createOrder).toHaveBeenCalledTimes(4);
             }
         });
     });

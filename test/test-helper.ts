@@ -1,6 +1,7 @@
 import { Market } from "../src/models/market";
 import fs from 'fs';
 import * as ccxt from "ccxt";
+import { OrderType } from "../src/enums/order-type.enum";
 
 export class TestHelper {
     private static MARKETS_FILE_PATH = "/files/markets.json";
@@ -8,6 +9,7 @@ export class TestHelper {
     private static BINANCE_FETCH_BNB_TICKER_FILE_PATH = "/files/binance_fetch_BNB_ticker.json";
     private static BINANCE_FETCH_OHLCV_FILE_PATH = "/files/binance_fetch_ohlcv.json";
     private static BINANCE_FETCH_BALANCE_FILE_PATH = "/files/binance_fetch_wallet_balance.json";
+    private static BINANCE_MARKET_BUY_ORDER_FILE_PATH = "/files/binance_create_MARKET_BUY_order.json";
     private static CURRENT_DIRECTORY_PATH = __dirname;
 
     static getFirst10Markets(): Array<Market> {
@@ -39,5 +41,25 @@ export class TestHelper {
     static getBinanceFetchBalance(): ccxt.Balances {
         return JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.BINANCE_FETCH_BALANCE_FILE_PATH,
             "utf8")) as ccxt.Balances;
+    }
+
+    static getBinanceCreateBuyMarketOrder(): ccxt.Order {
+        return JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.BINANCE_MARKET_BUY_ORDER_FILE_PATH,
+            "utf8")) as ccxt.Order;
+    }
+
+    static getBinanceCreateSellStopLimitOrder(): ccxt.Order {
+        let order = JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.BINANCE_MARKET_BUY_ORDER_FILE_PATH,
+            "utf8")) as ccxt.Order;
+        order = { ... order,
+            side: "sell",
+            type: "limit",
+            info: {
+                status: "FILLED",
+                type: "STOP_LOSS_LIMIT",
+                side: "SELL"
+            }
+        };
+        return order;
     }
 }

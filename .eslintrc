@@ -2,7 +2,8 @@
   "root": true,
   "parser": "@typescript-eslint/parser",
   "plugins": [
-    "@typescript-eslint"
+    "@typescript-eslint",
+    "unused-imports"
   ],
   "extends": [
     "eslint:recommended",
@@ -13,6 +14,7 @@
     "no-var": "warn",
     "indent": ["error", 4],
     "no-duplicate-imports": "error",
+    "unused-imports/no-unused-imports-ts": "error",
     "no-confusing-arrow": "error",
     "brace-style": "error",
     "array-bracket-spacing": "error",

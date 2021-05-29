@@ -10,8 +10,8 @@ import { v4 as uuidv4 } from "uuid";
 import { SimulationUtils } from "../utils/simulation-utils";
 import hmacSHA256 from 'crypto-js/hmac-sha256';
 import cliProgress from "cli-progress";
+import { ConfigService } from "../services/config-service";
 
-const CONFIG = require('config');
 const axios = require('axios').default;
 
 
@@ -58,7 +58,7 @@ export class BinanceConnector {
 
     private readonly V1_URL_BASE_PATH = "https://api.binance.com/sapi/v1";
 
-    constructor() {
+    constructor(private configService: ConfigService) {
         this.binance = new ccxt.binance({
             apiKey: process.env.BINANCE_API_KEY,
             secret: process.env.BINANCE_API_SECRET,
@@ -230,7 +230,7 @@ export class BinanceConnector {
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
-        if (CONFIG.simulation) {
+        if (this.configService.isSimulation()) {
             const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
             log.info(`Executing simulated order %O`, o);
             return Promise.resolve(o);
@@ -246,14 +246,14 @@ export class BinanceConnector {
         }
         if (!binanceOrder && retries && amountToInvest) {
             let amountToBuy;
-            while (retries-- > -1) {
+            while (retries-- > 0) {
                 try {
                     const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
                     amountToBuy = amountToInvest/unitPrice;
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "market", side, amountToBuy);
                 } catch (e) {
-                    if (retries > -1) {
+                    if (retries > 0) {
                         log.warn(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}: ${e}. Retrying...`);
                         await GlobalUtils.sleep(1);
                     }
@@ -301,7 +301,7 @@ export class BinanceConnector {
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, retries?: number): Promise<Order> {
-        if (CONFIG.simulation) {
+        if (this.configService.isSimulation()) {
             const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side);
             log.info(`Executing simulated order %O`, simulatedOrder);
             return Promise.resolve(simulatedOrder);
@@ -319,7 +319,7 @@ export class BinanceConnector {
             log.error(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}: ${e}`);
         }
         if (!binanceOrder && retries) {
-            while (retries > 0) {
+            while (retries-- > 0) {
                 try {
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "STOP_LOSS_LIMIT", side, amount, limitPrice, {
@@ -327,7 +327,6 @@ export class BinanceConnector {
                         });
                 } catch (e) {
                     log.error("Failed to create order : ", e);
-                    retries--;
                     if (retries > 0) {
                         log.debug("Retrying ...");
                     }
@@ -339,13 +338,13 @@ export class BinanceConnector {
             return Promise.reject(`Failed to execute ${side} stop limit order of ${amount} on market ${targetAsset}/${originAsset}`);
         }
 
-        const order:Order = {
+        const order: Order = {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: amount,
             stopPrice,
             limitPrice,
-            filled: binanceOrder.filled,
+            filled: binanceOrder.filled, // TODO: verify if we have to recalculate like for market orders
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT, side),
@@ -367,7 +366,7 @@ export class BinanceConnector {
      * @return {@link Order} if order has been closed and `undefined` if still not after x `retries`
      */
     public async waitForOrderCompletion(order: Order, originAsset: Currency, targetAsset: string, retries: number): Promise<Order | undefined> {
-        if (CONFIG.simulation) {
+        if (this.configService.isSimulation()) {
             return Promise.resolve(undefined);
         }
         let filled = order.status === "closed";
@@ -408,7 +407,7 @@ export class BinanceConnector {
         if (verbose) {
             log.debug(`Getting information about binance order ${externalId}`);
         }
-        if (CONFIG.simulation) {
+        if (this.configService.isSimulation()) {
             const order: Order = SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
             log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
@@ -459,7 +458,7 @@ export class BinanceConnector {
      * @return The cancelled order
      */
     public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
-        if (CONFIG.simulation) {
+        if (this.configService.isSimulation()) {
             const o = SimulationUtils.getSimulatedCancelOrder();
             log.info(`Executing simulated cancel order %O`, o);
             return Promise.resolve(o);

@@ -12,8 +12,7 @@ import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
-
-const CONFIG = require('config');
+import { ConfigService } from "../services/config-service";
 
 
 /**
@@ -27,6 +26,7 @@ export class MountainSeeker implements BaseStrategy {
     private readonly account: Account;
     private readonly apiConnector: BinanceConnector;
     private readonly emailService: EmailService;
+    private readonly configService: ConfigService;
     private readonly CANDLE_STICKS_TO_FETCH = 60;
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
@@ -41,9 +41,10 @@ export class MountainSeeker implements BaseStrategy {
         this.strategyDetails = strategyDetails;
         this.apiConnector = Container.get(BinanceConnector);
         this.emailService = Container.get(EmailService);
+        this.configService = Container.get(ConfigService);
         this.initDefaultConfig(strategyDetails);
         this.state.config = strategyDetails;
-        if (!CONFIG.simulation && process.env.NODE_ENV !== "prod") {
+        if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
     }
@@ -290,14 +291,14 @@ export class MountainSeeker implements BaseStrategy {
                 !candleStickVariations.some(variation => variation === 0)) {      // PHB/BTC, QKC/BTC or DF/ETH in Binance
                 if (currentVariation >= 0.1) { // if current price is increasing
                     // if the variation between open price of 4th candle and close price of 2nd candle >= x%
-                    // OR if the variation between open price of xth candle and close price of 2nd candle >= x%
+                    // OR if the variation between open price of 16th candle and close price of 2nd candle >= x%
                     if (StrategyUtils.getPercentVariation(market.candleSticks[market.candleSticks.length - 4][1],
                         market.candleSticks[market.candleSticks.length - 2][4]) >= 9 ||
                         StrategyUtils.getPercentVariation(market.candleSticks[market.candleSticks.length - 16][1],
                             market.candleSticks[market.candleSticks.length - 2][4]) >= 9) {
                         log.debug(`Potential market : ${JSON.stringify(market)}`);
                         // if all variations except the first x, do not exceed x%
-                        // and there is no candle in the first 15 candles that has a close price > than the open price of first candle
+                        // and there is no candle in the first 16 candles that has a close price > than the open price of first candle
                         if (!candleStickVariations.slice(0, candleStickVariations.length - 16)
                             .some(variation => Math.abs(variation) > 3) &&
                             !market.candleSticks.slice(market.candleSticks.length - 16, market.candleSticks.length - 1)

@@ -1,5 +1,6 @@
 import log from "../logging/log.instance";
 import { Service } from "typedi";
+import { ConfigService } from "./config-service";
 const nodemailer = require('nodemailer');
 const CONFIG = require('config');
 
@@ -8,7 +9,7 @@ const CONFIG = require('config');
 export class EmailService {
     private transporter;
 
-    constructor() {
+    constructor(private configService: ConfigService) {
         this.transporter = nodemailer.createTransport({
             service: process.env.EMAIL_PROVIDER,
             auth: {
@@ -19,7 +20,7 @@ export class EmailService {
     }
 
     public async sendEmail(subject: string, text: string): Promise<void> {
-        if (!CONFIG.simulation) {
+        if (!this.configService.isSimulation()) {
             try {
                 await this.transporter.sendMail({
                     from: `"MS 🏔" <${process.env.EMAIL_ADDRESS}>`, // sender address
