@@ -23,6 +23,9 @@ export type Market = {
     /** The unit price of the target asset on the moment of retrieving market information */
     targetAssetPrice: number;
 
+    /** "1m", "15m", 1h" ... */
+    candleStickInterval?: string;
+
     /** Price % variation for last 24 hours */
     percentChangeLast24h?: number;
 

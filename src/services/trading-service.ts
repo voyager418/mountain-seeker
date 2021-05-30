@@ -7,6 +7,7 @@ import { Account } from "../models/account";
 import { Service } from "typedi";
 import { TradingState } from "../models/trading-state";
 import { EmailService } from "./email-service";
+import { ConfigService } from "./config-service";
 
 /**
  * This service is responsible to start the appropriate trading strategy.
@@ -56,7 +57,7 @@ export class TradingService {
                 break;
             }
         }
-        await new EmailService().sendEmail("Trading stopped...", errorMessage);
+        await new EmailService(new ConfigService()).sendEmail("Trading stopped...", errorMessage);
     }
 
 }

@@ -344,7 +344,7 @@ export class BinanceConnector {
             amountOfTargetAsset: amount,
             stopPrice,
             limitPrice,
-            filled: binanceOrder.filled, // TODO: verify if we have to recalculate like for market orders
+            filled: binanceOrder.filled, // TODO: verify if we have to recalculate like for market orders (probably not because the price is fixed)
             remaining: binanceOrder.remaining,
             average: binanceOrder.average,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT, side),
@@ -521,6 +521,9 @@ export class BinanceConnector {
      */
     public async fetchCandlesticks(markets: Array<Market>, interval: string, numberOfCandleSticks: number): Promise<void> {
         log.info(`Fetching candlesticks for ${markets.length} markets`);
+        if (numberOfCandleSticks > 1000) {
+            log.warn("Binance API limits maximum number of candlesticks to fetch to 1000 per request");
+        }
         const progress = new cliProgress.SingleBar({}, cliProgress.Presets.shades_grey);
         progress.start(markets.length, 0);
         let index = 0;
