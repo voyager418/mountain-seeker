@@ -1,4 +1,3 @@
-import { Service } from "typedi";
 import ccxt from "ccxt";
 import log from '../logging/log.instance';
 import { Market, TOHLCV } from "../models/market";
@@ -11,6 +10,7 @@ import { SimulationUtils } from "../utils/simulation-utils";
 import hmacSHA256 from 'crypto-js/hmac-sha256';
 import cliProgress from "cli-progress";
 import { ConfigService } from "../services/config-service";
+import { singleton } from "tsyringe";
 
 const axios = require('axios').default;
 
@@ -40,7 +40,7 @@ interface MarketOrderFill {
  * It is a wrapper around existing libraries (e.g. ccxt) with
  * possibly additional/custom implementations.
  */
-@Service()
+@singleton()
 export class BinanceConnector {
 
     /** Binance ccxt instance.

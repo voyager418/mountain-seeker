@@ -1,7 +1,6 @@
 import { BaseStrategy } from "./base-strategy.interface";
 import { Account } from "../models/account";
 import log from '../logging/log.instance';
-import { Container, Service } from "typedi";
 import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
 import { TradingState } from "../models/trading-state";
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +12,7 @@ import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
+import { singleton } from "tsyringe";
 
 
 /**
@@ -20,13 +20,10 @@ import { ConfigService } from "../services/config-service";
  * that is, and recently was, harshly rising in price.
  * Then sell it when the price starts to decrease.
  */
-@Service({ transient: true })
+@singleton()
 export class MountainSeeker implements BaseStrategy {
-    private readonly strategyDetails;
-    private readonly account: Account;
-    private readonly apiConnector: BinanceConnector;
-    private readonly emailService: EmailService;
-    private readonly configService: ConfigService;
+    private strategyDetails: any
+    private account: Account | undefined;
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;
@@ -35,17 +32,20 @@ export class MountainSeeker implements BaseStrategy {
         id: uuidv4()
     };
 
-    constructor(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
-        this.account = account;
-        this.strategyDetails = strategyDetails;
-        this.apiConnector = Container.get(BinanceConnector);
-        this.emailService = Container.get(EmailService);
-        this.configService = Container.get(ConfigService);
-        this.initDefaultConfig(strategyDetails);
-        this.state.config = strategyDetails;
+    constructor(private configService: ConfigService,
+        private apiConnector: BinanceConnector,
+        private emailService: EmailService) {
         if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
+    }
+
+    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
+        this.account = account;
+        this.strategyDetails = strategyDetails;
+        this.state.config = strategyDetails;
+        this.initDefaultConfig(strategyDetails);
+        return this;
     }
 
     /**
@@ -113,6 +113,9 @@ export class MountainSeeker implements BaseStrategy {
             this.strategyDetails.config.candleStickInterval,
             market.candleSticksPercentageVariations.slice(market.candleSticksPercentageVariations.length - 3));
 
+        this.emailService.sendEmail(`Trading started on ${market.symbol}`,
+            "Current state : \n" + JSON.stringify(this.state, null, 4)).then();
+
         // 2. Prepare wallet
         await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
@@ -162,9 +165,6 @@ export class MountainSeeker implements BaseStrategy {
         const firstStopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
             "sell", targetAssetAmount, stopLimitPrice, stopLimitPrice, 3)
             .catch(e => Promise.reject(e));
-
-        this.emailService.sendEmail(`Trading started on ${market.symbol}`,
-            "Current state : \n" + JSON.stringify(this.state, null, 4)).then();
 
         // 6. Start trading loop
         const lastStopLimitOrder = await this.runTradingLoop(buyOrder, stopLimitPrice, marketUnitPrice,
@@ -300,7 +300,7 @@ export class MountainSeeker implements BaseStrategy {
                         market.candleSticks[market.candleSticks.length - 2][4]) >= 9 ||
                         StrategyUtils.getPercentVariation(market.candleSticks[market.candleSticks.length - 16][1],
                             market.candleSticks[market.candleSticks.length - 2][4]) >= 9) {
-                        log.debug(`Potential market : ${JSON.stringify(market)}`);
+                        log.debug(`Potential market (1m candlesticks): ${JSON.stringify(market)}`);
                         // if 44 variations except the first x, do not exceed x%
                         // and there is no candle in the first 16 candles that has a close price > than the open price of first candle
                         if (!candleStickVariations.slice(candleStickVariations.length - 60, candleStickVariations.length - 16)
@@ -317,7 +317,7 @@ export class MountainSeeker implements BaseStrategy {
         }
 
         // for 4h candlesticks
-        if (potentialMarkets.length === 0 && (new Date().getMinutes() >= 58 || new Date().getMinutes() <= 2)) {
+        if (potentialMarkets.length === 0 && (new Date().getMinutes() >= 55 || new Date().getMinutes() <= 5)) {
             await this.apiConnector.fetchCandlesticks(markets, "4h", 11)
                 .catch(e => Promise.reject(e));
             StrategyUtils.setCandlestickPercentVariations(markets);
@@ -329,11 +329,11 @@ export class MountainSeeker implements BaseStrategy {
                 if (!StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) && // to avoid strange markets such as
                     !candleStickVariations.some(variation => variation === 0)) {      // PHB/BTC, QKC/BTC or DF/ETH in Binance
                     // if second candle has a variation > x%
-                    if (candleStickVariations[candleStickVariations.length - 2] >= 30) {
-                        log.debug(`Potential market : ${JSON.stringify(market)}`);
+                    if (candleStickVariations[candleStickVariations.length - 2] >= 10) {
+                        log.debug(`Potential market (4h candlesticks): ${JSON.stringify(market)}`);
                         // if current price is increasing
                         // and if the first x candles don't have a variation > y%
-                        if (currentVariation >= 0.1 &&
+                        if (currentVariation > 0 && currentVariation <= 5 &&
                             !candleStickVariations.slice(0, candleStickVariations.length - 2)
                                 .some(variation => Math.abs(variation) > 6.5)) {
                             market.candleStickInterval = "4h"

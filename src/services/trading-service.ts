@@ -4,15 +4,15 @@ import { StrategyDetails } from "../models/strategy-details";
 import { TradingStrategy } from "../enums/trading-strategy.enum";
 import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
-import { Service } from "typedi";
 import { TradingState } from "../models/trading-state";
 import { EmailService } from "./email-service";
-import { ConfigService } from "./config-service";
+import { container, singleton } from "tsyringe";
+
 
 /**
  * This service is responsible to start the appropriate trading strategy.
  */
-@Service()
+@singleton()
 export class TradingService {
 
     private strategy: StrategyDetails<MountainSeekerConfig> = {
@@ -33,7 +33,7 @@ export class TradingService {
         let errorMessage;
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const defaultStrategy = new MountainSeeker(this.account, this.strategy);
+            const defaultStrategy = container.resolve(MountainSeeker).setup(this.account, this.strategy);
             errorMessage = "";
             try {
                 const result: TradingState = await defaultStrategy.run();
@@ -57,7 +57,7 @@ export class TradingService {
                 break;
             }
         }
-        await new EmailService(new ConfigService()).sendEmail("Trading stopped...", errorMessage);
+        await container.resolve(EmailService).sendEmail("Trading stopped...", errorMessage);
     }
 
 }

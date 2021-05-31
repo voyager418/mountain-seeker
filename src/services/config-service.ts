@@ -1,13 +1,9 @@
-import { Service } from "typedi";
+import { singleton } from "tsyringe";
 const CONFIG = require('config');
 
-@Service()
+@singleton()
 export class ConfigService {
-    private readonly config: any;
-
-    constructor() {
-        this.config = CONFIG;
-    }
+    private readonly config = CONFIG;
 
     public getConfig(): any {
         return this.config;

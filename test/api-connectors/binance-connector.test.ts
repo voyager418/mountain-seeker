@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { BinanceConnector } from "../../src/api-connectors/binance-connector";
 import { TestHelper } from "../test-helper";
 import { GlobalUtils } from "../../src/utils/global-utils";

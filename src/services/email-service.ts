@@ -1,11 +1,10 @@
 import log from "../logging/log.instance";
-import { Service } from "typedi";
 import { ConfigService } from "./config-service";
+import { singleton } from "tsyringe";
 const nodemailer = require('nodemailer');
-const CONFIG = require('config');
 
 
-@Service()
+@singleton()
 export class EmailService {
     private transporter;
 
