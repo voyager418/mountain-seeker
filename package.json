@@ -12,7 +12,7 @@
     "test": "jest",
     "eslint": "eslint src/",
     "compile": "tsc",
-    "compress": "npm run compile && npm run eslint && npm run test && echo 'Compressing to .zip ...' && sh ./compress_to_zip.sh"
+    "compress": "npm run compile && npm run eslint && npm run test && echo 'Compressing to .zip ...' && sh ./compress_to_zip.sh MS.zip"
   },
   "pre-commit": [
     "compile",

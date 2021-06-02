@@ -1,6 +1,8 @@
 #!/bin/bash
 
-rm -rf tempFolder MS.zip
+fileName=$1
+
+rm -rf tempFolder "$fileName"
 
 mkdir tempFolder
 
@@ -14,8 +16,8 @@ cp -a .ebextensions \
 		tsconfig.json \
 		tempFolder
 
-ditto -c -k --sequesterRsrc tempFolder MS.zip
+ditto -c -k --sequesterRsrc tempFolder "$fileName"
 
 rm -rf tempFolder
 
-echo "Created MS.zip"
+echo "Created $fileName"

@@ -233,7 +233,8 @@ describe("Binance connector", () => {
                 expect(binanceConnector.getUnitPrice).toHaveBeenCalledTimes(5);
                 expect(binanceInstance.createOrder).toHaveBeenCalledTimes(6);
                 expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(1, "BNB/EUR", "market", "buy", 0.0389);
-                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03870967741935484);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03870967);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(3, "BNB/EUR", "market", "buy", 0.03870967);
             }
         });
     });
@@ -269,7 +270,7 @@ describe("Binance connector", () => {
                 side: "sell",
                 externalId: "234063358",
                 amountOfTargetAsset: 10,
-                amountOfOriginAsset: 11.971475,
+                amountOfOriginAsset: 11.970277852,
                 filled: 0.0389,
                 remaining: 0,
                 average: 307.75,

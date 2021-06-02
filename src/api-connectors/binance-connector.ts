@@ -235,8 +235,11 @@ export class BinanceConnector {
             log.info(`Executing simulated order %O`, o);
             return Promise.resolve(o);
         }
+        if (amount.toString().split(".")[1]?.length > 8) {
+            amount = Math.trunc(amount * Math.pow(10, 8))/Math.pow(10, 8); // 8 digits after comma without rounding
+        }
 
-        log.debug("Creating new market order on %O/%O", targetAsset, originAsset);
+        log.debug("Creating new market order on %O/%O of %O%O", targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
         try {
             binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
@@ -245,17 +248,19 @@ export class BinanceConnector {
             log.error(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
         if (!binanceOrder && retries && amountToInvest) {
-            let amountToBuy;
             while (retries-- > 0) {
                 try {
                     const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
-                    amountToBuy = amountToInvest/unitPrice;
+                    amount = amountToInvest/unitPrice;
+                    if (amount.toString().split(".")[1]?.length > 8) {
+                        amount = Math.trunc(amount * Math.pow(10, 8))/Math.pow(10, 8); // 8 digits after comma without rounding
+                    }
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
-                        "market", side, amountToBuy);
+                        "market", side, amount);
                 } catch (e) {
                     if (retries > 0) {
-                        log.warn(`Failed to execute ${side} market order of ${amountToBuy} on market ${targetAsset}/${originAsset}: ${e}. Retrying...`);
-                        await GlobalUtils.sleep(1);
+                        log.warn(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}. Retrying...`);
+                        await GlobalUtils.sleep(3);
                     }
                 }
             }
@@ -328,6 +333,7 @@ export class BinanceConnector {
                 } catch (e) {
                     log.error("Failed to create order : ", e);
                     if (retries > 0) {
+                        await GlobalUtils.sleep(3);
                         log.debug("Retrying ...");
                     }
                 }
@@ -585,7 +591,9 @@ export class BinanceConnector {
         }
 
         if (orderType !== OrderType.MARKET) {
-            return binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining);
+            // 0.0001% is the default binance transaction fee
+            // see https://www.binance.com/en/fee/schedule or in the account settings
+            return binanceOrder.cost - Number((binanceOrder.cost * 0.0001).toFixed(9));
         }
 
         const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;

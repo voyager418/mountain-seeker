@@ -37,12 +37,10 @@ export class TradingService {
             errorMessage = "";
             try {
                 const result: TradingState = await defaultStrategy.run();
-                if (result && result.endedWithoutErrors && this.strategy.config.autoRestartOnProfit) {
-                    if (result.percentChange && result.marketSymbol) {
-                        if (result.percentChange > -3) {
-                            // TODO : maybe change this to be able to reuse the same market after x minutes
-                            this.strategy.config.ignoredMarkets = [result.marketSymbol];
-                        } else {
+                if (result && result.endedWithoutErrors && result.marketSymbol && this.strategy.config.autoRestartOnProfit) {
+                    this.strategy.config.ignoredMarkets = [result.marketSymbol];
+                    if (result.percentChange) {
+                        if (result.percentChange <= -3) {
                             log.warn("Loss of %O%", result.percentChange);
                             break;
                         }
