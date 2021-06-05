@@ -27,9 +27,7 @@ const log = winston.createLogger({
 if (process.env.NODE_ENV === "prod") {
     log.add(new winston.transports.Console());
 } else if (process.env.NODE_ENV === "test") {
-    log.add(new winston.transports.Console(
-        { silent: true },
-    ));
+    log.add(new winston.transports.Console({ silent: true }));
 } else {
     log.add(new winston.transports.Console(
         { format: winston.format.combine(

@@ -270,7 +270,7 @@ describe("Binance connector", () => {
                 side: "sell",
                 externalId: "234063358",
                 amountOfTargetAsset: 10,
-                amountOfOriginAsset: 11.970277852,
+                amountOfOriginAsset: 11.95950353,
                 filled: 0.0389,
                 remaining: 0,
                 average: 307.75,

@@ -236,10 +236,10 @@ export class BinanceConnector {
             return Promise.resolve(o);
         }
         if (amount.toString().split(".")[1]?.length > 8) {
-            amount = Math.trunc(amount * Math.pow(10, 8))/Math.pow(10, 8); // 8 digits after comma without rounding
+            amount = GlobalUtils.truncateNumber(amount, 8); // 8 digits after comma without rounding
         }
 
-        log.debug("Creating new market order on %O/%O of %O%O", targetAsset, originAsset, amount, targetAsset);
+        log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
         try {
             binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
@@ -253,7 +253,7 @@ export class BinanceConnector {
                     const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
                     amount = amountToInvest/unitPrice;
                     if (amount.toString().split(".")[1]?.length > 8) {
-                        amount = Math.trunc(amount * Math.pow(10, 8))/Math.pow(10, 8); // 8 digits after comma without rounding
+                        amount = GlobalUtils.truncateNumber(amount, 8);
                     }
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "market", side, amount);
@@ -286,7 +286,7 @@ export class BinanceConnector {
             info: binanceOrder.info
         }
         if (!awaitCompletion) {
-            log.debug(`Created binance order : ${JSON.stringify(order, null, 4)}`);
+            log.debug(`Created binance order : ${JSON.stringify(order)}`);
             return Promise.resolve(order);
         }
 
@@ -296,7 +296,7 @@ export class BinanceConnector {
         if (!completedOrder) {
             return Promise.reject(`Order ${order.id} still not closed after ${orderCompletionRetries} retries`);
         }
-        log.debug(`Created ${order.type} order : ${JSON.stringify(completedOrder, null, 4)}`);
+        log.debug(`Created ${order.type} order : ${JSON.stringify(completedOrder)}`);
         return Promise.resolve(completedOrder);
     }
 
@@ -312,7 +312,7 @@ export class BinanceConnector {
             return Promise.resolve(simulatedOrder);
         }
 
-        log.debug("Creating %O stop limit order on %O/%O of %O%O. With stopPrice : %O, limitPrice: %O",
+        log.debug("Creating %O stop limit order on %O/%O of %O %O. With stopPrice : %O, limitPrice: %O",
             side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
         let binanceOrder;
         try {
@@ -363,7 +363,7 @@ export class BinanceConnector {
             info: binanceOrder.info
         }
 
-        log.debug(`Created ${order.type} order : ${JSON.stringify(order, null, 4)}`);
+        log.debug(`Created ${order.type} order : ${JSON.stringify(order)}`);
         return Promise.resolve(order);
     }
 
@@ -410,13 +410,13 @@ export class BinanceConnector {
      */
     public async getOrder(externalId: string, originAsset: Currency, targetAsset: string,
         internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean) : Promise<Order> {
-        if (verbose) {
-            log.debug(`Getting information about binance order ${externalId}`);
-        }
         if (this.configService.isSimulation()) {
             const order: Order = SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
             log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
+        }
+        if (verbose) {
+            log.debug(`Getting information about binance order ${externalId}`);
         }
         let binanceOrder;
         while (!binanceOrder || (retries && retries > -1)) {
@@ -439,7 +439,7 @@ export class BinanceConnector {
                     targetAsset
                 };
                 if (verbose) {
-                    log.debug(`Fetched information about order : ${JSON.stringify(order, null, 4)}`);
+                    log.debug(`Fetched information about order : ${JSON.stringify(order)}`);
                 }
                 return Promise.resolve(order);
             } catch (e) {
@@ -494,7 +494,7 @@ export class BinanceConnector {
             }
             await GlobalUtils.sleep(2);
         }
-        log.debug(`Cancelled order : ${JSON.stringify(order, null, 4)}`);
+        log.debug(`Cancelled order : ${JSON.stringify(order)}`);
         return Promise.resolve(order);
     }
 
@@ -566,8 +566,9 @@ export class BinanceConnector {
     /**
      * Used for debug purposes
      */
-    public printMarketDetails(symbol: string): void {
-        log.debug(`Market details : ${JSON.stringify(this.binance.markets[symbol], null, 4)}`);
+    public printMarketDetails(market: Market): void {
+        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
+        log.debug(`Market details from local object : ${JSON.stringify(market)}`);
     }
 
     private static getBelgiumDateTime(date: string): string {
@@ -585,29 +586,34 @@ export class BinanceConnector {
      * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType, side: "buy" | "sell"): number {
+        log.debug(`(computeAmountOfOriginAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         // if the order is incomplete
         if (remaining > 0) {
             return 0;
         }
 
         if (orderType !== OrderType.MARKET) {
-            // 0.0001% is the default binance transaction fee
+            // 0.1% is the default binance transaction fee
             // see https://www.binance.com/en/fee/schedule or in the account settings
-            return binanceOrder.cost - Number((binanceOrder.cost * 0.0001).toFixed(9));
+            return binanceOrder.cost - GlobalUtils.truncateNumber(binanceOrder.cost * 0.001, 8);
         }
 
         const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
         if (!fills) {
+            log.warn("Fills details were are not found");
             return binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining);
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
             if (side === "buy") {
+                // for BUY orders no need to deduce commission because we calculate the total
+                // amount of origin asset that was spent and it already includes the commission
                 amountOfOriginAsset += Number(fill.price) * Number(fill.qty);
             } else {
                 amountOfOriginAsset += Number(fill.price) * Number(fill.qty) - Number(fill.commission);
             }
         }
+        amountOfOriginAsset = GlobalUtils.truncateNumber(amountOfOriginAsset, 8);
         return amountOfOriginAsset;
     }
 
@@ -616,6 +622,7 @@ export class BinanceConnector {
      */
     private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
         side: "buy" | "sell", targetAsset: string): number {
+        log.debug(`(computeAmountOfFilledAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         if (orderType !== OrderType.MARKET) {
             return filled;
         }
@@ -626,7 +633,7 @@ export class BinanceConnector {
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
-            if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in a different currency
+            if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in BNB
                 amountOfOriginAsset += Number(fill.qty);
             } else {
                 amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);

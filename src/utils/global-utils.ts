@@ -14,4 +14,13 @@ export class GlobalUtils {
     static sleep(seconds: number): Promise<unknown> {
         return new Promise(resolve => setTimeout(resolve, seconds * 1000));
     }
+
+    /**
+     * Cuts the numbers after the dot.
+     *
+     * Example input : (0.99999, 2) => output 0.99
+     */
+    static truncateNumber(number: number, digitsAfterDot: number): number {
+        return Math.trunc(number * Math.pow(10, digitsAfterDot)) / Math.pow(10, digitsAfterDot);
+    }
 }

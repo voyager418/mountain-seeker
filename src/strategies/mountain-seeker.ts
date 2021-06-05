@@ -101,16 +101,13 @@ export class MountainSeeker implements BaseStrategy {
             return Promise.resolve(this.state);
         }
 
-        log.debug(`Using config : ${JSON.stringify(this.strategyDetails, null, 4)}`);
+        log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
         this.apiConnector.setMarketMinNotional(market);
-        this.apiConnector.printMarketDetails(market.symbol);
+        this.apiConnector.printMarketDetails(market);
         this.state.marketSymbol = market.symbol;
         this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = market.candleSticksPercentageVariations;
         log.info("Found market %O", market.symbol);
-        log.debug("Last 3 candlestick's percentage variations with %O interval : %O",
-            this.strategyDetails.config.candleStickInterval,
-            market.candleSticksPercentageVariations.slice(market.candleSticksPercentageVariations.length - 3));
 
         // 2. Prepare wallet
         await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
@@ -133,7 +130,7 @@ export class MountainSeeker implements BaseStrategy {
 
         // Before buying, one last check that the price still rises
         if (marketUnitPrice < market.candleSticks[market.candleSticks.length - 2][4]) { // if current price dropped below the 2nd candlestick's close price
-            log.info(`Cancelling trading for market ${JSON.stringify(market, null, 4)}`);
+            log.info(`Cancelling trading for market ${JSON.stringify(market)}`);
             if (market.originAsset === Currency.EUR) {
                 this.state.profitEuro = 0;
                 this.state.percentChange = 0;
@@ -141,7 +138,7 @@ export class MountainSeeker implements BaseStrategy {
                 await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
                     ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
                     JSON.stringify(this.state, null, 4));
-                log.info(`Trading cancelled ${JSON.stringify(this.state, null, 4)}`);
+                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
                 return Promise.resolve(this.state);
             } else {
                 await this.handleSellOriginAsset(market, availableOriginAssetAmount);
@@ -151,7 +148,7 @@ export class MountainSeeker implements BaseStrategy {
                 await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
                     ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
                     JSON.stringify(this.state, null, 4));
-                log.info(`Trading cancelled ${JSON.stringify(this.state, null, 4)}`);
+                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
                 this.state.endedWithoutErrors = true;
                 return Promise.resolve(this.state);
             }
@@ -178,9 +175,9 @@ export class MountainSeeker implements BaseStrategy {
             firstStopLimitOrder, market, targetAssetAmount).catch(e => Promise.reject(e));
 
         // 7. Finishing
-        await this.handleTradeEnd(market, lastStopLimitOrder).catch(e => log.error(e));
+        await this.handleTradeEnd(market, lastStopLimitOrder).catch(e => Promise.reject(e));
         this.state.endedWithoutErrors = true;
-        log.info(`Trading finished ${JSON.stringify(this.state, null, 4)}`);
+        log.info(`Trading finished ${JSON.stringify(this.state)}`);
         return Promise.resolve(this.state);
     }
 
@@ -277,10 +274,9 @@ export class MountainSeeker implements BaseStrategy {
         const endWalletBalance = await this.apiConnector.getBalance(this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.percentChange > 0
             ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-            JSON.stringify(this.state, null, 4));
+            JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
         return Promise.resolve();
     }
 
@@ -388,7 +384,7 @@ export class MountainSeeker implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.initialWalletBalance = JSON.stringify(Array.from(this.initialWalletBalance!.entries()));
         log.info("Initial wallet balance : %O", this.initialWalletBalance);
-        await this.handleOriginAssetRefill(market, this.initialWalletBalance?.get(market.originAsset.toString()))
+        await this.refillOriginAsset(market, this.initialWalletBalance!)
             .catch(e => Promise.reject(e));
         this.refilledWalletBalance = await this.apiConnector.getBalance(authorizedCurrencies)
             .catch(e => Promise.reject(e));
@@ -402,7 +398,8 @@ export class MountainSeeker implements BaseStrategy {
      * Example : to trade 10€ on the market with symbol BNB/BTC without having
      * 10€ worth of BTC, one has to buy the needed amount of BTC before continuing.
      */
-    private async handleOriginAssetRefill(market: Market, availableAmountOfOriginAsset?: number): Promise<void> {
+    private async refillOriginAsset(market: Market, walletBalance: Map<string, number>): Promise<void> {
+        const availableAmountOfOriginAsset = this.initialWalletBalance?.get(market.originAsset.toString());
         if (availableAmountOfOriginAsset === undefined) {
             return Promise.reject(`The available amount of ${market.originAsset} could not be determined`);
         }
@@ -416,8 +413,14 @@ export class MountainSeeker implements BaseStrategy {
         if (market.originAsset !== Currency.EUR) {
             const unitPriceInEur = await this.apiConnector.getUnitPrice(Currency.EUR, market.originAsset, true)
                 .catch(e => Promise.reject(e));
-            const amountToBuy = Math.max(market.minNotional ? market.minNotional + (market.minNotional * 0.01) :
-                -1, this.strategyDetails.config.maxMoneyToTrade/unitPriceInEur);
+            let amountToBuy;
+            if (walletBalance.get(Currency.EUR)! >= this.strategyDetails.config.maxMoneyToTrade) {
+                amountToBuy = this.strategyDetails.config.maxMoneyToTrade/unitPriceInEur;
+            } else {
+                // if we don't have enough EUR then we buy the minimal possible amount
+                amountToBuy = market.minNotional!;
+            }
+
             const order = await this.apiConnector.createMarketOrder(Currency.EUR,
                 market.originAsset, "buy", amountToBuy, true)
                 .catch(e => Promise.reject(e));
