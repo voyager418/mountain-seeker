@@ -118,15 +118,15 @@ export class MountainSeeker implements BaseStrategy {
         }
         this.emailService.sendEmail(`Trading started on ${market.symbol}`,
             "Current state : \n" + JSON.stringify(this.state, null, 4) +
-            "\n\nMarket details : \n" + JSON.stringify(market, null, 4)).then();
+            "\n\nMarket details : \n" + JSON.stringify(market, null, 4)).then().catch(e => log.error(e));
 
         // 3. Compute the amount of target asset to buy
         const amountToInvest = this.computeAmountToInvest(market, availableOriginAssetAmount);
         const marketUnitPrice = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset, true)
             .catch(e => Promise.reject(e));
-        const amountOfTargetAssetToTrade = amountToInvest/marketUnitPrice;
+        const amountOfTargetAssetToBuy = amountToInvest/marketUnitPrice;
         log.debug("Preparing to execute the first order to buy %O %O on %O market. (≈ %O %O). Market unit price is %O",
-            amountOfTargetAssetToTrade, market.targetAsset, market.symbol, amountToInvest, market.originAsset, marketUnitPrice);
+            amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountToInvest, market.originAsset, marketUnitPrice);
 
         // Before buying, one last check that the price still rises
         if (marketUnitPrice < market.candleSticks[market.candleSticks.length - 2][4]) { // if current price dropped below the 2nd candlestick's close price
@@ -137,7 +137,7 @@ export class MountainSeeker implements BaseStrategy {
                 this.state.endedWithoutErrors = true;
                 await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
                     ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4));
+                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
                 log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
                 return Promise.resolve(this.state);
             } else {
@@ -147,7 +147,7 @@ export class MountainSeeker implements BaseStrategy {
                 log.info(`Final percent change : ${this.state.percentChange}`);
                 await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
                     ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4));
+                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
                 log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
                 this.state.endedWithoutErrors = true;
                 return Promise.resolve(this.state);
@@ -156,7 +156,7 @@ export class MountainSeeker implements BaseStrategy {
 
         // 4. First BUY order
         const buyOrder = await this.apiConnector.createMarketOrder(market.originAsset, market.targetAsset,
-            "buy", amountOfTargetAssetToTrade, true, 3, amountToInvest).catch(e => Promise.reject(e));
+            "buy", amountOfTargetAssetToBuy, true, 3, amountToInvest).catch(e => Promise.reject(e));
         if (this.state.originAssetIsEur) {
             this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
         }
@@ -165,7 +165,6 @@ export class MountainSeeker implements BaseStrategy {
         // 5. First STOP-LIMIT order
         const targetAssetAmount = buyOrder.filled;
         const stopLimitPrice = this.computeFirstStopLimitPrice(market);
-
         const firstStopLimitOrder = await this.apiConnector.createStopLimitOrder(market.originAsset, market.targetAsset,
             "sell", targetAssetAmount, stopLimitPrice, stopLimitPrice, 3)
             .catch(e => Promise.reject(e));
@@ -176,8 +175,6 @@ export class MountainSeeker implements BaseStrategy {
 
         // 7. Finishing
         await this.handleTradeEnd(market, lastStopLimitOrder).catch(e => Promise.reject(e));
-        this.state.endedWithoutErrors = true;
-        log.info(`Trading finished ${JSON.stringify(this.state)}`);
         return Promise.resolve(this.state);
     }
 
@@ -277,6 +274,8 @@ export class MountainSeeker implements BaseStrategy {
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.percentChange > 0
             ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
             JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
+        this.state.endedWithoutErrors = true;
+        log.info(`Trading finished ${JSON.stringify(this.state)}`);
         return Promise.resolve();
     }
 
