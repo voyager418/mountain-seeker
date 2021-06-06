@@ -68,11 +68,11 @@ export class MountainSeeker implements BaseStrategy {
                 stopTradingTimeoutSeconds: -1
             };
             const configFor4h: TradingLoopConfig = {
-                initialSecondsToSleepInTheTradingLoop: 60,
+                initialSecondsToSleepInTheTradingLoop: 10,
                 secondsToSleepInTheTradingLoop: 600,
                 initialStopLimitPriceIncreaseInTheTradingLoop: 0.1,
                 stopLimitPriceIncreaseInTheTradingLoop: 1.0,
-                initialStopLimitPriceTriggerPercent: 1.5,
+                initialStopLimitPriceTriggerPercent: 1.1,
                 stopLimitPriceTriggerPercent: 3,
                 stopTradingTimeoutSeconds: -1
             };
@@ -156,7 +156,8 @@ export class MountainSeeker implements BaseStrategy {
 
         // 4. First BUY order
         const buyOrder = await this.apiConnector.createMarketOrder(market.originAsset, market.targetAsset,
-            "buy", amountOfTargetAssetToBuy, true, 3, amountToInvest).catch(e => Promise.reject(e));
+            "buy", amountOfTargetAssetToBuy, true, 5, amountToInvest, market.amountPrecision)
+            .catch(e => Promise.reject(e));
         if (this.state.originAssetIsEur) {
             this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
         }

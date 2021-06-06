@@ -227,17 +227,19 @@ export class BinanceConnector {
      * change from `open` to `closed`
      * @param retries Indicates the number of times the order will be repeated after a failure
      * @param amountToInvest The number of origin asset that is going to be invested (needed for retries).
+     * @param marketAmountPrecision Indicates the number of digits after the dot that the market authorises to use
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
-        awaitCompletion?: boolean, retries?: number, amountToInvest?: number): Promise<Order> {
+        awaitCompletion?: boolean, retries?: number, amountToInvest?: number, marketAmountPrecision?: number): Promise<Order> {
         if (this.configService.isSimulation()) {
             const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
             log.info(`Executing simulated order %O`, o);
             return Promise.resolve(o);
         }
-        if (amount.toString().split(".")[1]?.length > 8) {
-            amount = GlobalUtils.truncateNumber(amount, 8); // 8 digits after comma without rounding
+        if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
+            amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
         }
+
 
         log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
@@ -249,17 +251,18 @@ export class BinanceConnector {
         }
         if (!binanceOrder && retries && amountToInvest) {
             while (retries-- > 0) {
+                log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
                 try {
                     const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
                     amount = amountToInvest/unitPrice;
-                    if (amount.toString().split(".")[1]?.length > 8) {
-                        amount = GlobalUtils.truncateNumber(amount, 8);
+                    if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
+                        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
                     }
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "market", side, amount);
                 } catch (e) {
+                    log.warn(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
                     if (retries > 0) {
-                        log.warn(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}. Retrying...`);
                         await GlobalUtils.sleep(3);
                     }
                 }
@@ -325,6 +328,8 @@ export class BinanceConnector {
         }
         if (!binanceOrder && retries) {
             while (retries-- > 0) {
+                log.debug("Creating %O stop limit order on %O/%O of %O %O. With stopPrice : %O, limitPrice: %O",
+                    side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
                 try {
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
                         "STOP_LOSS_LIMIT", side, amount, limitPrice, {
@@ -334,7 +339,6 @@ export class BinanceConnector {
                     log.error("Failed to create order : ", e);
                     if (retries > 0) {
                         await GlobalUtils.sleep(3);
-                        log.debug("Retrying ...");
                     }
                 }
             }
