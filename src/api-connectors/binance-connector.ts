@@ -240,7 +240,6 @@ export class BinanceConnector {
             amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
         }
 
-
         log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
         try {
@@ -249,22 +248,29 @@ export class BinanceConnector {
         } catch (e) {
             log.error(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
-        if (!binanceOrder && retries && amountToInvest) {
+        if (!binanceOrder && retries) {
+            // used to decrease the amount price by small steps in case of a InsufficientFunds exception in a buy order
+            // see TODO : https://github.com/Voyag3r/mountain-seeker/issues/2
+            let percentIncreaseMultiplier = 1;
+
             while (retries-- > 0) {
                 log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
                 try {
-                    const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
-                    amount = amountToInvest/unitPrice;
-                    if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
-                        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+                    if (amountToInvest && side === "buy") {
+                        const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
+                        amount = amountToInvest/unitPrice;
+                        amount -= amount * (percentIncreaseMultiplier * 0.002);
+                        if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
+                            amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+                        }
                     }
-                    binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
-                        "market", side, amount);
+                    binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`, "market", side, amount);
                 } catch (e) {
                     log.warn(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
                     if (retries > 0) {
                         await GlobalUtils.sleep(3);
                     }
+                    percentIncreaseMultiplier++;
                 }
             }
         }

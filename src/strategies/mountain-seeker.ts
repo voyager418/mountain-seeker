@@ -68,11 +68,11 @@ export class MountainSeeker implements BaseStrategy {
                 stopTradingTimeoutSeconds: -1
             };
             const configFor4h: TradingLoopConfig = {
-                initialSecondsToSleepInTheTradingLoop: 10,
+                initialSecondsToSleepInTheTradingLoop: 60,
                 secondsToSleepInTheTradingLoop: 600,
                 initialStopLimitPriceIncreaseInTheTradingLoop: 0.1,
                 stopLimitPriceIncreaseInTheTradingLoop: 1.0,
-                initialStopLimitPriceTriggerPercent: 1.1,
+                initialStopLimitPriceTriggerPercent: 1.5,
                 stopLimitPriceTriggerPercent: 3,
                 stopTradingTimeoutSeconds: -1
             };
@@ -253,7 +253,7 @@ export class MountainSeeker implements BaseStrategy {
             await this.apiConnector.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
                 lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
             completedOrder = await this.apiConnector.createMarketOrder(Currency.EUR, market.originAsset,
-                "sell", lastStopLimitOrder.amountOfTargetAsset, true).catch(e => Promise.reject(e));
+                "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
