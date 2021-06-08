@@ -596,7 +596,6 @@ export class BinanceConnector {
      * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType, side: "buy" | "sell"): number {
-        log.debug(`(computeAmountOfOriginAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         // if the order is incomplete
         if (remaining > 0) {
             return 0;
@@ -605,12 +604,13 @@ export class BinanceConnector {
         if (orderType !== OrderType.MARKET) {
             // 0.1% is the default binance transaction fee
             // see https://www.binance.com/en/fee/schedule or in the account settings
+            log.debug(`(computeAmountOfOriginAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
             return binanceOrder.cost - GlobalUtils.truncateNumber(binanceOrder.cost * 0.001, 8);
         }
 
         const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
         if (!fills) {
-            log.warn("Fills details were are not found");
+            log.warn("Fills details were not found");
             return binanceOrder.average! * (binanceOrder.filled + binanceOrder.remaining);
         }
         let amountOfOriginAsset = 0;
@@ -632,7 +632,6 @@ export class BinanceConnector {
      */
     private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
         side: "buy" | "sell", targetAsset: string): number {
-        log.debug(`(computeAmountOfFilledAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         if (orderType !== OrderType.MARKET) {
             return filled;
         }

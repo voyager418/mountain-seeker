@@ -21,6 +21,9 @@ export class GlobalUtils {
      * Example input : (0.99999, 2) => output 0.99
      */
     static truncateNumber(number: number, digitsAfterDot: number): number {
-        return Math.trunc(number * Math.pow(10, digitsAfterDot)) / Math.pow(10, digitsAfterDot);
+        if (number.toString().split(".")[1]?.length > digitsAfterDot) {
+            return Math.trunc(number * Math.pow(10, digitsAfterDot)) / Math.pow(10, digitsAfterDot);
+        }
+        return number;
     }
 }

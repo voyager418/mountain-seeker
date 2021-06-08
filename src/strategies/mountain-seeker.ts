@@ -12,7 +12,7 @@ import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
-import { singleton } from "tsyringe";
+import { injectable } from "tsyringe";
 
 
 /**
@@ -20,7 +20,7 @@ import { singleton } from "tsyringe";
  * that is, and recently was, harshly rising in price.
  * Then sell it when the price starts to decrease.
  */
-@singleton()
+@injectable()
 export class MountainSeeker implements BaseStrategy {
     private strategyDetails: any
     private account: Account | undefined;
@@ -28,19 +28,18 @@ export class MountainSeeker implements BaseStrategy {
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;
 
-    private state: TradingState = {
-        id: uuidv4()
-    };
+    private readonly state: TradingState;
 
     constructor(private configService: ConfigService,
         private apiConnector: BinanceConnector,
         private emailService: EmailService) {
+        this.state = { id: uuidv4() };
         if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
     }
 
-    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
+    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>): MountainSeeker {
         this.account = account;
         this.strategyDetails = strategyDetails;
         this.state.config = strategyDetails;
