@@ -196,8 +196,8 @@ export class BinanceConnector {
         axios.post(`${urlPath}&signature=${signature}`, undefined,
             {
                 headers: headers
-            }).then((response: any) => log.debug("%O HTTP status %O", response.response?.data, response.response?.status))
-            .catch((error: any) => log.error("%O HTTP status %O", error.response?.data, error.response?.status));
+            }).then((response: any) => log.debug(`HTTP response : ${JSON.stringify(response)}`))
+            .catch((error: any) => log.error(`Error after HTTP call : ${JSON.stringify(error)}`));
     }
 
     /**

@@ -127,32 +127,6 @@ export class MountainSeeker implements BaseStrategy {
         log.debug("Preparing to execute the first order to buy %O %O on %O market. (≈ %O %O). Market unit price is %O",
             amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountToInvest, market.originAsset, marketUnitPrice);
 
-        // Before buying, one last check that the price still rises
-        if (marketUnitPrice < market.candleSticks[market.candleSticks.length - 2][4]) { // if current price dropped below the 2nd candlestick's close price
-            log.info(`Cancelling trading for market ${JSON.stringify(market)}`);
-            if (market.originAsset === Currency.EUR) {
-                this.state.profitEuro = 0;
-                this.state.percentChange = 0;
-                this.state.endedWithoutErrors = true;
-                await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
-                    ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
-                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
-                return Promise.resolve(this.state);
-            } else {
-                await this.handleSellOriginAsset(market, availableOriginAssetAmount);
-                this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-                this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
-                log.info(`Final percent change : ${this.state.percentChange}`);
-                await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
-                    ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
-                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
-                this.state.endedWithoutErrors = true;
-                return Promise.resolve(this.state);
-            }
-        }
-
         // 4. First BUY order
         const buyOrder = await this.apiConnector.createMarketOrder(market.originAsset, market.targetAsset,
             "buy", amountOfTargetAssetToBuy, true, 5, amountToInvest, market.amountPrecision)
@@ -440,7 +414,6 @@ export class MountainSeeker implements BaseStrategy {
     private async convertRemainingTargetAssetToBNB(market: Market): Promise<void> {
         const walletBalance = await this.apiConnector.getBalance([Currency.BNB, market.targetAsset])
             .catch(e => Promise.reject(e));
-        const initialBNBAmount = walletBalance.get(Currency.BNB)!;
         if (walletBalance.get(market.targetAsset)! > 0) {
             await this.apiConnector.convertSmallAmountsToBNB([market.targetAsset]);
             const finalBNBAmount = await this.apiConnector.getBalanceForAsset(Currency.BNB).catch(e => Promise.reject(e));
@@ -449,6 +422,7 @@ export class MountainSeeker implements BaseStrategy {
                 this.state.retrievedAmountOfEuro = 0;
             }
 
+            const initialBNBAmount = walletBalance.get(Currency.BNB)!;
             if (initialBNBAmount === finalBNBAmount) {
                 log.warn(`Was unable to convert ${walletBalance.get(market.targetAsset)}${market.targetAsset} to ${Currency.BNB}`);
                 const priceOfTargetAssetInOriginAsset = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset, true)
