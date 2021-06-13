@@ -18,7 +18,7 @@ import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
-import { singleton } from "tsyringe";
+import { injectable } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 
@@ -27,7 +27,7 @@ import { CandlestickInterval } from "../enums/candlestick-interval.enum";
  * that is, and recently was, harshly rising in price.
  * Then sell it when the price starts to decrease.
  */
-@singleton()
+@injectable()
 export class MountainSeeker implements BaseStrategy {
     private strategyDetails: any
     private account: Account | undefined;
@@ -36,19 +36,18 @@ export class MountainSeeker implements BaseStrategy {
     private refilledWalletBalance?: Map<string, number>;
     private readonly defaultCandleStickInterval = CandlestickInterval.THIRTY_MINUTES;
 
-    private state: TradingState = {
-        id: uuidv4()
-    };
+    private readonly state: TradingState;
 
     constructor(private configService: ConfigService,
         private apiConnector: BinanceConnector,
         private emailService: EmailService) {
+        this.state = { id: uuidv4() };
         if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
     }
 
-    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>) {
+    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>): MountainSeeker {
         this.account = account;
         this.strategyDetails = strategyDetails;
         this.state.config = strategyDetails;
@@ -136,36 +135,10 @@ export class MountainSeeker implements BaseStrategy {
         log.debug("Preparing to execute the first order to buy %O %O on %O market. (≈ %O %O). Market unit price is %O",
             amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountToInvest, market.originAsset, marketUnitPrice);
 
-        // Before buying, one last check that the price still rises
-        const selectedCandleSticks = getCandleSticksByInterval(market, this.state.selectedCandleStickInterval!);
-        if (marketUnitPrice < selectedCandleSticks[selectedCandleSticks.length - 2][4]) { // if current price dropped below the 2nd candlestick's close price
-            log.info(`Cancelling trading for market ${JSON.stringify(market)}`);
-            if (market.originAsset === Currency.EUR) {
-                this.state.profitEuro = 0;
-                this.state.percentChange = 0;
-                this.state.endedWithoutErrors = true;
-                await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
-                    ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
-                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
-                return Promise.resolve(this.state);
-            } else {
-                await this.handleSellOriginAsset(market, availableOriginAssetAmount);
-                this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-                this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
-                log.info(`Final percent change : ${this.state.percentChange}`);
-                await this.emailService.sendEmail(`Trading canceled for ${market.symbol} (${this.state.percentChange > 0
-                    ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
-                    JSON.stringify(this.state, null, 4)).catch(e => log.error(e));
-                log.info(`Trading cancelled ${JSON.stringify(this.state)}`);
-                this.state.endedWithoutErrors = true;
-                return Promise.resolve(this.state);
-            }
-        }
-
-        // 4. First BUY order on target market
+        // 4. First BUY order
         const buyOrder = await this.apiConnector.createMarketOrder(market.originAsset, market.targetAsset,
-            "buy", amountOfTargetAssetToBuy, true, 3, amountToInvest).catch(e => Promise.reject(e));
+            "buy", amountOfTargetAssetToBuy, true, 5, amountToInvest, market.amountPrecision)
+            .catch(e => Promise.reject(e));
         if (this.state.originAssetIsEur) {
             this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
         }
@@ -261,7 +234,7 @@ export class MountainSeeker implements BaseStrategy {
             await this.apiConnector.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
                 lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
             completedOrder = await this.apiConnector.createMarketOrder(Currency.EUR, market.originAsset,
-                "sell", lastStopLimitOrder.amountOfTargetAsset, true).catch(e => Promise.reject(e));
+                "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
@@ -409,7 +382,7 @@ export class MountainSeeker implements BaseStrategy {
         markets = StrategyUtils.filterByIgnoredMarkets(markets, this.strategyDetails.config.ignoredMarkets);
         markets = StrategyUtils.filterByAuthorizedMarkets(markets, this.strategyDetails.config.authorizedMarkets);
         markets = StrategyUtils.filterByAmountPrecision(markets, 1); // when trading with big price amounts, this can maybe be removed
-        // TODO : filter by minimum amount of candlesticks
+        // TODO : maybe filter by minimum amount of candlesticks
 
         await this.fetchAndSetCandlesticks(markets).catch(e => Promise.reject(e));
         return Promise.resolve(markets);
@@ -490,7 +463,6 @@ export class MountainSeeker implements BaseStrategy {
     private async convertRemainingTargetAssetToBNB(market: Market): Promise<void> {
         const walletBalance = await this.apiConnector.getBalance([Currency.BNB, market.targetAsset])
             .catch(e => Promise.reject(e));
-        const initialBNBAmount = walletBalance.get(Currency.BNB)!;
         if (walletBalance.get(market.targetAsset)! > 0) {
             await this.apiConnector.convertSmallAmountsToBNB([market.targetAsset]);
             const finalBNBAmount = await this.apiConnector.getBalanceForAsset(Currency.BNB).catch(e => Promise.reject(e));
@@ -499,6 +471,7 @@ export class MountainSeeker implements BaseStrategy {
                 this.state.retrievedAmountOfEuro = 0;
             }
 
+            const initialBNBAmount = walletBalance.get(Currency.BNB)!;
             if (initialBNBAmount === finalBNBAmount) {
                 log.warn(`Was unable to convert ${walletBalance.get(market.targetAsset)}${market.targetAsset} to ${Currency.BNB}`);
                 const priceOfTargetAssetInOriginAsset = await this.apiConnector.getUnitPrice(market.originAsset, market.targetAsset, true)
