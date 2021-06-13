@@ -34,6 +34,7 @@ export class MountainSeeker implements BaseStrategy {
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;
+    /** This interval is also used to construct other intervals (e.g. for 1h, 4h ...) */
     private readonly defaultCandleStickInterval = CandlestickInterval.THIRTY_MINUTES;
 
     private readonly state: TradingState;
@@ -72,7 +73,18 @@ export class MountainSeeker implements BaseStrategy {
                 stopLimitPriceIncreaseInTheTradingLoop: 0.5,
                 initialStopLimitPriceTriggerPercent: 1.0,
                 stopLimitPriceTriggerPercent: 2.5,
-                stopTradingTimeoutSeconds: -1
+                stopTradingTimeoutSeconds: -1,
+                stopTradingMaxPercentLoss: -0.1
+            };
+            const configFor30m: TradingLoopConfig = {
+                initialSecondsToSleepInTheTradingLoop: 60,
+                secondsToSleepInTheTradingLoop: 600,
+                initialStopLimitPriceIncreaseInTheTradingLoop: 0.1,
+                stopLimitPriceIncreaseInTheTradingLoop: 1.0,
+                initialStopLimitPriceTriggerPercent: 1.5,
+                stopLimitPriceTriggerPercent: 3,
+                stopTradingTimeoutSeconds: -1,
+                stopTradingMaxPercentLoss: -0.1
             };
             const configFor4h: TradingLoopConfig = {
                 initialSecondsToSleepInTheTradingLoop: 60,
@@ -81,9 +93,13 @@ export class MountainSeeker implements BaseStrategy {
                 stopLimitPriceIncreaseInTheTradingLoop: 1.0,
                 initialStopLimitPriceTriggerPercent: 1.5,
                 stopLimitPriceTriggerPercent: 3,
-                stopTradingTimeoutSeconds: -1
+                stopTradingTimeoutSeconds: -1,
+                stopTradingMaxPercentLoss: -0.1
             };
-            this.strategyDetails.config.candleStickInterval = new Map([["1m", configFor1m], ["4h", configFor4h]]);
+            this.strategyDetails.config.candleStickInterval = new Map([
+                ["1m", configFor1m],
+                ["30m", configFor30m],
+                ["4h", configFor4h]]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
             this.strategyDetails.config.minimumPercentFor24hVariation = 1;
@@ -217,6 +233,10 @@ export class MountainSeeker implements BaseStrategy {
                         candleStickConfig.stopTradingTimeoutSeconds / 60, this.state.pricePercentChangeOnZY);
                     break;
                 }
+            }
+            if (this.state.pricePercentChangeOnZY <= candleStickConfig.stopTradingMaxPercentLoss) {
+                log.info(`Aborting trading as the current trading loss ${this.state.pricePercentChangeOnZY} reached the maximum allowed limit ${candleStickConfig.stopTradingMaxPercentLoss}`);
+                break;
             }
         }
         return Promise.resolve(lastStopLimitOrder);
@@ -593,4 +613,8 @@ type TradingLoopConfig = {
     /** Amount of seconds after which the trading is aborted if no profit is made
      * when the trading loop has started. -1 for infinity */
     stopTradingTimeoutSeconds: number;
+
+    /** Loss in percentage after which the trading will stop.
+     * Example: -0.1 for a loss of -10% */
+    stopTradingMaxPercentLoss: number;
 }
