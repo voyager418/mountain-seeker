@@ -1,5 +1,6 @@
 import assert from "assert";
 import { Currency } from "../enums/trading-currencies.enum";
+import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 export type Market = {
     /** Example : "BNB/EUR" */
@@ -11,20 +12,22 @@ export type Market = {
     /** The asset that we buy (e.g. "BNB") */
     targetAsset: string;
 
-    /** An array of candlesticks.
+    /** Candlesticks grouped by their interval.
      * A candlestick has the following shape : [ timestamp, open, high, low, close, volume ] */
-    candleSticks: Array<TOHLCV>;
+    candleSticks: Map<CandlestickInterval, Array<TOHLCV>>;
 
-    /** An array of variations in percent for each candleStick defined in `Market.candleSticks` array.
-     * Ordered from oldest to more recent. The last number is a variation of the current price.
+    /** Variations in percent for each candleStick defined in `Market.candleSticks`, grouped by the interval.
+     * Each percentage variation array is ordered from oldest to more recent.
+     * The last number is a variation of the current price.
      */
-    candleSticksPercentageVariations: Array<number>;
+    candleSticksPercentageVariations: Map<CandlestickInterval, Array<number>>;
 
     /** The unit price of the target asset on the moment of retrieving market information */
     targetAssetPrice: number;
 
-    /** "1m", "15m", 1h" ... */
-    candleStickInterval?: string;
+    /** All available candlestick intervals for the market
+     * E.g. : "1m", "15m", 1h" ... */
+    candleStickIntervals: Array<CandlestickInterval>;
 
     /** Price % variation for last 24 hours */
     percentChangeLast24h?: number;
@@ -62,4 +65,18 @@ export function getCandleStickPercentageVariation(array: Array<number>, index: n
     assert(array.length >= index, `Candlestick percentage variation array is too short,
      wanted at least ${index + 1} elements but got ${array.length}`);
     return array[index];
+}
+
+export function getCandleSticksByInterval(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
+    assert(market.candleSticks.get(interval) !== undefined, `No candlesticks found for market ${market.symbol}
+     and interval ${interval}`);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return market.candleSticks.get(interval)!;
+}
+
+export function getCandleSticksPercentageVariationsByInterval(market: Market, interval: CandlestickInterval) : Array<number> {
+    assert(market.candleSticksPercentageVariations.get(interval) !== undefined, `No candlesticks percentage variations found for market ${market.symbol}
+     and interval ${interval}`);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return market.candleSticksPercentageVariations.get(interval)!;
 }

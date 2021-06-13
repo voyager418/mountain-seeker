@@ -1,5 +1,7 @@
-import { Market } from "../models/market";
+import { getCandleSticksByInterval, Market, TOHLCV } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
+import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import assert from "assert";
 
 /**
  * Utility class for strategies package
@@ -22,11 +24,11 @@ export class StrategyUtils {
     }
 
     /**
-     * Computes percentage variations of each candlestick in each market.
+     * Computes and sets percentage variations of each candlestick in each market for the provided interval.
      */
-    static setCandlestickPercentVariations(markets: Array<Market>): void {
+    static setCandlestickPercentVariations(markets: Array<Market>, interval: CandlestickInterval): void {
         for (const market of markets) {
-            const candleSticks = market.candleSticks; // a candlestick has a format [ timestamp, open, high, low, close, volume ]
+            const candleSticks = getCandleSticksByInterval(market, interval); // a candlestick has a format [ timestamp, open, high, low, close, volume ]
             const candleStickVariations = [];
             for (let i = 0; i < candleSticks.length - 1; i++) {
                 candleStickVariations.push(StrategyUtils.getPercentVariation(candleSticks[i][1], candleSticks[i][4]));
@@ -35,8 +37,61 @@ export class StrategyUtils {
             // candle stick and the current market price
             candleStickVariations.push((StrategyUtils.getPercentVariation(
                 candleSticks[candleSticks.length - 2][4], market.targetAssetPrice)));
-            market.candleSticksPercentageVariations = candleStickVariations;
+            if (!market.candleSticksPercentageVariations) {
+                market.candleSticksPercentageVariations = new Map();
+            }
+            market.candleSticksPercentageVariations.set(interval, candleStickVariations);
         }
+    }
+
+    /**
+     * Populates the fields {@link Market.candleSticks} and {@link Market.candleStickIntervals} by computing
+     * new candlesticks with the provided {@param interval}
+     */
+    static addCandleSticksWithInterval(markets: Array<Market>, interval: CandlestickInterval): void {
+        for (const market of markets) {
+            const candleSticksToAdd = this.convertCandleSticks(CandlestickInterval.THIRTY_MINUTES, interval,
+                getCandleSticksByInterval(market, CandlestickInterval.THIRTY_MINUTES));
+            market.candleSticks.set(interval, candleSticksToAdd);
+            market.candleStickIntervals.push(interval);
+        }
+    }
+
+    /**
+     * @param from Candlesticks interval of {@param inputCandleSticks}
+     * @param to The interval with which the new candlesticks will be created
+     * @param inputCandleSticks Input candlesticks with interval of {@param from}
+     */
+    static convertCandleSticks(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
+        assert(from === CandlestickInterval.THIRTY_MINUTES, `Unhandled interval ${from}.
+         Can only convert from ${CandlestickInterval.THIRTY_MINUTES}`);
+        const res: Array<TOHLCV> = [];
+        switch (to) {
+        case CandlestickInterval.FOUR_HOURS:
+            for (let i = inputCandleSticks.length - 1; i > 0; i -= 8) {
+                if (i - 8 > 0) {
+                    const candleSticksInFourHourPeriod = inputCandleSticks.slice(i - 7, i + 1);
+                    const first30MinCandle = candleSticksInFourHourPeriod[0];
+                    const last30MinCandle = candleSticksInFourHourPeriod[7];
+
+                    const highestPrice = candleSticksInFourHourPeriod.map(candle => candle[2])
+                        .reduce((prev, current) => (prev > current ? prev : current));
+
+                    const lowestPrice = candleSticksInFourHourPeriod.map(candle => candle[3])
+                        .reduce((prev, current) => (prev < current ? prev : current));
+
+                    const totalVolume = candleSticksInFourHourPeriod.map(candle => candle[5])
+                        .reduce((prev, current) => prev + current);
+
+                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
+                        lowestPrice, last30MinCandle[4], totalVolume];
+                    res.push(tempCandle);
+                }
+            }
+            break;
+        default: throw new Error(`Unhandled candlestick interval: ${to}`);
+        }
+        return res.reverse();
     }
 
     /**

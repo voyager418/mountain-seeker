@@ -11,6 +11,8 @@ import hmacSHA256 from 'crypto-js/hmac-sha256';
 import cliProgress from "cli-progress";
 import { ConfigService } from "../services/config-service";
 import { singleton } from "tsyringe";
+import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import { AxiosResponse } from "axios";
 
 const axios = require('axios').default;
 
@@ -103,8 +105,9 @@ export class BinanceConnector {
                 originAssetVolumeLast24h: market.quoteVolume,
                 targetAssetVolumeLast24h: market.baseVolume,
                 targetAssetPrice: market.ask, // current best ask (sell) price
-                candleSticks: [],
-                candleSticksPercentageVariations: [] }));
+                candleSticks: new Map(),
+                candleSticksPercentageVariations: new Map(),
+                candleStickIntervals: [] }));
         return res;
     }
 
@@ -193,11 +196,12 @@ export class BinanceConnector {
         const queryString = `${assetsInURLPath}&timestamp=${Date.now()}`;
         const urlPath = `${this.V1_URL_BASE_PATH}/asset/dust?${queryString}`;
         const signature = hmacSHA256(queryString, this.binance.secret).toString();
+
         axios.post(`${urlPath}&signature=${signature}`, undefined,
             {
                 headers: headers
-            }).then((response: any) => log.debug("%O HTTP status %O", response.response?.data, response.response?.status))
-            .catch((error: any) => log.error("%O HTTP status %O", error.response?.data, error.response?.status));
+            }).then((response: AxiosResponse) => log.debug("%O HTTP status %O"))
+            .catch((error: AxiosResponse) => log.error("%O HTTP status %O"));
     }
 
     /**
@@ -523,9 +527,10 @@ export class BinanceConnector {
     }
 
     /**
-     * Finds candlesticks for each market.
+     * Retrieves and sets candlesticks for each market.
+     * @param numberOfCandleSticks Must not exceed 1000 (limited by Binance)
      */
-    public async fetchCandlesticks(markets: Array<Market>, interval: string, numberOfCandleSticks: number): Promise<void> {
+    public async fetchCandlesticks(markets: Array<Market>, interval: CandlestickInterval, numberOfCandleSticks: number): Promise<void> {
         log.info(`Fetching candlesticks for ${markets.length} markets`);
         if (numberOfCandleSticks > 1000) {
             log.warn("Binance API limits maximum number of candlesticks to fetch to 1000 per request");
@@ -538,28 +543,37 @@ export class BinanceConnector {
             for (let i = 0; i < oneThird; i++) {
                 const market = markets[i];
                 progress.update(++index);
-                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+                market.candleStickIntervals.push(interval);
+                market.candleSticks = new Map([[interval,
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                        .catch(e => Promise.reject(e))]]);
             }
         }
         async function secondHalf(apiConnector: BinanceConnector) {
             for (let i = oneThird; i < oneThird * 2; i++) {
                 const market = markets[i];
                 progress.update(++index);
-                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+                market.candleStickIntervals.push(interval);
+                market.candleSticks = new Map([[interval,
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                        .catch(e => Promise.reject(e))]]);
             }
         }
         async function thirdHalf(apiConnector: BinanceConnector) {
-            for (let j = oneThird * 2; j < markets.length; j++) {
-                const market = markets[j];
+            for (let i = oneThird * 2; i < markets.length; i++) {
+                const market = markets[i];
                 progress.update(++index);
-                market.candleSticks = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3);
+                market.candleStickIntervals.push(interval);
+                market.candleSticks = new Map([[interval,
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                        .catch(e => Promise.reject(e))]]);
             }
         }
-        // if this method ends faster than around 6 seconds then we reach a limit for binance API calls per minute
+        // if this method ends faster than around 6 seconds then we exceed the limit for binance API calls per minute
         await Promise.all([firstHalf(this),
             secondHalf(this),
             thirdHalf(this),
-            GlobalUtils.sleep(6)]);
+            GlobalUtils.sleep(6)]).catch(e => Promise.reject(e));
         progress.stop();
     }
 
@@ -586,7 +600,6 @@ export class BinanceConnector {
      * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType, side: "buy" | "sell"): number {
-        log.debug(`(computeAmountOfOriginAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         // if the order is incomplete
         if (remaining > 0) {
             return 0;
@@ -622,7 +635,6 @@ export class BinanceConnector {
      */
     private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
         side: "buy" | "sell", targetAsset: string): number {
-        log.debug(`(computeAmountOfFilledAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
         if (orderType !== OrderType.MARKET) {
             return filled;
         }

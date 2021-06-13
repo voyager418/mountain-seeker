@@ -1,4 +1,5 @@
 import { StrategyDetails } from "./strategy-details";
+import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 /**
  * Represents trading progress state and statistics
@@ -51,4 +52,6 @@ export type TradingState = {
     /* eslint-disable  @typescript-eslint/no-explicit-any */
     /** Parameters of the strategy */
     config?: StrategyDetails<any>;
+    /** The candlestick interval that is being used by a strategy */
+    selectedCandleStickInterval?: CandlestickInterval;
 }
