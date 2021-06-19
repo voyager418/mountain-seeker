@@ -50,7 +50,7 @@ export class StrategyUtils {
      */
     static addCandleSticksWithInterval(markets: Array<Market>, interval: CandlestickInterval): void {
         for (const market of markets) {
-            const candleSticksToAdd = this.convertCandleSticks(CandlestickInterval.THIRTY_MINUTES, interval,
+            const candleSticksToAdd = this.convert(CandlestickInterval.THIRTY_MINUTES, interval,
                 getCandleSticksByInterval(market, CandlestickInterval.THIRTY_MINUTES));
             market.candleSticks.set(interval, candleSticksToAdd);
             market.candleStickIntervals.push(interval);
@@ -62,7 +62,7 @@ export class StrategyUtils {
      * @param to The interval with which the new candlesticks will be created
      * @param inputCandleSticks Input candlesticks with interval of {@param from}
      */
-    static convertCandleSticks(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
+    static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
         assert(from === CandlestickInterval.THIRTY_MINUTES, `Unhandled interval ${from}.
          Can only convert from ${CandlestickInterval.THIRTY_MINUTES}`);
         const res: Array<TOHLCV> = [];
@@ -162,5 +162,12 @@ export class StrategyUtils {
             return markets.filter(market => market.amountPrecision && market.amountPrecision >= minimalPrecision);
         }
         return markets;
+    }
+
+    /**
+     * @return Markets that have at least {@param minAmount} of candlesticks with the specified {@param candleStickInterval}
+     */
+    static filterByMinimumAmountOfCandleSticks(markets: Array<Market>, minAmount: number, candleStickInterval: CandlestickInterval) : Array<Market> {
+        return markets.filter(market => market.candleSticks.get(candleStickInterval)!.length >= minAmount);
     }
 }

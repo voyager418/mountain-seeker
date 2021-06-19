@@ -51,7 +51,7 @@ export class TradingService {
                 }
             } catch (e) {
                 log.error("Trading was aborted due to an error : ", new Error(e));
-                errorMessage = e;
+                errorMessage = e.message;
                 break;
             }
         }

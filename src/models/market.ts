@@ -68,8 +68,7 @@ export function getCandleStickPercentageVariation(array: Array<number>, index: n
 }
 
 export function getCandleSticksByInterval(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
-    assert(market.candleSticks.get(interval) !== undefined, `No candlesticks found for market ${market.symbol}
-     and interval ${interval}`);
+    assert(market.candleSticks.get(interval) !== undefined, `No candlesticks found for market ${market.symbol} and interval ${interval}`);
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return market.candleSticks.get(interval)!;
 }
