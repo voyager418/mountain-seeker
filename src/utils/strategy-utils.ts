@@ -101,7 +101,7 @@ export class StrategyUtils {
     static arrayHasDuplicatedNumber(array: Array<number>): boolean {
         for (let i = 0; i < array.length; i++) {
             for (let j = 0; j < array.length && i !== j; j++) {
-                if (array[i].toFixed(5) === array[j].toFixed(5)) {
+                if (array[i] !== 0 && array[i].toFixed(5) === array[j].toFixed(5)) {
                     return true;
                 }
             }

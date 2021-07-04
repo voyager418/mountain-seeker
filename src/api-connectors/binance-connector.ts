@@ -198,8 +198,8 @@ export class BinanceConnector {
         axios.post(`${urlPath}&signature=${signature}`, undefined,
             {
                 headers: headers
-            }).then((response: any) => log.debug(`HTTP response : ${JSON.stringify(response)}`))
-            .catch((error: any) => log.error(`Error after HTTP call : ${JSON.stringify(error)}`));
+            }).then((response: never) => log.debug(`HTTP response : ${JSON.stringify(response)}`))
+            .catch((error: never) => log.error(`Error after HTTP call : ${JSON.stringify(error)}`));
     }
 
     /**
@@ -242,7 +242,7 @@ export class BinanceConnector {
             amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
         }
 
-        log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
+        log.debug("Creating new %O market order on %O/%O of %O %O", side, targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
         try {
             binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,

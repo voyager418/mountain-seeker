@@ -258,9 +258,9 @@ export class MountainSeeker implements BaseStrategy {
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
-            log.debug("amountOfYBought = %O / amountOfYSpentOnZ = %O / amountOfOriginAsset = %O",
-                this.state.amountOfYBought!, this.state.amountOfYSpentOnZ!, completedOrder!.amountOfOriginAsset!);
             const amountOfYToSell = (this.state.amountOfYBought! - this.state.amountOfYSpentOnZ!) + completedOrder!.amountOfOriginAsset!
+            log.debug("amountOfYBought = %O / amountOfYSpentOnZ = %O / amountOfYGained = %O / amountOfYToSell = %O",
+                this.state.amountOfYBought!, this.state.amountOfYSpentOnZ!, completedOrder!.amountOfOriginAsset!, amountOfYToSell);
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }
 
@@ -335,7 +335,7 @@ export class MountainSeeker implements BaseStrategy {
         const currentVariation = getCurrentCandleStickPercentageVariation(candleStickVariations);
 
         // to avoid strange markets such as PHB/BTC, QKC/BTC or DF/ETH in Binance
-        if (StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) || candleStickVariations.some(variation => variation === 0)) {
+        if (StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations.slice(candleStickVariations.length - 30))) {
             return;
         }
 
@@ -378,7 +378,7 @@ export class MountainSeeker implements BaseStrategy {
         const currentVariation = getCurrentCandleStickPercentageVariation(candleStickVariations);
 
         // to avoid strange markets such as PHB/BTC, QKC/BTC or DF/ETH in Binance
-        if (StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations) || candleStickVariations.some(variation => variation === 0)) {
+        if (StrategyUtils.arrayHasDuplicatedNumber(candleStickVariations.slice(candleStickVariations.length - 50))) {
             return;
         }
 
@@ -400,7 +400,7 @@ export class MountainSeeker implements BaseStrategy {
 
         // if the previous candlesticks had a relatively big percent change
         if (candleStickVariations.slice(candleStickVariations.length - 32,
-            candleStickVariations.length - 2).some(variation => Math.abs(variation) > 3.5)) {
+            candleStickVariations.length - 2).some(variation => Math.abs(variation) > 2)) {
             return;
         }
 
