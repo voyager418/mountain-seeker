@@ -165,9 +165,7 @@ export class BinanceConnector {
      * @return Available balance for asset
      */
     public async getBalanceForAsset(asset: string): Promise<number> {
-        // TODO instead of wasting some time this can also be calculated by
-        //   making the sum of quantity - comission in the 'fills' array in the order object
-        await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
+        await GlobalUtils.sleep(5); // it seems like the wallet balance is not updating instantly sometimes
         const balance = await this.binance.fetchBalance()
             .catch(e => Promise.reject(`Failed to fetch balance for currency ${asset}: ${e}`));
         return balance[asset].free;
@@ -613,10 +611,10 @@ export class BinanceConnector {
             return 0;
         }
 
+        // for stop-limit orders Binance does not provide commission data so it has to be computed manually
         if (orderType !== OrderType.MARKET) {
-            // 0.1% is the default binance transaction fee
-            // see https://www.binance.com/en/fee/schedule or in the account settings
-            log.debug(`(computeAmountOfOriginAsset) Binance order : ${JSON.stringify(binanceOrder)}`);
+            // 0.1% is the default binance transaction fee, see https://www.binance.com/en/fee/schedule or in the account settings
+            // If BNB is available then Binance pays the fee from BNB wallet, so the below number is an approximation
             return binanceOrder.cost - GlobalUtils.truncateNumber(binanceOrder.cost * 0.001, 8);
         }
 
