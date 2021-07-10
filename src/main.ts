@@ -8,6 +8,7 @@ import { container } from "tsyringe";
 
 const server = express();
 const serverPort = process.env.PORT || CONFIG.port;
+const serverHost = process.env.NODE_ENV === "prod" ? "0.0.0.0" : CONFIG.host;
 
 server.get('/', (req, res) =>  {
     res.send('Server is up');
@@ -19,8 +20,8 @@ server.get('/start', (req, res) =>  {
     tradingService.beginTrading().then(() => log.info("End"));
 });
 
-server.listen(serverPort, CONFIG.host, () => {
-    log.info(`⛰ Server is running at ${CONFIG.host}:${serverPort}`);
+server.listen(serverPort, serverHost, () => {
+    log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);
     if (process.env.NODE_ENV !== "prod") {
         const tradingService = container.resolve(TradingService);
         tradingService.beginTrading().then(() => log.info("End"));
