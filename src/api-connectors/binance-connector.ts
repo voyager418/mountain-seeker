@@ -12,6 +12,7 @@ import cliProgress from "cli-progress";
 import { ConfigService } from "../services/config-service";
 import { singleton } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import assert from "assert";
 
 const axios = require('axios').default;
 
@@ -136,7 +137,7 @@ export class BinanceConnector {
                         return Promise.reject(`Failed to fetch candle sticks: ${e}`);
                     }
                     log.warn(`Failed to fetch candle sticks: ${e}. Retrying...`);
-                    await GlobalUtils.sleep(2);
+                    await GlobalUtils.sleep(10);
                 }
             }
         }
@@ -204,12 +205,19 @@ export class BinanceConnector {
      * This method always returns a valid result or exits with an error.
      * @return A number that stands for the amount of `inAsset` needed to buy 1 unit of `ofAsset`
      */
-    public async getUnitPrice(inAsset: Currency, ofAsset: string, verbose?: boolean): Promise<number> {
+    public async getUnitPrice(inAsset: Currency, ofAsset: string, verbose: boolean, retries: number): Promise<number> {
+        assert(retries > 0, "retries must not be zero")
         const marketSymbol = ofAsset.toString() + '/' + inAsset.toString();
         let lastPrice: number | undefined = undefined;
-        await this.binance.fetchTicker(marketSymbol)
-            .then(market => lastPrice = market.last)
-            .catch(error => `Failed to get information for ${marketSymbol} market. ${error}`);
+        while (!lastPrice && retries-- > 0) {
+            await this.binance.fetchTicker(marketSymbol)
+                .then(market => lastPrice = market.last)
+                .catch(error => log.error(`Failed to get information for ${marketSymbol} market. ${error}`));
+            if (retries > 0 && !lastPrice) {
+                log.info(`Last price of ${marketSymbol} was not found, retrying...`);
+                await GlobalUtils.sleep(5);
+            }
+        }
         if (lastPrice === undefined) {
             return Promise.reject(`Last price of ${marketSymbol} was not found`);
         }
@@ -257,7 +265,8 @@ export class BinanceConnector {
                 log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
                 try {
                     if (amountToInvest && side === "buy") {
-                        const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true);
+                        const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true, 10)
+                            .catch(error => Promise.reject(error));
                         amount = amountToInvest/unitPrice;
                         amount -= amount * (percentIncreaseMultiplier * 0.002);
                         if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
@@ -551,7 +560,7 @@ export class BinanceConnector {
                 progress.update(++index);
                 market.candleStickIntervals.push(interval);
                 market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
                         .catch(e => Promise.reject(e))]]);
             }
         }
@@ -561,7 +570,7 @@ export class BinanceConnector {
                 progress.update(++index);
                 market.candleStickIntervals.push(interval);
                 market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
                         .catch(e => Promise.reject(e))]]);
             }
         }
@@ -571,7 +580,7 @@ export class BinanceConnector {
                 progress.update(++index);
                 market.candleStickIntervals.push(interval);
                 market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 3)
+                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
                         .catch(e => Promise.reject(e))]]);
             }
         }

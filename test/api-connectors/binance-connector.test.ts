@@ -131,7 +131,7 @@ describe("Binance connector", () => {
 
         test("Should correctly return a unit price for an asset", async() => {
             // act
-            const res = await binanceConnector.getUnitPrice(Currency.EUR, "BNB");
+            const res = await binanceConnector.getUnitPrice(Currency.EUR, "BNB", true, 1);
 
             // assert
             expect(binanceInstance.fetchTicker).toHaveBeenCalledWith("BNB/EUR");
@@ -144,7 +144,7 @@ describe("Binance connector", () => {
 
             try {
                 // act
-                await binanceConnector.getUnitPrice(Currency.EUR, "BNB");
+                await binanceConnector.getUnitPrice(Currency.EUR, "BNB", true, 1);
                 fail("Should reject");
             } catch (e) {
                 // assert

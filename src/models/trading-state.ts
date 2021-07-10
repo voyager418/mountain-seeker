@@ -43,8 +43,11 @@ export type TradingState = {
      * So YX = "BNB/EUR" */
     pricePercentChangeOnYX?: number;
     /** For example : if trading market is "CAKE/BNB", then X = EUR, Y = BNB and Z = CAKE.
-     * So ZY = "CAKE/BNB" */
+     * So ZY = "CAKE/BNB".
+     * This number corresponds to the price variation between the first BUY order and the current price. */
     pricePercentChangeOnZY?: number;
+    /** Corresponds to the profit, in percent, that will be made if the STOP LIMIT order is executed */
+    profitOnZY?:number;
     /** Amount of Y that was bought and that will be used to buy Z */
     amountOfYBought?: number
     /** Amount of Y used to buy Z */

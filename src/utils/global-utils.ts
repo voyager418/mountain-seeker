@@ -26,4 +26,19 @@ export class GlobalUtils {
         }
         return number;
     }
+
+    /**
+     * Allows to stringify a Map object when used in {@link JSON.stringify} function.
+     * Taken from https://stackoverflow.com/a/56150320
+     */
+    static replacer(key: any, value: any): any {
+        if (value instanceof Map) {
+            return {
+                dataType: 'Map',
+                value: Array.from(value.entries())
+            };
+        } else {
+            return value;
+        }
+    }
 }
