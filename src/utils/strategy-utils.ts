@@ -89,6 +89,28 @@ export class StrategyUtils {
                 }
             }
             break;
+        case CandlestickInterval.SIX_HOURS:
+            for (let i = inputCandleSticks.length - 1; i > 0; i -= 12) {
+                if (i - 12 > 0) {
+                    const candleSticksInSixHoursPeriod = inputCandleSticks.slice(i - 11, i + 1);
+                    const first30MinCandle = candleSticksInSixHoursPeriod[0];
+                    const last30MinCandle = candleSticksInSixHoursPeriod[11];
+
+                    const highestPrice = candleSticksInSixHoursPeriod.map(candle => candle[2])
+                        .reduce((prev, current) => (prev > current ? prev : current));
+
+                    const lowestPrice = candleSticksInSixHoursPeriod.map(candle => candle[3])
+                        .reduce((prev, current) => (prev < current ? prev : current));
+
+                    const totalVolume = candleSticksInSixHoursPeriod.map(candle => candle[5])
+                        .reduce((prev, current) => prev + current);
+
+                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
+                        lowestPrice, last30MinCandle[4], totalVolume];
+                    res.push(tempCandle);
+                }
+            }
+            break;
         default: throw new Error(`Unhandled candlestick interval: ${to}`);
         }
         return res.reverse();

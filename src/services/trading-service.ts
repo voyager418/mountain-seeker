@@ -40,7 +40,7 @@ export class TradingService {
                 if (result && result.endedWithoutErrors && result.marketSymbol && this.strategy.config.autoRestartOnProfit) {
                     this.strategy.config.ignoredMarkets = [result.marketSymbol];
                     if (result.percentChange) {
-                        if (result.percentChange <= -3) {
+                        if (result.percentChange <= -10) {
                             log.warn("Loss of %O%", result.percentChange);
                             break;
                         }

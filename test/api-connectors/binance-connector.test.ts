@@ -233,8 +233,8 @@ describe("Binance connector", () => {
                 expect(binanceConnector.getUnitPrice).toHaveBeenCalledTimes(5);
                 expect(binanceInstance.createOrder).toHaveBeenCalledTimes(6);
                 expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(1, "BNB/EUR", "market", "buy", 0.0389);
-                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03863225);
-                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(3, "BNB/EUR", "market", "buy", 0.03855483);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03855483);
+                expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(3, "BNB/EUR", "market", "buy", 0.0384);
             }
         });
     });

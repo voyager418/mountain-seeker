@@ -194,6 +194,8 @@ export class BinanceConnector {
         const queryString = `${assetsInURLPath}&timestamp=${Date.now()}`;
         const urlPath = `${this.V1_URL_BASE_PATH}/asset/dust?${queryString}`;
         const signature = hmacSHA256(queryString, this.binance.secret).toString();
+        // TODO: verify that the below request works (it failed many times without an error message)
+        // e.g. "Jul 17 10:01:54 ip-172-31-1-160 web: [17-07-2021 10:01:54] error: Error after HTTP call : {}"
         axios.post(`${urlPath}&signature=${signature}`, undefined,
             {
                 headers: headers
@@ -268,7 +270,7 @@ export class BinanceConnector {
                         const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true, 10)
                             .catch(error => Promise.reject(error));
                         amount = amountToInvest/unitPrice;
-                        amount -= amount * (percentIncreaseMultiplier * 0.002);
+                        amount -= amount * (percentIncreaseMultiplier * 0.004);
                         if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
                             amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
                         }
