@@ -151,7 +151,7 @@ export class MountainSeeker implements BaseStrategy {
         log.debug("Preparing to execute the first order to buy %O %O on %O market. (≈ %O %O). Market unit price is %O",
             amountOfTargetAssetToBuy, market.targetAsset, market.symbol, amountToInvest, market.originAsset, marketUnitPrice);
 
-        // 4. First BUY order
+        // 4. First BUY order to buy market.targetAsset (aka Z)
         const buyOrder = await this.cryptoExchangePlatform.createMarketOrder(market.originAsset, market.targetAsset,
             "buy", amountOfTargetAssetToBuy, true, 5, amountToInvest, market.amountPrecision)
             .catch(e => Promise.reject(e));
@@ -161,15 +161,14 @@ export class MountainSeeker implements BaseStrategy {
         this.state.amountOfYSpentOnZ = buyOrder.amountOfOriginAsset;
 
         // 5. First STOP-LIMIT order
-        const targetAssetAmount = buyOrder.filled;
         const stopLimitPrice = this.computeFirstStopLimitPrice(market);
         const firstStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
-            "sell", targetAssetAmount, stopLimitPrice, stopLimitPrice, 3)
+            "sell", buyOrder.filled, stopLimitPrice, stopLimitPrice, 3)
             .catch(e => Promise.reject(e));
 
         // 6. Start trading loop
         const lastStopLimitOrder = await this.runTradingLoop(buyOrder, stopLimitPrice, marketUnitPrice,
-            firstStopLimitOrder, market, targetAssetAmount).catch(e => Promise.reject(e));
+            firstStopLimitOrder, market, buyOrder.filled).catch(e => Promise.reject(e));
 
         // 7. Finishing
         await this.handleTradeEnd(market, lastStopLimitOrder, buyOrder).catch(e => Promise.reject(e));
@@ -188,6 +187,7 @@ export class MountainSeeker implements BaseStrategy {
         let stopLimitPriceIncreaseInTheTradingLoop = candleStickConfig.initialStopLimitPriceIncreaseInTheTradingLoop;
         let stopTradingTimeoutSeconds = candleStickConfig.stopTradingTimeoutSeconds;
         let lastStopLimitOrder = stopLimitOrder;
+        let potentialProfitOnZY;
 
         while (stopLimitPrice < marketUnitPrice) {
             await GlobalUtils.sleep(secondsToSleepInTheTradingLoop);
@@ -218,10 +218,10 @@ export class MountainSeeker implements BaseStrategy {
                 stopLimitPriceIncreaseInTheTradingLoop = candleStickConfig.stopLimitPriceIncreaseInTheTradingLoop;
             }
             this.state.pricePercentChangeOnZY = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
-            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.average, newStopLimitPrice);
+            potentialProfitOnZY = StrategyUtils.getPercentVariation(buyOrder.average, newStopLimitPrice);
             log.info(`Buy : ${buyOrder.average}, current : ${(marketUnitPrice)
                 .toFixed(8)}, change % : ${this.state.pricePercentChangeOnZY}% | Sell price : ${stopLimitPrice
-                .toFixed(8)} | Potential profit : ${this.state.profitOnZY.toFixed(3)}%`);
+                .toFixed(8)} | Potential profit : ${potentialProfitOnZY.toFixed(3)}%`);
 
             // cancel trading after x amount of seconds if no profit is made and if the option is enabled
             if (this.state.pricePercentChangeOnZY <= 0 && candleStickConfig.stopTradingTimeoutSeconds !== -1) {
@@ -254,8 +254,8 @@ export class MountainSeeker implements BaseStrategy {
                 lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
             completedOrder = await this.cryptoExchangePlatform.createMarketOrder(market.originAsset, market.targetAsset,
                 "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
-            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.average, completedOrder!.average);
         }
+        this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled, completedOrder!.filled);
 
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
@@ -272,7 +272,7 @@ export class MountainSeeker implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.percentChange > 0
-            ? '+' : ''}${this.state.percentChange.toFixed(3)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
+            ? '+' : ''}${this.state.percentChange.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
             JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         log.info(`Final percent change : ${this.state.percentChange} | Final state : ${JSON.stringify(this.state)}`);
