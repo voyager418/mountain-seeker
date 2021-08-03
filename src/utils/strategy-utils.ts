@@ -15,11 +15,13 @@ export class StrategyUtils {
      * @return A variation in % between two numbers `start` and `end`. Can be negative.
      */
     static getPercentVariation(start: number, end: number): number {
-        // TODO : division by zero ?
+        if (start === 0) {
+            start = 0.00000001;
+        }
         if (start <= end) {
-            return Math.abs(((end - start) / (start)) * 100);
+            return Math.abs(((end - start) / start) * 100);
         } else {
-            return -((start - end) / (start)) * 100;
+            return -((start - end) / start) * 100;
         }
     }
 
@@ -56,66 +58,7 @@ export class StrategyUtils {
             market.candleStickIntervals.push(interval);
         }
     }
-
-    /**
-     * @param from Candlesticks interval of {@param inputCandleSticks}
-     * @param to The interval with which the new candlesticks will be created
-     * @param inputCandleSticks Input candlesticks with interval of {@param from}
-     */
-    static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
-        assert(from === CandlestickInterval.THIRTY_MINUTES, `Unhandled interval ${from}.
-         Can only convert from ${CandlestickInterval.THIRTY_MINUTES}`);
-        const res: Array<TOHLCV> = [];
-        switch (to) {
-        case CandlestickInterval.FOUR_HOURS:
-            for (let i = inputCandleSticks.length - 1; i > 0; i -= 8) {
-                if (i - 8 > 0) {
-                    const candleSticksInFourHourPeriod = inputCandleSticks.slice(i - 7, i + 1);
-                    const first30MinCandle = candleSticksInFourHourPeriod[0];
-                    const last30MinCandle = candleSticksInFourHourPeriod[7];
-
-                    const highestPrice = candleSticksInFourHourPeriod.map(candle => candle[2])
-                        .reduce((prev, current) => (prev > current ? prev : current));
-
-                    const lowestPrice = candleSticksInFourHourPeriod.map(candle => candle[3])
-                        .reduce((prev, current) => (prev < current ? prev : current));
-
-                    const totalVolume = candleSticksInFourHourPeriod.map(candle => candle[5])
-                        .reduce((prev, current) => prev + current);
-
-                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
-                        lowestPrice, last30MinCandle[4], totalVolume];
-                    res.push(tempCandle);
-                }
-            }
-            break;
-        case CandlestickInterval.SIX_HOURS:
-            for (let i = inputCandleSticks.length - 1; i > 0; i -= 12) {
-                if (i - 12 > 0) {
-                    const candleSticksInSixHoursPeriod = inputCandleSticks.slice(i - 11, i + 1);
-                    const first30MinCandle = candleSticksInSixHoursPeriod[0];
-                    const last30MinCandle = candleSticksInSixHoursPeriod[11];
-
-                    const highestPrice = candleSticksInSixHoursPeriod.map(candle => candle[2])
-                        .reduce((prev, current) => (prev > current ? prev : current));
-
-                    const lowestPrice = candleSticksInSixHoursPeriod.map(candle => candle[3])
-                        .reduce((prev, current) => (prev < current ? prev : current));
-
-                    const totalVolume = candleSticksInSixHoursPeriod.map(candle => candle[5])
-                        .reduce((prev, current) => prev + current);
-
-                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
-                        lowestPrice, last30MinCandle[4], totalVolume];
-                    res.push(tempCandle);
-                }
-            }
-            break;
-        default: throw new Error(`Unhandled candlestick interval: ${to}`);
-        }
-        return res.reverse();
-    }
-
+    
     /**
      * @return `true` if the array has a duplicated number after rounding them all to 5th digit,
      * `false` otherwise
@@ -191,5 +134,78 @@ export class StrategyUtils {
      */
     static filterByMinimumAmountOfCandleSticks(markets: Array<Market>, minAmount: number, candleStickInterval: CandlestickInterval) : Array<Market> {
         return markets.filter(market => market.candleSticks.get(candleStickInterval)!.length >= minAmount);
+    }
+
+    /**
+     * @return The market with the highest price increase in the last 24h
+     */
+    static highestBy24hVariation(potentialMarkets: Array<{ market: Market; interval: CandlestickInterval }>): undefined | Market {
+        if (potentialMarkets.length === 0) {
+            return undefined;
+        }
+        potentialMarkets.sort((first, second) => {
+            // for more details see https://developer.mozilla.org/en-US/docs/web/javascript/reference/global_objects/array/sort#description
+            return second.market.percentChangeLast24h! - first.market.percentChangeLast24h!;
+        });
+        return potentialMarkets[0].market;
+    }
+
+    /**
+     * @param from Candlesticks interval of {@param inputCandleSticks}
+     * @param to The interval with which the new candlesticks will be created
+     * @param inputCandleSticks Input candlesticks with interval of {@param from}
+     */
+    private static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
+        assert(from === CandlestickInterval.THIRTY_MINUTES, `Unhandled interval ${from}.
+         Can only convert from ${CandlestickInterval.THIRTY_MINUTES}`);
+        const res: Array<TOHLCV> = [];
+        switch (to) {
+        case CandlestickInterval.FOUR_HOURS:
+            for (let i = inputCandleSticks.length - 1; i > 0; i -= 8) {
+                if (i - 8 > 0) {
+                    const candleSticksInFourHourPeriod = inputCandleSticks.slice(i - 7, i + 1);
+                    const first30MinCandle = candleSticksInFourHourPeriod[0];
+                    const last30MinCandle = candleSticksInFourHourPeriod[7];
+
+                    const highestPrice = candleSticksInFourHourPeriod.map(candle => candle[2])
+                        .reduce((prev, current) => (prev > current ? prev : current));
+
+                    const lowestPrice = candleSticksInFourHourPeriod.map(candle => candle[3])
+                        .reduce((prev, current) => (prev < current ? prev : current));
+
+                    const totalVolume = candleSticksInFourHourPeriod.map(candle => candle[5])
+                        .reduce((prev, current) => prev + current);
+
+                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
+                        lowestPrice, last30MinCandle[4], totalVolume];
+                    res.push(tempCandle);
+                }
+            }
+            break;
+        case CandlestickInterval.SIX_HOURS:
+            for (let i = inputCandleSticks.length - 1; i > 0; i -= 12) {
+                if (i - 12 > 0) {
+                    const candleSticksInSixHoursPeriod = inputCandleSticks.slice(i - 11, i + 1);
+                    const first30MinCandle = candleSticksInSixHoursPeriod[0];
+                    const last30MinCandle = candleSticksInSixHoursPeriod[11];
+
+                    const highestPrice = candleSticksInSixHoursPeriod.map(candle => candle[2])
+                        .reduce((prev, current) => (prev > current ? prev : current));
+
+                    const lowestPrice = candleSticksInSixHoursPeriod.map(candle => candle[3])
+                        .reduce((prev, current) => (prev < current ? prev : current));
+
+                    const totalVolume = candleSticksInSixHoursPeriod.map(candle => candle[5])
+                        .reduce((prev, current) => prev + current);
+
+                    const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
+                        lowestPrice, last30MinCandle[4], totalVolume];
+                    res.push(tempCandle);
+                }
+            }
+            break;
+        default: throw new Error(`Unhandled candlestick interval: ${to}`);
+        }
+        return res.reverse();
     }
 }

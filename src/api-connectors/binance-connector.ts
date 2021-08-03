@@ -18,35 +18,15 @@ const axios = require('axios').default;
 
 
 /**
- * A binance buy/sell market order contains a list of fills.
- * This allows to know the exact asset amount that was used when commission is deduced.
- * Example of a fill object for a sell order on BTC/EUR market :
- * {
- *   "price": "47212.49000000",
- *   "qty": "0.00044600",
- *   "commission": "0.02105677",
- *   "commissionAsset": "EUR",
- *   "tradeId": 43143323
- *   }
- */
-interface MarketOrderFill {
-    price: string,
-    qty: string,
-    commission: string,
-    commissionAsset: string
-}
-
-/**
  * This service is responsible for communicating with Binance API.
  *
- * It is a wrapper around existing libraries (e.g. ccxt) with
- * possibly additional/custom implementations.
+ * It is a wrapper around ccxt library with possibly additional/custom implementations.
  */
 @singleton()
 export class BinanceConnector {
 
     /** Binance ccxt instance.
-     * Binance API, and others, has rate limits for requests.
+     * Binance API and others have rate limits for requests.
      * https://api.binance.com/api/v3/exchangeInfo returns an array describing the limits :
      * [{"rateLimitType":"REQUEST_WEIGHT","interval":"MINUTE","intervalNum":1,"limit":1200},
      * {"rateLimitType":"ORDERS","interval":"SECOND","intervalNum":10,"limit":100},
@@ -178,7 +158,8 @@ export class BinanceConnector {
      *
      * @param fromCurrencies The assets to convert
      */
-    public async convertSmallAmountsToBNB(fromCurrencies: Array<string>): Promise<void> {
+    public async convertSmallAmountsToBNB(fromCurrencies: Array<string>): Promise<boolean> {
+        let success = false;
         let assetsInURLPath = "";
         for (const asset of fromCurrencies) {
             if (assetsInURLPath.length === 0) {
@@ -196,11 +177,13 @@ export class BinanceConnector {
         const signature = hmacSHA256(queryString, this.binance.secret).toString();
         // TODO: verify that the below request works (it failed many times without an error message)
         // e.g. "Jul 17 10:01:54 ip-172-31-1-160 web: [17-07-2021 10:01:54] error: Error after HTTP call : {}"
-        axios.post(`${urlPath}&signature=${signature}`, undefined,
-            {
-                headers: headers
-            }).then((response: never) => log.debug(`HTTP response : ${JSON.stringify(response)}`))
-            .catch((error: never) => log.error(`Error after HTTP call : ${JSON.stringify(error)}`));
+        try {
+            await axios.post(`${urlPath}&signature=${signature}`, undefined, { headers: headers });
+            success = true;
+        } catch (e) {
+            log.error(`Error after HTTP call when converting small amounts: ${JSON.stringify(e)}`);
+        }
+        return Promise.resolve(success);
     }
 
     /**
@@ -233,11 +216,17 @@ export class BinanceConnector {
      * Creates a market order.
      * There is always a minimum amount allowed to buy depending on a market, see {@link https://github.com/ccxt/ccxt/wiki/Manual#precision-and-limits}
      *
+     * @param originAsset Asset used to buy {@link targetAsset} when {@link side} == "buy" or that is retrieved when {@link side} == "sell"
+     * @param targetAsset Asset that will be sold or bought
+     * @param side Specifies the buy or sell order
+     * @param amount Amount of {@link targetAsset} that we want to buy when {@link side} == "buy" or the amount of {@link targetAsset}
+     * to sell when {@link side} == "sell"
      * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
      * change from `open` to `closed`
      * @param retries Indicates the number of times the order will be repeated after a failure
      * @param amountToInvest The number of origin asset that is going to be invested (needed for retries).
-     * @param marketAmountPrecision Indicates the number of digits after the dot that the market authorises to use
+     * @param marketAmountPrecision Stands for the number of digits after the dot that the market authorises to use and
+     * uses it to truncate the {@link amount}
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number, marketAmountPrecision?: number): Promise<Order> {
@@ -259,9 +248,12 @@ export class BinanceConnector {
             log.error(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
         if (!binanceOrder && retries) {
-            // used to decrease the amount price by small steps in case of a InsufficientFunds exception in a buy order
-            // see TODO : https://github.com/Voyag3r/mountain-seeker/issues/2
-            let percentIncreaseMultiplier = 1;
+            // This variable is used to decrease the amount price by small steps in case of a InsufficientFunds exception in a buy order.
+            // This scenario happens when the market price is quickly changing.
+            // It is possible to avoid this, but for that we would need to use Binance's API for creating orders
+            // and use the "quoteOrderQty" parameter in order to create market orders by specifying how many we want to spend
+            // instead of how much to buy.
+            let percentDecreaseMultiplier = 1;
 
             while (retries-- > 0) {
                 log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
@@ -270,7 +262,7 @@ export class BinanceConnector {
                         const unitPrice = await this.getUnitPrice(originAsset, targetAsset, true, 10)
                             .catch(error => Promise.reject(error));
                         amount = amountToInvest/unitPrice;
-                        amount -= amount * (percentIncreaseMultiplier * 0.004);
+                        amount -= amount * (percentDecreaseMultiplier * 0.004);
                         if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
                             amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
                         }
@@ -281,7 +273,7 @@ export class BinanceConnector {
                     if (retries > 0) {
                         await GlobalUtils.sleep(3);
                     }
-                    percentIncreaseMultiplier++;
+                    percentDecreaseMultiplier++;
                 }
             }
         }
@@ -295,7 +287,7 @@ export class BinanceConnector {
             amountOfTargetAsset: amount,
             filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side, targetAsset),
             remaining: binanceOrder.remaining,
-            average: binanceOrder.average,
+            average: binanceOrder.average!,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, side),
             status: binanceOrder.status,
             originAsset,
@@ -322,7 +314,6 @@ export class BinanceConnector {
 
     /**
      * Creates a stop limit order.
-     * @param retries Indicates the number of times the order will be repeated in case of a failure
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, retries?: number): Promise<Order> {
@@ -373,7 +364,7 @@ export class BinanceConnector {
             limitPrice,
             filled: binanceOrder.filled, // TODO: verify if we have to recalculate like for market orders (probably not because the price is fixed)
             remaining: binanceOrder.remaining,
-            average: binanceOrder.average,
+            average: binanceOrder.average!,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.STOP_LIMIT, side),
             status: binanceOrder.status,
             originAsset,
@@ -389,8 +380,8 @@ export class BinanceConnector {
     }
 
     /**
-     * Resolves only when the order's status changes to `closed` and number of `retries` reaches 0
-     * @return {@link Order} if order has been closed and `undefined` if still not after x `retries`
+     * Resolves only when the order's status changes to `closed` or number of `retries` reaches 0
+     * @return {@link Order} if it has been closed and `undefined` if still not after x `retries`
      */
     public async waitForOrderCompletion(order: Order, originAsset: Currency, targetAsset: string, retries: number): Promise<Order | undefined> {
         if (this.configService.isSimulation()) {
@@ -451,7 +442,7 @@ export class BinanceConnector {
                     amountOfTargetAsset: binanceOrder.amount,
                     filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset),
                     remaining: binanceOrder.remaining,
-                    average: binanceOrder.average,
+                    average: binanceOrder.average!,
                     amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
                     status: binanceOrder.status,
                     datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
@@ -499,7 +490,7 @@ export class BinanceConnector {
             amountOfTargetAsset: binanceOrder.amount,
             filled: binanceOrder.filled,
             remaining: binanceOrder.remaining,
-            average: binanceOrder.average,
+            average: binanceOrder.average!,
             status: binanceOrder.status,
             datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
@@ -534,7 +525,7 @@ export class BinanceConnector {
      * Sets the {@link Market.amountPrecision} field
      */
     public setMarketAmountPrecision(markets: Array<Market>): void {
-        // fori and not a forof loop is needed because the array's content is modified in the loop
+        // fori and not a for of loop is needed because the array's content is modified in the loop
         for (let i = 0; i < markets.length; i++) {
             const amountPrecision = this.binance.markets[markets[i].symbol]?.precision?.amount;
             if (amountPrecision && amountPrecision >= 0) {
@@ -602,6 +593,9 @@ export class BinanceConnector {
         log.debug(`Market details from local object : ${JSON.stringify(market)}`);
     }
 
+    /**
+     * Converts Binance timestamps into Belgian time
+     */
     private static getBelgiumDateTime(date: string): string {
         try {
             const res = new Date(date);
@@ -674,3 +668,21 @@ export class BinanceConnector {
 
 }
 
+/**
+ * A binance buy/sell market order contains a list of fills.
+ * This allows to know the exact asset amount that was used when commission is deduced.
+ * Example of a fill object for a sell order on BTC/EUR market :
+ * {
+ *   "price": "47212.49000000",
+ *   "qty": "0.00044600",
+ *   "commission": "0.02105677",
+ *   "commissionAsset": "EUR",
+ *   "tradeId": 43143323
+ *   }
+ */
+interface MarketOrderFill {
+    price: string,
+    qty: string,
+    commission: string,
+    commissionAsset: string
+}

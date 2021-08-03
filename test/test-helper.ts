@@ -1,7 +1,6 @@
 import { Market } from "../src/models/market";
-import fs from 'fs';
+import * as fs from 'fs';
 import * as ccxt from "ccxt";
-import { OrderType } from "../src/enums/order-type.enum";
 
 export class TestHelper {
     private static MARKETS_FILE_PATH = "/files/markets.json";
@@ -11,12 +10,6 @@ export class TestHelper {
     private static BINANCE_FETCH_BALANCE_FILE_PATH = "/files/binance_fetch_wallet_balance.json";
     private static BINANCE_MARKET_BUY_ORDER_FILE_PATH = "/files/binance_create_MARKET_BUY_order.json";
     private static CURRENT_DIRECTORY_PATH = __dirname;
-
-    static getFirst10Markets(): Array<Market> {
-        const markets = JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.MARKETS_FILE_PATH,
-            "utf8")) as Array<Market>;
-        return markets.slice(0, 11);
-    }
 
     static getAllMarkets(): Array<Market> {
         return JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH +

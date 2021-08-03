@@ -1,1 +1,2 @@
+### Ping Binance server
 GET https://api.binance.com/api/v3/ping

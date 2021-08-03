@@ -8,14 +8,14 @@ export type Order = {
     externalId: string,
     side: "buy" | "sell"
     type?: OrderType,
-    /** Example : if market symbol = BTC/EUR then {@link Order.originAsset} = EUR */
+    /** Example : if market symbol = BTC/EUR then it equals to = EUR */
     originAsset: Currency,
-    /** Example : if market symbol = BTC/EUR then {@link Order.targetAsset} = BTC */
+    /** Example : if market symbol = BTC/EUR then it equals to BTC */
     targetAsset: string,
-    /** Example : if market symbol = BTC/EUR then {@link Order.amountOfTargetAsset} is the number of
+    /** Example : if market symbol = BTC/EUR then it's the number of
      *  BTC that we want to buy/sell */
     amountOfTargetAsset: number,
-    /** Example : if market symbol = BTC/EUR then {@link Order.amountOfOriginAsset} is the number of
+    /** Example : if market symbol = BTC/EUR then it's the number of
      *  EUR that was spent to buy BTC or received by selling BTC. */
     amountOfOriginAsset?: number,
     /** Filled amount of target asset */
@@ -23,7 +23,7 @@ export type Order = {
     /** Remaining amount to fill */
     remaining: number,
     /** Average filling price */
-    average?: number,
+    average: number,
     /** For limit or stop-limit orders */
     limitPrice?: number,
     /** For stop-limit orders */
