@@ -266,16 +266,16 @@ export class MountainSeeker implements BaseStrategy {
 
         await this.convertRemainingTargetAssetToBNB(market);
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-        this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
+        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance(this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.percentChange > 0
-            ? '+' : ''}${this.state.percentChange.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
+        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
+            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
             JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
-        log.info(`Final percent change : ${this.state.percentChange} | Final state : ${JSON.stringify(this.state)}`);
+        log.info(`Final percent change : ${this.state.profitPercent} | Final state : ${JSON.stringify(this.state)}`);
         return Promise.resolve();
     }
 
@@ -515,8 +515,7 @@ export class MountainSeeker implements BaseStrategy {
 
     /**
      * Buys an x amount of origin asset.
-     * Example : to trade 10€ on the market with symbol BNB/BTC without having
-     * 10€ worth of BTC, one has to buy the needed amount of BTC before continuing.
+     * Example : to trade 10€ on the market with symbol BNB/BTC one has to buy 10€ worth of BTC before continuing.
      */
     private async refillOriginAsset(market: Market, walletBalance: Map<string, number>): Promise<void> {
         const availableAmountOfOriginAsset = this.initialWalletBalance?.get(market.originAsset.toString());
@@ -586,9 +585,10 @@ export class MountainSeeker implements BaseStrategy {
             } else {
                 const priceOfBNBInEUR = await this.cryptoExchangePlatform.getUnitPrice(Currency.EUR, Currency.BNB, true, 10)
                     .catch(e => Promise.reject(e));
-                const equivalentInEUR = priceOfBNBInEUR * (finalBNBAmount - initialBNBAmount);
-                log.debug(`Converted ${finalBNBAmount - initialBNBAmount}${Currency.BNB} equals to ${equivalentInEUR}€`);
-                this.state.retrievedAmountOfEuro += equivalentInEUR;
+                this.state.profitBNB = finalBNBAmount - initialBNBAmount;
+                const equivalentInEUR = priceOfBNBInEUR * this.state.profitBNB;
+                log.debug(`Converted ${this.state.profitBNB}${Currency.BNB} equals to ${equivalentInEUR}€`);
+                this.state.retrievedAmountOfEuro += equivalentInEUR; // TODO : think if it's good to do that
             }
         }
     }

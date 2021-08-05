@@ -14,7 +14,7 @@ export type TradingState = {
     /** User's wallet balance when trading finished */
     endWalletBalance?: string;
     /** Indicates the made profit in %, can be negative */
-    percentChange?: number;
+    profitPercent?: number;
     /** Indicates the made profit in €, can be negative */
     profitEuro?: number;
     /** The amount in EUR that was put in the market */
@@ -58,4 +58,7 @@ export type TradingState = {
     config?: StrategyDetails<any>;
     /** The candlestick interval that is being used by a strategy */
     selectedCandleStickInterval?: CandlestickInterval;
+    /** Binance allows to convert small amounts to BNB. This value represents the amount
+     * of BNB retrieved after converting the small amounts. */
+    profitBNB?: number;
 }

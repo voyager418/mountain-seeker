@@ -39,9 +39,9 @@ export class TradingService {
                 const result: TradingState = await defaultStrategy.run();
                 if (result && result.endedWithoutErrors && result.marketSymbol && this.strategy.config.autoRestartOnProfit) {
                     this.strategy.config.ignoredMarkets = [result.marketSymbol];
-                    if (result.percentChange) {
-                        if (result.percentChange <= -10) {
-                            log.warn("Loss of %O%", result.percentChange);
+                    if (result.profitPercent) {
+                        if (result.profitPercent <= -10) {
+                            log.warn("Loss of %O%", result.profitPercent);
                             break;
                         }
                     } else {
