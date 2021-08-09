@@ -255,11 +255,11 @@ export class MountainSeeker implements BaseStrategy {
             completedOrder = await this.cryptoExchangePlatform.createMarketOrder(market.originAsset, market.targetAsset,
                 "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
-        this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled, completedOrder!.filled);
 
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
+            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled, completedOrder!.filled);
             const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString()).catch(e => Promise.reject(e));
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }
