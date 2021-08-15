@@ -9,7 +9,7 @@ export type Market = {
     /** Currency with which we buy (e.g. "EUR", "BTC", "BNB" ...) */
     originAsset: Currency;
 
-    /** The asset that we buy (e.g. "BNB") */
+    /** The asset that we buy (e.g. "DOGE") */
     targetAsset: string;
 
     /** Candlesticks grouped by their interval.

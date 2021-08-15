@@ -39,7 +39,7 @@ export class MountainSeeker implements BaseStrategy {
     /** This interval is also used to construct other intervals (e.g. for 1h, 4h ...) */
     private readonly defaultCandleStickInterval = CandlestickInterval.THIRTY_MINUTES;
     /** Number of candlesticks that will be fetched from cryptocurrency trading platform */
-    private readonly defaultNumberOfCandlesticks = 500;
+    private readonly defaultNumberOfCandlesticks = 50;
 
     constructor(private configService: ConfigService,
         private cryptoExchangePlatform: BinanceConnector,
@@ -115,7 +115,7 @@ export class MountainSeeker implements BaseStrategy {
 
     public async run(): Promise<TradingState> {
         // 1. Fetch data and select market
-        const markets: Array<Market> = await this.fetchMarkets(this.strategyDetails.config.minimumPercentFor24hVariation!)
+        const markets: Array<Market> = await this.fetchMarkets(this.strategyDetails.config.minimumPercentFor24hVariation)
             .catch(e => Promise.reject(e));
         const market = await this.selectMarketForTrading(markets).catch(e => Promise.reject(e));
 
@@ -259,7 +259,7 @@ export class MountainSeeker implements BaseStrategy {
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
-            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled, completedOrder!.filled);
+            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled * buyOrder.average, completedOrder!.filled * completedOrder!.average);
             const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString()).catch(e => Promise.reject(e));
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }

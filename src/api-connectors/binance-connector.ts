@@ -655,15 +655,15 @@ export class BinanceConnector {
         if (!fills) {
             return filled;
         }
-        let amountOfOriginAsset = 0;
+        let amountOfTargetAsset = 0;
         for (const fill of fills) {
             if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in BNB
-                amountOfOriginAsset += Number(fill.qty);
+                amountOfTargetAsset += Number(fill.qty);
             } else {
-                amountOfOriginAsset += Number(fill.qty) - Number(fill.commission);
+                amountOfTargetAsset += Number(fill.qty) - Number(fill.commission);
             }
         }
-        return amountOfOriginAsset;
+        return amountOfTargetAsset;
     }
 
 }
