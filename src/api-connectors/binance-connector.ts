@@ -154,7 +154,7 @@ export class BinanceConnector {
 
     /**
      * Converts the array of small amounts of assets in `fromCurrencies` to BNB.
-     * Can be executed once every 6 hours
+     * Can be executed once every 6 hours otherwise Binance throws an error.
      *
      * @param fromCurrencies The assets to convert
      */
@@ -175,13 +175,11 @@ export class BinanceConnector {
         const queryString = `${assetsInURLPath}&timestamp=${Date.now()}`;
         const urlPath = `${this.V1_URL_BASE_PATH}/asset/dust?${queryString}`;
         const signature = hmacSHA256(queryString, this.binance.secret).toString();
-        // TODO: verify that the below request works (it failed many times without an error message)
-        // e.g. "Jul 17 10:01:54 ip-172-31-1-160 web: [17-07-2021 10:01:54] error: Error after HTTP call : {}"
         try {
             await axios.post(`${urlPath}&signature=${signature}`, undefined, { headers: headers });
             success = true;
         } catch (e) {
-            log.error(`Error after HTTP call when converting small amounts: ${JSON.stringify(e)}`);
+            log.warn(`Error after HTTP call when converting small amounts: ${JSON.stringify(e)}`);
         }
         return Promise.resolve(success);
     }

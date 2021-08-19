@@ -6,3 +6,9 @@ logging:
   level: 'debug'
 
 simulation: true
+
+aws:
+  region: 'eu-west-1'
+
+database:
+  url: 'http://localhost:8000'

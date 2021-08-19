@@ -18,9 +18,10 @@ import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
-import { injectable } from "tsyringe";
+import { container, injectable } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import * as _ from "lodash";
+import { BinanceDataService } from "../services/observer/binance-data-service";
 
 
 /**
@@ -31,23 +32,26 @@ import * as _ from "lodash";
 @injectable()
 export class MountainSeeker implements BaseStrategy {
     private strategyDetails: any
+    private markets: Array<Market> = [];
     private account: Account | undefined;
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;
-    private readonly state: TradingState;
-    /** This interval is also used to construct other intervals (e.g. for 1h, 4h ...) */
-    private readonly defaultCandleStickInterval = CandlestickInterval.THIRTY_MINUTES;
-    /** Number of candlesticks that will be fetched from cryptocurrency trading platform */
-    private readonly defaultNumberOfCandlesticks = 500;
+    private state: TradingState;
+
 
     constructor(private configService: ConfigService,
         private cryptoExchangePlatform: BinanceConnector,
-        private emailService: EmailService) {
+        private emailService: EmailService,
+        private binanceDataService: BinanceDataService) {
         this.state = { id: uuidv4() };
         if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
+    }
+
+    getState(): TradingState {
+        return this.state;
     }
 
     public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerConfig>): MountainSeeker {
@@ -55,7 +59,35 @@ export class MountainSeeker implements BaseStrategy {
         this.strategyDetails = strategyDetails;
         this.initDefaultConfig(strategyDetails);
         this.state.config = strategyDetails;
+        this.binanceDataService.registerObserver(this);
         return this;
+    }
+
+    async update(markets: Market[]): Promise<void> {
+        if (!this.state.marketSymbol) { // if there is no active trading
+            this.markets = markets;
+            try {
+                await this.run();
+                this.prepareForNextTrade();
+            } catch (e) {
+                this.binanceDataService.removeObserver(this);
+                const error = new Error(e);
+                log.error("Trading was aborted due to an error : ", error);
+                await container.resolve(EmailService).sendEmail("Trading stopped...", error.message);
+            }
+        }
+    }
+
+    private prepareForNextTrade(): void {
+        if (this.state.percentChange && this.state.percentChange <= -10) {
+            throw new Error(`Aborting due to a big loss : ${this.state.percentChange}%`);
+        }
+        if (!this.strategyDetails.config.autoRestartOnProfit) {
+            this.binanceDataService.removeObserver(this);
+        } else {
+            this.strategyDetails.ignoredMarkets = this.state.marketSymbol;
+            this.state = { id: uuidv4() }; // resetting the state after a trade
+        }
     }
 
     /**
@@ -114,10 +146,9 @@ export class MountainSeeker implements BaseStrategy {
     }
 
     public async run(): Promise<TradingState> {
-        // 1. Fetch data and select market
-        const markets: Array<Market> = await this.fetchMarkets(this.strategyDetails.config.minimumPercentFor24hVariation!)
-            .catch(e => Promise.reject(e));
-        const market = await this.selectMarketForTrading(markets).catch(e => Promise.reject(e));
+        // 1. Filter and select market
+        this.markets = this.getFilteredMarkets();
+        const market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
 
         if (!market) {
             log.info("No market was found");
@@ -125,13 +156,13 @@ export class MountainSeeker implements BaseStrategy {
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
+        this.state.marketSymbol = market.symbol;
         this.cryptoExchangePlatform.setMarketMinNotional(market);
         this.cryptoExchangePlatform.printMarketDetails(market);
-        this.state.marketSymbol = market.symbol;
         this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(market, this.state.selectedCandleStickInterval!);
         log.info("Found market %O", market.symbol);
-
+        
         // 2. Prepare wallet
         await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
@@ -467,26 +498,17 @@ export class MountainSeeker implements BaseStrategy {
     /**
      * @return All potentially interesting markets after filtering based on various criteria
      */
-    private async fetchMarkets(minimumPercentVariation: number): Promise<Array<Market>> {
-        let markets: Array<Market> = await this.cryptoExchangePlatform.getMarketsBy24hrVariation(minimumPercentVariation)
-            .catch(e => Promise.reject(e));
-        this.cryptoExchangePlatform.setMarketAmountPrecision(markets);
-        markets = StrategyUtils.filterByAuthorizedCurrencies(markets, this.strategyDetails.config.authorizedCurrencies);
-        markets = StrategyUtils.filterByMinimumTradingVolume(markets, this.strategyDetails.config.minimumTradingVolumeLast24h);
-        markets = StrategyUtils.filterByIgnoredMarkets(markets, this.strategyDetails.config.ignoredMarkets);
-        markets = StrategyUtils.filterByAuthorizedMarkets(markets, this.strategyDetails.config.authorizedMarkets);
-        markets = StrategyUtils.filterByAmountPrecision(markets, 1); // when trading with big price amounts, this can maybe be removed
-
-        await this.cryptoExchangePlatform.fetchCandlesticks(markets, this.defaultCandleStickInterval, this.defaultNumberOfCandlesticks)
-            .catch(e => Promise.reject(e));
-        markets = StrategyUtils.filterByMinimumAmountOfCandleSticks(markets, this.defaultNumberOfCandlesticks, CandlestickInterval.THIRTY_MINUTES);
-        await this.setCandlesticksAndTheirVariations(markets).catch(e => Promise.reject(e));
-        return Promise.resolve(markets);
+    private getFilteredMarkets(): Array<Market> {
+        this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.strategyDetails.config.authorizedCurrencies);
+        this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.strategyDetails.config.minimumTradingVolumeLast24h);
+        this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.strategyDetails.config.ignoredMarkets);
+        this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.strategyDetails.config.authorizedMarkets);
+        this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
+        MountainSeeker.setCandlesticksAndTheirVariations(this.markets);
+        return this.markets;
     }
 
-    private async setCandlesticksAndTheirVariations(markets: Array<Market>): Promise<void> {
-        StrategyUtils.setCandlestickPercentVariations(markets, this.defaultCandleStickInterval);
-
+    private static setCandlesticksAndTheirVariations(markets: Array<Market>): void {
         // 30 min candlesticks are added by default
 
         StrategyUtils.addCandleSticksWithInterval(markets, CandlestickInterval.FOUR_HOURS);
@@ -691,6 +713,9 @@ type TradingLoopConfig = {
     stopTradingTimeoutSeconds: number;
 
     /** Loss in percentage after which the trading will stop.
-     * Example: -10 stands for a loss of -10% */
+     * Example: -10 stands for a loss of -10%
+     *
+     * WARNING : the actual loss can be lower => depending on the seconds to sleep
+     * in the trading loop value (i.e. how often the price is checked) */
     stopTradingMaxPercentLoss: number;
 }

@@ -17,14 +17,14 @@ server.get('/', (req, res) =>  {
 server.get('/start', (req, res) =>  {
     res.send('Started');
     const tradingService = container.resolve(TradingService);
-    tradingService.beginTrading().then(() => log.info("End"));
+    tradingService.beginTrading().then();
 });
 
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);
     if (process.env.NODE_ENV !== "prod") {
         const tradingService = container.resolve(TradingService);
-        tradingService.beginTrading().then(() => log.info("End"));
+        tradingService.beginTrading().then();
     }
 });
 
