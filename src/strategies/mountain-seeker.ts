@@ -79,8 +79,8 @@ export class MountainSeeker implements BaseStrategy {
     }
 
     private prepareForNextTrade(): void {
-        if (this.state.percentChange && this.state.percentChange <= -10) {
-            throw new Error(`Aborting due to a big loss : ${this.state.percentChange}%`);
+        if (this.state.profitPercent && this.state.profitPercent <= -10) {
+            throw new Error(`Aborting due to a big loss : ${this.state.profitPercent}%`);
         }
         if (!this.strategyDetails.config.autoRestartOnProfit) {
             this.binanceDataService.removeObserver(this);
@@ -162,7 +162,7 @@ export class MountainSeeker implements BaseStrategy {
         this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(market, this.state.selectedCandleStickInterval!);
         log.info("Found market %O", market.symbol);
-        
+
         // 2. Prepare wallet
         await this.prepareWallet(market, this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
@@ -286,27 +286,27 @@ export class MountainSeeker implements BaseStrategy {
             completedOrder = await this.cryptoExchangePlatform.createMarketOrder(market.originAsset, market.targetAsset,
                 "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
-        this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled, completedOrder!.filled);
 
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
+            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled * buyOrder.average, completedOrder!.filled * completedOrder!.average);
             const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString()).catch(e => Promise.reject(e));
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }
 
         await this.convertRemainingTargetAssetToBNB(market);
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-        this.state.percentChange = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
+        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance(this.strategyDetails.config.authorizedCurrencies!)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.percentChange > 0
-            ? '+' : ''}${this.state.percentChange.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
+        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
+            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
             JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
-        log.info(`Final percent change : ${this.state.percentChange} | Final state : ${JSON.stringify(this.state)}`);
+        log.info(`Final percent change : ${this.state.profitPercent} | Final state : ${JSON.stringify(this.state)}`);
         return Promise.resolve();
     }
 
@@ -537,8 +537,7 @@ export class MountainSeeker implements BaseStrategy {
 
     /**
      * Buys an x amount of origin asset.
-     * Example : to trade 10€ on the market with symbol BNB/BTC without having
-     * 10€ worth of BTC, one has to buy the needed amount of BTC before continuing.
+     * Example : to trade 10€ on the market with symbol BNB/BTC one has to buy 10€ worth of BTC before continuing.
      */
     private async refillOriginAsset(market: Market, walletBalance: Map<string, number>): Promise<void> {
         const availableAmountOfOriginAsset = this.initialWalletBalance?.get(market.originAsset.toString());
@@ -608,9 +607,10 @@ export class MountainSeeker implements BaseStrategy {
             } else {
                 const priceOfBNBInEUR = await this.cryptoExchangePlatform.getUnitPrice(Currency.EUR, Currency.BNB, true, 10)
                     .catch(e => Promise.reject(e));
-                const equivalentInEUR = priceOfBNBInEUR * (finalBNBAmount - initialBNBAmount);
-                log.debug(`Converted ${finalBNBAmount - initialBNBAmount}${Currency.BNB} equals to ${equivalentInEUR}€`);
-                this.state.retrievedAmountOfEuro += equivalentInEUR;
+                this.state.profitBNB = finalBNBAmount - initialBNBAmount;
+                const equivalentInEUR = priceOfBNBInEUR * this.state.profitBNB;
+                log.debug(`Converted ${this.state.profitBNB}${Currency.BNB} equals to ${equivalentInEUR}€`);
+                this.state.retrievedAmountOfEuro += equivalentInEUR; // TODO : think if it's good to do that
             }
         }
     }
