@@ -7,8 +7,8 @@ import { container } from "tsyringe";
 
 
 const server = express();
-const serverPort = process.env.PORT || CONFIG.port;
-const serverHost = process.env.NODE_ENV === "prod" ? "0.0.0.0" : CONFIG.host;
+const serverPort = CONFIG.port;
+const serverHost = CONFIG.host;
 
 server.get('/', (req, res) =>  {
     res.send('Server is up');
