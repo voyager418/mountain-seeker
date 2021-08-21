@@ -100,16 +100,6 @@ export class MountainSeeker implements BaseStrategy {
                 [Currency.EUR, Currency.BTC, Currency.BNB, Currency.ETH];
         }
         if (!strategyDetails.config.actifCandleStickIntervals) {
-            const configFor30m: TradingLoopConfig = {
-                initialSecondsToSleepInTheTradingLoop: 60,
-                initialStopLimitPriceIncreaseInTheTradingLoop: 0.1,
-                initialStopLimitPriceTriggerPercent: 1.5,
-                secondsToSleepInTheTradingLoop: 600,
-                stopLimitPriceIncreaseInTheTradingLoop: 1.0,
-                stopLimitPriceTriggerPercent: 3,
-                stopTradingTimeoutSeconds: -1,
-                stopTradingMaxPercentLoss: -10
-            };
             const configFor4h: TradingLoopConfig = {
                 initialSecondsToSleepInTheTradingLoop: 60,
                 initialStopLimitPriceIncreaseInTheTradingLoop: 0.1,
@@ -145,14 +135,14 @@ export class MountainSeeker implements BaseStrategy {
         }
     }
 
-    public async run(): Promise<TradingState> {
+    public async run(): Promise<void> {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
         const market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
 
         if (!market) {
             log.info("No market was found");
-            return Promise.resolve(this.state);
+            return Promise.resolve();
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
@@ -203,7 +193,7 @@ export class MountainSeeker implements BaseStrategy {
 
         // 7. Finishing
         await this.handleTradeEnd(market, lastStopLimitOrder, buyOrder).catch(e => Promise.reject(e));
-        return Promise.resolve(this.state);
+        return Promise.resolve();
     }
 
     /**
@@ -372,7 +362,7 @@ export class MountainSeeker implements BaseStrategy {
         log.debug(`Potential market (4h candlesticks): ${JSON.stringify(market)}`);
 
         // if second candle has a variation > x%
-        if (candleStickVariations[candleStickVariations.length - 2] > 25) {
+        if (candleStickVariations[candleStickVariations.length - 2] > 30) {
             return;
         }
 
@@ -400,6 +390,8 @@ export class MountainSeeker implements BaseStrategy {
             return;
         }
 
+        // TODO : MACD
+
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FOUR_HOURS);
         potentialMarkets.push({ market, interval: CandlestickInterval.FOUR_HOURS });
     }
@@ -420,7 +412,7 @@ export class MountainSeeker implements BaseStrategy {
         log.debug(`Potential market (6h candlesticks): ${JSON.stringify(market)}`);
 
         // if second candle has a variation > x%
-        if (candleStickVariations[candleStickVariations.length - 2] > 25) {
+        if (candleStickVariations[candleStickVariations.length - 2] > 30) {
             return;
         }
 

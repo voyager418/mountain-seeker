@@ -7,10 +7,8 @@ import { Observer } from "../services/observer/observer.interface";
 export interface BaseStrategy extends Observer {
     /**
      * Method which starts the trading based on a given strategy
-     *
-     * @return A promise with the final trading state
      */
-    run(): Promise<TradingState>;
+    run(): Promise<void>;
 
     /**
      * @return The current state of the running strategy
