@@ -50,7 +50,7 @@ export class BinanceDataService implements Subject {
     }
 
     notifyObservers(): void {
-        this.observers.forEach(o => o.update(this.markets));
+        this.observers.forEach(observer => observer.update(this.markets));
     }
 
     async getDataFromBinance(): Promise<void> {
@@ -61,12 +61,7 @@ export class BinanceDataService implements Subject {
                 this.binanceConnector.setMarketAmountPrecision(this.markets);
                 this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
                 this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.minimumTradingVolumeLast24h);
-                await this.binanceConnector.fetchCandlesticks(this.markets, this.defaultCandleStickInterval, this.defaultNumberOfCandlesticks)
-                    .catch(e => Promise.reject(e));
-                this.markets = StrategyUtils.filterByMinimumAmountOfCandleSticks(this.markets, this.minimumNumberOfCandlesticks,
-                    CandlestickInterval.THIRTY_MINUTES);
-                StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
-
+                await this.fetchAndSetCandleSticks();
                 this.notifyObservers();
 
                 if (this.allObserversAreRunning()) {
@@ -79,6 +74,21 @@ export class BinanceDataService implements Subject {
                 log.error(`Error occurred while fetching data from Binance : ${e}`)
             }
         }
+    }
+
+    private async fetchAndSetCandleSticks() {
+        await this.binanceConnector.fetchCandlesticks(this.markets, this.defaultCandleStickInterval, this.defaultNumberOfCandlesticks)
+            .catch(e => Promise.reject(e));
+        this.markets = StrategyUtils.filterByMinimumAmountOfCandleSticks(this.markets, this.minimumNumberOfCandlesticks,
+            CandlestickInterval.THIRTY_MINUTES);
+        // 30 min candlesticks are added by default
+        StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
+
+        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.FOUR_HOURS);
+        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.FOUR_HOURS);
+
+        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.SIX_HOURS);
+        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.SIX_HOURS);
     }
 
     private allObserversAreRunning(): boolean {

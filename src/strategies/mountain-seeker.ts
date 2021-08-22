@@ -18,7 +18,7 @@ import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
-import { container, injectable } from "tsyringe";
+import { injectable } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
@@ -73,7 +73,7 @@ export class MountainSeeker implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e);
                 log.error("Trading was aborted due to an error : ", error);
-                await container.resolve(EmailService).sendEmail("Trading stopped...", error.message);
+                await this.emailService.sendEmail("Trading stopped...", error.message);
             }
         }
     }
@@ -496,18 +496,7 @@ export class MountainSeeker implements BaseStrategy {
         this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.strategyDetails.config.ignoredMarkets);
         this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.strategyDetails.config.authorizedMarkets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
-        MountainSeeker.setCandlesticksAndTheirVariations(this.markets);
         return this.markets;
-    }
-
-    private static setCandlesticksAndTheirVariations(markets: Array<Market>): void {
-        // 30 min candlesticks are added by default
-
-        StrategyUtils.addCandleSticksWithInterval(markets, CandlestickInterval.FOUR_HOURS);
-        StrategyUtils.setCandlestickPercentVariations(markets, CandlestickInterval.FOUR_HOURS);
-
-        StrategyUtils.addCandleSticksWithInterval(markets, CandlestickInterval.SIX_HOURS);
-        StrategyUtils.setCandlestickPercentVariations(markets, CandlestickInterval.SIX_HOURS);
     }
 
     /**
