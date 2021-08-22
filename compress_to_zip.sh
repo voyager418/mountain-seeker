@@ -11,6 +11,7 @@ cp -a .ebextensions \
 		.eslintrc \
 		config \
 		node_modules \
+		dist \
 		package.json \
 		src \
 		tsconfig.json \

@@ -1,6 +1,6 @@
 {
   "name": "mountain-seeker",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "Trading bot",
   "license": "Unlicensed",
   "author": "G & J",
@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "nodemon src/main.ts --ignore '*'",
     "hot-reload": "nodemon src/main.ts",
-    "start": "tsc && node ./dist/main.js",
+    "start": "node ./dist/main.js",
     "test": "jest",
     "test-with-coverage": "jest --coverage",
     "eslint": "eslint src/",
