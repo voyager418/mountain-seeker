@@ -32,6 +32,7 @@ export class BinanceDataService implements Subject {
     private readonly authorizedCurrencies = [Currency.EUR, Currency.BTC, Currency.BNB, Currency.ETH];
     private readonly minimumTradingVolumeLast24h = 100;
 
+
     constructor(private configService: ConfigService,
         private repository: DynamodbRepository,
         private binanceConnector: BinanceConnector) {
@@ -54,25 +55,30 @@ export class BinanceDataService implements Subject {
     }
 
     async getDataFromBinance(): Promise<void> {
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            try {
-                this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
-                this.binanceConnector.setMarketAmountPrecision(this.markets);
-                this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
-                this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.minimumTradingVolumeLast24h);
-                await this.fetchAndSetCandleSticks();
-                this.notifyObservers();
+        while (!this.configService.isTest()) { // should be "false" when we are running the tests
+            await this.getMarketsFromBinance();
+        }
+    }
 
-                if (this.allObserversAreRunning()) {
-                    await GlobalUtils.sleep(30);
-                }
 
-                // to add markets to a DB
-                // this.markets.forEach(market => this.repository.putMarket(market));
-            } catch (e) {
-                log.error(`Error occurred while fetching data from Binance : ${e}`)
+    async getMarketsFromBinance(): Promise<void> {
+        try {
+            this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
+            this.binanceConnector.setMarketAmountPrecision(this.markets);
+            this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
+            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.minimumTradingVolumeLast24h);
+            await this.fetchAndSetCandleSticks();
+
+            this.notifyObservers();
+
+            if (this.allObserversAreRunning()) {
+                await GlobalUtils.sleep(30);
             }
+
+            // to add markets to a DB
+            // this.markets.forEach(market => this.repository.putMarket(market));
+        } catch (e) {
+            log.error(`Error occurred while fetching data from Binance : ${e}`)
         }
     }
 
@@ -84,11 +90,16 @@ export class BinanceDataService implements Subject {
         // 30 min candlesticks are added by default
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
+        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.ONE_HOUR);
+        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.ONE_HOUR);
+
         StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.FOUR_HOURS);
         StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.FOUR_HOURS);
 
         StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.SIX_HOURS);
         StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.SIX_HOURS);
+
+        this.markets = StrategyUtils.filterByStrangeMarkets(this.markets, this.defaultCandleStickInterval);
     }
 
     private allObserversAreRunning(): boolean {

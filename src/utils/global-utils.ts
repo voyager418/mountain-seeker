@@ -1,3 +1,4 @@
+import assert from "assert";
 
 /**
  * General purpose utility class
@@ -25,6 +26,29 @@ export class GlobalUtils {
             return Math.trunc(number * Math.pow(10, digitsAfterDot)) / Math.pow(10, digitsAfterDot);
         }
         return number;
+    }
+
+    /**
+     * Example input : (10, -50) => output 5
+     *
+     * @param number A positive number
+     * @param percent Percentage (example -10 or 10 for -10%)
+     */
+    static decreaseNumberByPercent(number: number, percent: number): number {
+        assert(number > 0, `${number} must be a positive number`);
+        return number - (number * Math.abs(percent)/100);
+    }
+
+    /**
+     * Example input : (10, 50) => output 15
+     *
+     * @param number A positive number
+     * @param percent Percentage (example 10 for 10%)
+     */
+    static increaseNumberByPercent(number: number, percent: number): number {
+        assert(number > 0, `${number} must be a positive number`);
+        assert(percent > 0, `${percent} must be a positive number`);
+        return number + (number * Math.abs(percent)/100);
     }
 
     /**

@@ -1,9 +1,10 @@
-import { MountainSeeker, MountainSeekerConfig } from "../strategies/mountain-seeker";
+import { MountainSeeker } from "../strategies/mountain-seeker";
 import { StrategyDetails } from "../models/strategy-details";
 import { TradingStrategy } from "../enums/trading-strategy.enum";
 import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
+import { MountainSeekerConfig } from "../strategies/config/mountain-seeker-config";
 
 
 /**
