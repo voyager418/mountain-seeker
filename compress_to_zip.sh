@@ -2,6 +2,8 @@
 
 fileName=$1
 
+echo "Compressing to $fileName"
+
 rm -rf tempFolder "$fileName"
 
 mkdir tempFolder
@@ -21,4 +23,4 @@ ditto -c -k --sequesterRsrc tempFolder "$fileName"
 
 rm -rf tempFolder
 
-echo "Created $fileName"
+printf "Created %s of size " "$fileName" && du -h "$fileName" | awk '{print $1}'
