@@ -5,7 +5,6 @@ import { GlobalUtils } from "../../src/utils/global-utils";
 import { Currency } from "../../src/enums/trading-currencies.enum";
 import { binance } from "ccxt";
 import { ConfigService } from "../../src/services/config-service";
-import createMockInstance from "jest-create-mock-instance";
 
 
 describe("Binance connector", () => {
@@ -14,9 +13,9 @@ describe("Binance connector", () => {
     let binanceInstance: binance;
 
     beforeAll(() => {
-        jest.spyOn(GlobalUtils, 'sleep').mockImplementation(async() => Promise.resolve());
+        jest.spyOn(GlobalUtils, 'sleep').mockImplementation(() => Promise.resolve());
         process.env = Object.assign(process.env, { BINANCE_API_KEY: 'api key', BINANCE_API_SECRET: 'api secret' });
-        configService = createMockInstance(ConfigService);
+        configService = TestHelper.getMockedConfigService();
         configService.isSimulation = jest.fn(() => false);
 
         binanceConnector = new BinanceConnector(configService);

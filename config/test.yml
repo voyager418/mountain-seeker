@@ -2,3 +2,5 @@ logging:
   level: 'error'
 
 simulation: true
+
+test: true

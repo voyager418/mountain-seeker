@@ -13,4 +13,8 @@ export class ConfigService {
         return this.config.simulation;
     }
 
+    public isTest(): boolean {
+        return this.config.test;
+    }
+
 }
