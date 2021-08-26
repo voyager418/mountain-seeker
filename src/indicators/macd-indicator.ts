@@ -20,6 +20,7 @@ export class MACDIndicator implements Indicator {
         });
 
         const lastResult = macdResult[macdResult.length - 1];
-        return lastResult.MACD > lastResult.signal;
+        const beforeLastResult = macdResult[macdResult.length - 2];
+        return lastResult.MACD > lastResult.signal && lastResult.MACD > beforeLastResult.MACD;
     }
 }

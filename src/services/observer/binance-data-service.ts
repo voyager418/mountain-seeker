@@ -60,7 +60,6 @@ export class BinanceDataService implements Subject {
         }
     }
 
-
     async getMarketsFromBinance(): Promise<void> {
         try {
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
@@ -71,7 +70,7 @@ export class BinanceDataService implements Subject {
 
             this.notifyObservers();
 
-            if (this.allObserversAreRunning()) {
+            if (this.allObserversAreRunning() || this.observers.length === 0) {
                 await GlobalUtils.sleep(30);
             }
 
@@ -90,14 +89,12 @@ export class BinanceDataService implements Subject {
         // 30 min candlesticks are added by default
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
-        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.ONE_HOUR);
-        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.ONE_HOUR);
-
-        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.FOUR_HOURS);
-        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.FOUR_HOURS);
-
-        StrategyUtils.addCandleSticksWithInterval(this.markets, CandlestickInterval.SIX_HOURS);
-        StrategyUtils.setCandlestickPercentVariations(this.markets, CandlestickInterval.SIX_HOURS);
+        for (const interval of [CandlestickInterval.ONE_HOUR,
+            CandlestickInterval.FOUR_HOURS,
+            CandlestickInterval.SIX_HOURS]) {
+            StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
+            StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
+        }
 
         this.markets = StrategyUtils.filterByStrangeMarkets(this.markets, this.defaultCandleStickInterval);
     }

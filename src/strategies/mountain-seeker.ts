@@ -86,7 +86,7 @@ export class MountainSeeker implements BaseStrategy {
         if (!this.strategyDetails.config.autoRestartOnProfit) {
             this.binanceDataService.removeObserver(this);
         } else {
-            this.strategyDetails.ignoredMarkets = this.state.marketSymbol;
+            this.strategyDetails.ignoredMarkets = [this.state.marketSymbol];
             this.state = { id: uuidv4() }; // resetting the state after a trade
         }
     }
@@ -550,11 +550,11 @@ export class MountainSeeker implements BaseStrategy {
     }
 
     /**
-     * If the market is 'WIN/BNB' then it sells 'BNB'
+     * If the market is 'BNB/EUR' then it sells 'BNB'
      */
     private async handleSellOriginAsset(market: Market, amountToSell: number) {
         const order = await this.cryptoExchangePlatform.createMarketOrder(Currency.EUR, market.originAsset,
-            "sell", amountToSell, true).catch(e => Promise.reject(e));
+            "sell", amountToSell, true, 5).catch(e => Promise.reject(e));
         this.state.retrievedAmountOfEuro = order.amountOfOriginAsset;
         this.state.endUnitPriceOnYXMarket = order.average;
         this.state.pricePercentChangeOnYX = StrategyUtils.getPercentVariation(this.state.initialUnitPriceOnYXMarket!,
