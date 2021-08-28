@@ -84,7 +84,7 @@ export class TestHelper {
 
     static getMockedConfigService(): ConfigService {
         const configService = createMockInstance(ConfigService);
-        configService.isTest = jest.fn(() => true);
+        configService.isTestEnvironment = jest.fn(() => true);
         return configService;
     }
 }

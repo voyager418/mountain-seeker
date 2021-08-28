@@ -4,14 +4,7 @@ An automatic trading bot written in TypeScript.
 
 ### Requirements
 
-- Node.js v14.16.0
-- npm v6.14.11
-
-run dynamodb docker image : docker-compose up
-
-list dynamo db tables :  aws dynamodb list-tables --endpoint-url http://localhost:8000
-
-dynamo db shell : http://localhost:8000/shell/
+- Node.js v14
 
 ### Some useful commands for development
 
@@ -22,4 +15,4 @@ dynamo db shell : http://localhost:8000/shell/
 - `aws dynamodb list-tables --endpoint-url http://localhost:8000`: list dynamo DB tables
 
 ### Some useful URLs
-- dynamo DB shell : http://localhost:8000/shell/
+- Dynamo DB shell : http://localhost:8000/shell/

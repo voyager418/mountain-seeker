@@ -86,8 +86,9 @@ export class MountainSeeker implements BaseStrategy {
         if (!this.strategyDetails.config.autoRestartOnProfit) {
             this.binanceDataService.removeObserver(this);
         } else {
-            this.strategyDetails.ignoredMarkets = [this.state.marketSymbol];
+            this.strategyDetails.config.ignoredMarkets = [this.state.marketSymbol];
             this.state = { id: uuidv4() }; // resetting the state after a trade
+            this.state.config = this.strategyDetails;
         }
     }
 

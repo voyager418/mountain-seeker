@@ -55,7 +55,7 @@ export class BinanceDataService implements Subject {
     }
 
     async getDataFromBinance(): Promise<void> {
-        while (!this.configService.isTest()) { // should be "false" when we are running the tests
+        while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
             await this.getMarketsFromBinance();
         }
     }
