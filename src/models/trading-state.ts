@@ -1,4 +1,3 @@
-import { StrategyDetails } from "./strategy-details";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 /**
@@ -53,9 +52,6 @@ export type TradingState = {
     amountOfYBought?: number;
     /** Amount of Y used to buy Z */
     amountOfYSpentOnZ?: number;
-    /* eslint-disable  @typescript-eslint/no-explicit-any */
-    /** Parameters of the strategy */
-    config?: StrategyDetails<any>;
     /** The candlestick interval that is being used by a strategy */
     selectedCandleStickInterval?: CandlestickInterval;
     /** Binance allows to convert small amounts to BNB. This value represents the amount
