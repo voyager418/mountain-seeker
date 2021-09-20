@@ -175,7 +175,7 @@ describe("Binance connector", () => {
             const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
 
             // act
-            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10, true);
+            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10.123456789, true);
 
             // assert
             expect(binanceInstance.createOrder).toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe("Binance connector", () => {
             expect(res).toMatchObject({
                 side: "buy",
                 externalId: "234063358",
-                amountOfTargetAsset: 10,
+                amountOfTargetAsset: 10.12345678,
                 amountOfOriginAsset: 11.971475,
                 filled: 0.038870829999999995,
                 remaining: 0,
@@ -233,6 +233,86 @@ describe("Binance connector", () => {
                 expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(1, "BNB/EUR", "market", "buy", 0.0389);
                 expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(2, "BNB/EUR", "market", "buy", 0.03855483);
                 expect(binanceInstance.createOrder).toHaveBeenNthCalledWith(3, "BNB/EUR", "market", "buy", 0.0384);
+            }
+        });
+    });
+
+    describe("createMarketBuyOrder", () => {
+        beforeAll(() => {
+            binanceInstance.createMarketBuyOrder = jest.fn(async () => TestHelper.getBinanceCreateBuyMarketOrder());
+        });
+
+        test("Should not call binance API if it is a simulation", async() => {
+            // arrange
+            configService.isSimulation = jest.fn(() => true);
+
+            // act
+            const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BNB", 12, true);
+
+            // assert
+            expect(binanceInstance.createMarketBuyOrder).not.toHaveBeenCalled();
+            expect(res).toBeDefined();
+            configService.isSimulation = jest.fn(() => false);
+        });
+
+        test("Should correctly create a MARKET BUY order", async() => {
+            // arrange
+            const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
+
+            // act
+            const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BNB", 12, true);
+
+            // assert
+            expect(binanceInstance.createMarketBuyOrder).toHaveBeenCalled();
+            expect(waitForOrderCompletionSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    externalId: "234063358",
+                    status: "closed"
+                }),
+                Currency.EUR,
+                "BNB",
+                3
+            );
+            expect(res).toMatchObject({
+                side: "buy",
+                externalId: "234063358",
+                amountOfTargetAsset: 0.0389,
+                amountOfOriginAsset: 11.971475,
+                filled: 0.038870829999999995,
+                remaining: 0,
+                average: 307.75,
+                status: "closed",
+                originAsset: "EUR",
+                targetAsset: "BNB",
+                type: "MARKET",
+                datetime: "2021-05-27T13:39:24.641Z",
+                info : {
+                    fills: [
+                        {
+                            "price": "307.75000000",
+                            "qty": "0.03890000",
+                            "commission": "0.00002917",
+                            "commissionAsset": "BNB",
+                            "tradeId": 14693522
+                        }
+                    ]
+                }
+            });
+        });
+
+        test("Should retry when order creation fails and retries are set", async() => {
+            // arrange
+            binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
+            binanceInstance.createMarketBuyOrder = jest.fn(async () => Promise.reject());
+
+            try {
+                // act
+                await binanceConnector.createMarketBuyOrder(Currency.EUR, "BNB", 25, false, 5);
+                fail("Should reject");
+            } catch (e) {
+                // assert
+                expect(e).toEqual("Failed to execute buy market order on market BNB/EUR");
+                expect(binanceInstance.createMarketBuyOrder).toHaveBeenCalledTimes(6);
             }
         });
     });

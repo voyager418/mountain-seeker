@@ -42,6 +42,23 @@ export class SimulationUtils {
         };
     }
 
+    public static getSimulatedLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell"): Order {
+        return {
+            amountOfTargetAsset: 0,
+            datetime: "",
+            externalId: "444",
+            filled: 0,
+            id: "333",
+            originAsset,
+            remaining: 0,
+            side: side,
+            status: "open",
+            targetAsset,
+            type: OrderType.LIMIT,
+            average: 200
+        };
+    }
+
     public static getSimulatedGetOrder(originAsset: Currency, targetAsset: string): Order {
         return {
             amountOfTargetAsset: 0,

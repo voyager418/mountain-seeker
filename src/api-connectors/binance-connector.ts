@@ -40,6 +40,8 @@ export class BinanceConnector {
 
     private readonly V1_URL_BASE_PATH = "https://api.binance.com/sapi/v1";
 
+    private readonly headers = {};
+
     constructor(private configService: ConfigService) {
         this.binance = new ccxt.binance({
             apiKey: process.env.BINANCE_API_KEY,
@@ -47,6 +49,10 @@ export class BinanceConnector {
             verbose: false,
             enableRateLimit: false
         });
+        this.headers = {
+            'Content-Type': 'application/json',
+            'X-MBX-APIKEY': this.binance.apiKey
+        };
     }
 
     getBinanceInstance(): ccxt.binance {
@@ -168,20 +174,25 @@ export class BinanceConnector {
                 assetsInURLPath += "&asset=" + asset;
             }
         }
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-MBX-APIKEY': this.binance.apiKey
-        };
-        const queryString = `${assetsInURLPath}&timestamp=${Date.now()}`;
-        const urlPath = `${this.V1_URL_BASE_PATH}/asset/dust?${queryString}`;
-        const signature = hmacSHA256(queryString, this.binance.secret).toString();
+        const url = this.generateURL(`${this.V1_URL_BASE_PATH}/asset/dust`, assetsInURLPath);
         try {
-            await axios.post(`${urlPath}&signature=${signature}`, undefined, { headers: headers });
+            await axios.post(url, undefined, { headers: this.headers });
             success = true;
         } catch (e) {
             log.warn(`Error after HTTP call when converting small amounts: ${JSON.stringify(e)}`);
         }
         return Promise.resolve(success);
+    }
+
+    /**
+     * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
+     * needed to call private Binance endpoints (like buy order)
+     */
+    private generateURL(urlBasePath: string, query: string): string {
+        const queryString = `${query}&timestamp=${Date.now()}`;
+        const urlPath = `${urlBasePath}?${queryString}`;
+        const signature = hmacSHA256(queryString, this.binance.secret).toString();
+        return `${urlPath}&signature=${signature}`;
     }
 
     /**
@@ -233,9 +244,8 @@ export class BinanceConnector {
             log.info(`Executing simulated order %O`, o);
             return Promise.resolve(o);
         }
-        if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
-            amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
-        }
+        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+        const orderCompletionRetries = 3;
 
         log.debug("Creating new %O market order on %O/%O of %O %O", side, targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
@@ -254,6 +264,7 @@ export class BinanceConnector {
             let percentDecreaseMultiplier = 1;
 
             while (retries-- > 0) {
+                await GlobalUtils.sleep(3);
                 log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
                 try {
                     if (amountToInvest && side === "buy") {
@@ -261,16 +272,11 @@ export class BinanceConnector {
                             .catch(error => Promise.reject(error));
                         amount = amountToInvest/unitPrice;
                         amount -= amount * (percentDecreaseMultiplier * 0.004);
-                        if (amount.toString().split(".")[1]?.length > 8 || marketAmountPrecision) {
-                            amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
-                        }
+                        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
                     }
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`, "market", side, amount);
                 } catch (e) {
                     log.warn(`Failed to execute ${side} market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
-                    if (retries > 0) {
-                        await GlobalUtils.sleep(3);
-                    }
                     percentDecreaseMultiplier++;
                 }
             }
@@ -295,12 +301,136 @@ export class BinanceConnector {
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
+        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+    }
+
+    /**
+     * Creates market buy order.
+     *
+     * @param originAsset
+     * @param targetAsset
+     * @param quoteAmount If market is BNB/EUR then this represents the amount of EUR that we want to spend
+     * @param awaitCompletion
+     * @param retries
+     */
+    public async createMarketBuyOrder(originAsset: Currency, targetAsset: string, quoteAmount: number,
+        awaitCompletion?: boolean, retries?: number): Promise<Order> {
+        if (this.configService.isSimulation()) {
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "buy");
+            log.info(`Executing simulated order %O`, o);
+            return Promise.resolve(o);
+        }
+
+        log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, targetAsset);
+        let binanceOrder;
+        const orderCompletionRetries = 3;
+
+        try {
+            binanceOrder = await this.binance.createMarketBuyOrder(`${targetAsset}/${originAsset}`, quoteAmount);
+        } catch (e) {
+            log.error(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}. ${e}`);
+        }
+        if (!binanceOrder && retries) {
+            while (retries-- > 0) {
+                await GlobalUtils.sleep(3);
+                log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, targetAsset);
+                try {
+                    binanceOrder = await this.binance.createMarketBuyOrder(`${targetAsset}/${originAsset}`, quoteAmount);
+                } catch (e) {
+                    log.warn(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}: ${e}`);
+                }
+            }
+        }
+        if (!binanceOrder) {
+            return Promise.reject(`Failed to execute buy market order on market ${targetAsset}/${originAsset}`);
+        }
+
+        const order: Order = {
+            id: uuidv4(),
+            externalId: binanceOrder.id,
+            amountOfTargetAsset: binanceOrder.amount,
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "buy", targetAsset),
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average!,
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, "buy"),
+            status: binanceOrder.status,
+            originAsset,
+            targetAsset,
+            side: "buy",
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            type: OrderType.MARKET,
+            info: binanceOrder.info
+        }
+        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+    }
+
+    /**
+     * Creates market buy order.
+     *
+     * @param originAsset
+     * @param targetAsset
+     * @param amount If market is BNB/EUR then this represents the quantity of BNB to sell
+     * @param awaitCompletion
+     * @param retries
+     */
+    public async createMarketSellOrder(originAsset: Currency, targetAsset: string, amount: number,
+        awaitCompletion?: boolean, retries?: number, marketAmountPrecision?: number): Promise<Order> {
+        if (this.configService.isSimulation()) {
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "sell");
+            log.info(`Executing simulated order %O`, o);
+            return Promise.resolve(o);
+        }
+
+        log.debug("Creating new sell market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
+        let binanceOrder;
+        const orderCompletionRetries = 3;
+        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+
+        try {
+            binanceOrder = await this.binance.createMarketSellOrder(`${targetAsset}/${originAsset}`, amount);
+        } catch (e) {
+            log.error(`Failed to execute sell market order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`);
+        }
+        if (!binanceOrder && retries) {
+            while (retries-- > 0) {
+                await GlobalUtils.sleep(3);
+                log.debug("Creating new sell market order on %O/%O of %O %O", targetAsset, originAsset, targetAsset);
+                try {
+                    binanceOrder = await this.binance.createMarketSellOrder(`${targetAsset}/${originAsset}`, amount);
+                } catch (e) {
+                    log.warn(`Failed to execute sell market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
+                }
+            }
+        }
+        if (!binanceOrder) {
+            return Promise.reject(`Failed to execute sell market order on market ${targetAsset}/${originAsset}`);
+        }
+
+        const order: Order = {
+            id: uuidv4(),
+            externalId: binanceOrder.id,
+            amountOfTargetAsset: binanceOrder.amount,
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "sell", targetAsset),
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average!,
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, "sell"),
+            status: binanceOrder.status,
+            originAsset,
+            targetAsset,
+            side: "sell",
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            type: OrderType.MARKET,
+            info: binanceOrder.info
+        }
+        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+    }
+
+    private async waitMarketOrderCompletion(awaitCompletion: undefined | boolean, order: Order, originAsset: Currency, targetAsset: string, orderCompletionRetries: number) {
         if (!awaitCompletion) {
             log.debug(`Created binance order : ${JSON.stringify(order)}`);
             return Promise.resolve(order);
         }
 
-        const orderCompletionRetries = 3;
         const completedOrder = await this.waitForOrderCompletion(order, originAsset, targetAsset, orderCompletionRetries)
             .catch(e => Promise.reject(e));
         if (!completedOrder) {
@@ -334,6 +464,7 @@ export class BinanceConnector {
         }
         if (!binanceOrder && retries) {
             while (retries-- > 0) {
+                await GlobalUtils.sleep(3);
                 log.debug("Creating %O stop limit order on %O/%O of %O %O. With stopPrice : %O, limitPrice: %O",
                     side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
                 try {
@@ -343,9 +474,6 @@ export class BinanceConnector {
                         });
                 } catch (e) {
                     log.error("Failed to create order : ", e);
-                    if (retries > 0) {
-                        await GlobalUtils.sleep(3);
-                    }
                 }
             }
         }
@@ -370,6 +498,64 @@ export class BinanceConnector {
             side,
             datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.STOP_LIMIT,
+            info: binanceOrder.info
+        }
+
+        log.debug(`Created ${order.type} order : ${JSON.stringify(order)}`);
+        return Promise.resolve(order);
+    }
+
+    /**
+     * Creates a sell limit order.
+     */
+    public async createLimitSellOrder(originAsset: Currency, targetAsset: string, amount: number,
+        limitPrice: number, retries?: number): Promise<Order> {
+        if (this.configService.isSimulation()) {
+            const simulatedOrder: Order = SimulationUtils.getSimulatedLimitOrder(originAsset, targetAsset, "sell");
+            log.info(`Executing simulated order %O`, simulatedOrder);
+            return Promise.resolve(simulatedOrder);
+        }
+
+        log.debug("Creating sell limit order on %O/%O of %O %O. With limitPrice: %O",
+            targetAsset, originAsset, amount, targetAsset, limitPrice);
+        let binanceOrder;
+        try {
+            binanceOrder = await this.binance.createLimitSellOrder(`${targetAsset}/${originAsset}`, amount, limitPrice);
+        } catch (e) {
+            log.error(`Failed to execute sell limit order of ${amount} on ${targetAsset}/${originAsset}: ${e}`);
+        }
+        if (!binanceOrder && retries) {
+            while (retries-- > 0) {
+                await GlobalUtils.sleep(3);
+                log.debug("Creating sell limit order on %O/%O of %O %O. With limitPrice: %O",
+                    targetAsset, originAsset, amount, targetAsset, limitPrice);
+                try {
+                    binanceOrder = await this.binance.createLimitSellOrder(`${targetAsset}/${originAsset}`, amount, limitPrice);
+                } catch (e) {
+                    log.error("Failed to create order : ", e);
+                }
+            }
+        }
+
+        if (!binanceOrder) {
+            return Promise.reject(`Failed to execute sell limit order of ${amount} on market ${targetAsset}/${originAsset}`);
+        }
+
+        const order: Order = {
+            id: uuidv4(),
+            externalId: binanceOrder.id,
+            amountOfTargetAsset: amount,
+            limitPrice,
+            filled: binanceOrder.filled, // TODO: verify if we have to recalculate like for market orders (probably not because the price is fixed)
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average!,
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.LIMIT, "sell"),
+            status: binanceOrder.status,
+            originAsset,
+            targetAsset,
+            side: "sell",
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            type: OrderType.LIMIT,
             info: binanceOrder.info
         }
 
@@ -459,8 +645,8 @@ export class BinanceConnector {
                         return Promise.reject(e);
                     } else {
                         retries--;
-                        log.debug("Retrying to get order %O", externalId);
                         await GlobalUtils.sleep(2);
+                        log.debug("Retrying to get order %O", externalId);
                     }
                 } else {
                     return Promise.reject(e);
@@ -497,8 +683,7 @@ export class BinanceConnector {
         };
         while (order.status !== "canceled") {
             try {
-                // the OrderType.MARKET here has no importance
-                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.MARKET);
+                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.MARKET); // the OrderType.MARKET here has no importance
             } catch (e) {
                 log.warn(`Failed to get the cancelled order ${order.externalId} : ${e}`);
             }
@@ -600,7 +785,6 @@ export class BinanceConnector {
             res.setHours(res.getHours() + 2);
             return res.toISOString();
         } catch (e) {
-            // no date found
             return date;
         }
     }
@@ -615,6 +799,7 @@ export class BinanceConnector {
         }
 
         // for stop-limit orders Binance does not provide commission data so it has to be computed manually
+        // TODO : see if for limit orders we have commissions available
         if (orderType !== OrderType.MARKET) {
             // 0.1% is the default binance transaction fee, see https://www.binance.com/en/fee/schedule or in the account settings
             // If BNB is available then Binance pays the fee from BNB wallet, so the below number is an approximation
