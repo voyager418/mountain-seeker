@@ -28,8 +28,8 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 50;
-    private readonly minimumPercentFor24hVariation = 1;
-    private readonly authorizedCurrencies = [Currency.EUR, Currency.BTC, Currency.BNB, Currency.ETH];
+    private readonly minimumPercentFor24hVariation = -15;
+    private readonly authorizedCurrencies = [Currency.EUR];
     private readonly minimumTradingVolumeLast24h = 100;
 
 

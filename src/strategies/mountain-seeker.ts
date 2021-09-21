@@ -2,7 +2,7 @@ import { BaseStrategy } from "./base-strategy.interface";
 import { Account } from "../models/account";
 import log from '../logging/log.instance';
 import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
-import { TradingState } from "../models/trading-state";
+import { MountainSeekerState } from "./state/mountain-seeker-state";
 import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
 import {
@@ -38,7 +38,7 @@ export class MountainSeeker implements BaseStrategy {
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;
-    private state: TradingState;
+    private state: MountainSeekerState;
     private config: MountainSeekerConfig & BaseStrategyConfig = { maxMoneyToTrade: -1 };
 
 
@@ -53,7 +53,7 @@ export class MountainSeeker implements BaseStrategy {
         }
     }
 
-    getState(): TradingState {
+    getState(): MountainSeekerState {
         return this.state;
     }
 

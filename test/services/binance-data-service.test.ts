@@ -44,9 +44,9 @@ describe("Binance data service", () => {
             await binanceDataService.getMarketsFromBinance();
 
             // assert
-            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(1);
+            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-15);
             expect(StrategyUtils.filterByAuthorizedCurrencies).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                [Currency.EUR, Currency.BTC, Currency.BNB, Currency.ETH]);
+                [Currency.EUR]);
             expect(StrategyUtils.filterByMinimumTradingVolume).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(), 100);
 
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),

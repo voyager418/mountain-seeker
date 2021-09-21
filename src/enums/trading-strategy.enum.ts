@@ -1,3 +1,4 @@
 export enum TradingStrategy {
-    MS = "MountainSeeker"
+    MS = "MountainSeeker",
+    SQZ = "Squeeze"
 }

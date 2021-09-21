@@ -1,4 +1,4 @@
-import { TradingState } from "../models/trading-state";
+import { TradingState } from "./state/trading-state";
 import { Observer } from "../services/observer/observer.interface";
 
 /**

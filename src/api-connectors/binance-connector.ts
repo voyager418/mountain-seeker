@@ -131,17 +131,17 @@ export class BinanceConnector {
     }
 
     /**
-     * @param currencies Array of currencies for which the balance will be retrieved even if it's 0
-     * @return A map for each currency where the balance > 0
+     * @param assets Array of assets for which the balance will be retrieved even if it's 0
+     * @return A map for each requested currency
      */
-    public async getBalance(currencies: Array<string>): Promise<Map<string, number>> {
+    public async getBalance(assets: Array<string>): Promise<Map<string, number>> {
         // TODO maybe add retries or increase the sleep interval
         await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
         const balance = await this.binance.fetchBalance()
             .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
         const res = new Map<string, number>();
         for (const currency of balance.info.balances) {
-            if (currencies.indexOf(currency.asset) >= 0 || Number(currency.free) > 0) {
+            if (assets.indexOf(currency.asset) >= 0) {
                 res.set(currency.asset, Number(currency.free));
             }
         }
@@ -657,6 +657,16 @@ export class BinanceConnector {
     }
 
     /**
+     * @return `true` if order is closed
+     */
+    public async orderIsClosed(externalId: string, originAsset: Currency, targetAsset: string,
+        internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean): Promise<boolean> {
+        const order = await this.getOrder(externalId, originAsset, targetAsset, internalOrderId,
+            orderType, retries, verbose).catch(e => Promise.reject(e));
+        return Promise.resolve(order.status === "closed");
+    }
+
+    /**
      * @return The cancelled order
      */
     public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
@@ -840,7 +850,7 @@ export class BinanceConnector {
         }
         let amountOfTargetAsset = 0;
         for (const fill of fills) {
-            if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in BNB
+            if (side === "sell" || fill.commissionAsset !== targetAsset) { // sometimes the commission is in BNB so no need to deduce it
                 amountOfTargetAsset += Number(fill.qty);
             } else {
                 amountOfTargetAsset += Number(fill.qty) - Number(fill.commission);

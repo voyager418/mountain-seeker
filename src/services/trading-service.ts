@@ -1,10 +1,10 @@
-import { MountainSeeker } from "../strategies/mountain-seeker";
 import { StrategyDetails } from "../models/strategy-details";
 import { TradingStrategy } from "../enums/trading-strategy.enum";
 import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
-import { MountainSeekerConfig } from "../strategies/config/mountain-seeker-config";
+import { Squeeze } from "../strategies/squeeze";
+import { SqueezeConfig } from "../strategies/config/squeeze-config";
 
 
 /**
@@ -13,9 +13,9 @@ import { MountainSeekerConfig } from "../strategies/config/mountain-seeker-confi
 @singleton()
 export class TradingService {
 
-    private strategy: StrategyDetails<MountainSeekerConfig> = {
+    private strategy: StrategyDetails<SqueezeConfig> = {
         platform: TradingPlatform.BINANCE,
-        type: TradingStrategy.MS,
+        type: TradingStrategy.SQZ,
         config: {
             maxMoneyToTrade: 25,
             autoRestartOnProfit: true
@@ -28,7 +28,7 @@ export class TradingService {
     }
 
     public async beginTrading(): Promise<void> {
-        container.resolve(MountainSeeker).setup(this.account, this.strategy);
+        container.resolve(Squeeze).setup(this.account, this.strategy);
     }
 
 }

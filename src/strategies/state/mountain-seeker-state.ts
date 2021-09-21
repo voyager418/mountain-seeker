@@ -1,11 +1,8 @@
-import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
+import { TradingState } from "./trading-state";
 
-/**
- * Represents trading progress state and statistics
- */
-export type TradingState = {
-    /** Identifier of the trading strategy that is being executed */
-    id: string;
+
+export type MountainSeekerState = TradingState & {
     /** User's wallet balance for before starting the trading */
     initialWalletBalance?: string;
     /** Updated user's wallet balance after refill */
@@ -24,8 +21,6 @@ export type TradingState = {
     openOrders?: number;
     /** Indicates whether the market accepts EUR currency (which is used to buy {@link Market.targetAsset}) */
     originAssetIsEur?: boolean;
-    /** The market where the trading is happening */
-    marketSymbol?: string;
     /** The market price percent change last 24h */
     marketPercentChangeLast24h?: number;
     /** Array of candlesticks percentage variations */
