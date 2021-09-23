@@ -35,6 +35,8 @@ export class Squeeze implements BaseStrategy {
     private initialWalletBalance?: Map<string, number>;
     private state: SqueezeState;
     private config: SqueezeConfig & BaseStrategyConfig = { maxMoneyToTrade: -1 };
+    /** If a loss of -7% or less is reached it means that something went wrong and we abort everything */
+    private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
 
 
     constructor(private configService: ConfigService,
@@ -78,38 +80,36 @@ export class Squeeze implements BaseStrategy {
 
     private prepareForNextTrade(): void {
         if (this.state.marketSymbol) {
-            if (this.state.profitPercent && this.state.profitPercent <= -10) {
+            if (this.state.profitPercent && this.state.profitPercent <= Squeeze.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss : ${this.state.profitPercent}%`);
             }
             if (!this.config.autoRestartOnProfit) {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
-            this.config.ignoredMarkets = [this.state.marketSymbol];
+            this.config.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
             this.state = { id: uuidv4() }; // resetting the state after a trade
         }
     }
 
     /**
-     * Sets default config values
-     * // TODO : there might be a better way to set default parameters
+     * Set default config values
      */
     private initDefaultConfig(strategyDetails: StrategyDetails<SqueezeConfig>) {
+        this.config.marketLastTradeDate = new Map<string, Date>();
         if (!strategyDetails.config.authorizedCurrencies) {
             this.config.authorizedCurrencies = [Currency.EUR];
         }
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor1h: TradingLoopConfig = {
-                secondsToSleepInTheTradingLoop: 360, // 5 min
+                secondsToSleepInTheTradingLoop: 300, // 5 min
                 trailPricePercent: 1.0,
-                stopTradingMaxPercentLoss: -7
+                stopTradingMaxPercentLoss: -5
             };
-
-            this.config.activeCandleStickIntervals = new Map([
-                [CandlestickInterval.ONE_HOUR, configFor1h]]);
+            this.config.activeCandleStickIntervals = new Map([[CandlestickInterval.ONE_HOUR, configFor1h]]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
-            this.config.minimumPercentFor24hVariation = 1;
+            this.config.minimumPercentFor24hVariation = -10;
         }
         if (!strategyDetails.config.authorizedMarkets) {
             this.config.authorizedMarkets = [];
@@ -138,36 +138,33 @@ export class Squeeze implements BaseStrategy {
         this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(market, this.state.selectedCandleStickInterval!);
         log.info("Found market %O", market.symbol);
-
-        // 2. Send first mail
         this.emailService.sendEmail(`Trading started on ${market.symbol}`,
             "Current state : \n" + JSON.stringify(this.state, GlobalUtils.replacer, 4) +
             "\n\nMarket details : \n" + JSON.stringify(market, GlobalUtils.replacer, 4)).then().catch(e => log.error(e));
 
-        // 3. Fetch wallet balance and compute amount of EUR to invest
+        // 2. Fetch wallet balance and compute amount of EUR to invest
         await this.getInitialBalance([Currency.EUR.toString(), market.targetAsset]);
         const availableEurAmount = this.initialWalletBalance?.get(Currency.EUR.toString());
         const eurAmountToInvest = this.computeAmountToInvest(market, availableEurAmount!);
-        log.debug("Preparing to execute the first order on %O market to invest %O EUR", market.symbol, eurAmountToInvest);
 
-        // 4. First MARKET BUY order to buy market.targetAsset
+        // 3. First MARKET BUY order to buy market.targetAsset
+        log.debug("Preparing to execute the first buy order on %O market to invest %O€", market.symbol, eurAmountToInvest);
         const buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(market.originAsset, market.targetAsset,
             eurAmountToInvest, true, 5).catch(e => Promise.reject(e));
         this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
 
-        // 5. First LIMIT SELL order
+        // 4. First LIMIT SELL order
         const limitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
             this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss);
         const firstSellLimitOrder = await this.cryptoExchangePlatform.createLimitSellOrder(market.originAsset, market.targetAsset,
             buyOrder.filled, limitPrice, 5).catch(e => Promise.reject(e)); // TODO : shall we not sell everything that is in the wallet instead?
 
-        // 6. Start trading loop
+        // 5. Start price monitor loop
         const lastSellLimitOrder = await this.runTradingLoop(buyOrder, limitPrice, firstSellLimitOrder, market,
             buyOrder.filled).catch(e => Promise.reject(e));
 
-        // 7. Finishing
-        await this.handleTradeEnd(market, lastSellLimitOrder, buyOrder).catch(e => Promise.reject(e));
-        return Promise.resolve();
+        // 6. Finishing
+        return await this.handleTradeEnd(market, lastSellLimitOrder, buyOrder).catch(e => Promise.reject(e));
     }
 
     /**
@@ -192,7 +189,7 @@ export class Squeeze implements BaseStrategy {
                 .catch(e => Promise.reject(e));
 
             tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent);
-            if (tempTrailPrice > newSellLimitPrice) { // TODO : what if it's bigger but we still might lose due to commissions?
+            if (tempTrailPrice > newSellLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
                 // cancel the previous sell limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastSellLimitOrder.externalId, sellLimitOrder.id,
                     market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
@@ -229,7 +226,7 @@ export class Squeeze implements BaseStrategy {
         }
 
         this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
-        await this.convertRemainingTargetAssetToBNB(market);
+        await this.convertRemainingTargetAssetToBNB(market); // TODO : is this needed?
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
         this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
@@ -280,6 +277,12 @@ export class Squeeze implements BaseStrategy {
 
     private selectMarketByOneHourCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval }>) {
         const candleStickPercentVariations = getCandleSticksPercentageVariationsByInterval(market, CandlestickInterval.ONE_HOUR);
+
+        // should wait at least 1 hour for consecutive trades on same market
+        const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
+        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
+            return;
+        }
 
         // if MACD indicator on 1h candlesticks thinks it's better not to buy
         if (!this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!).shouldBuy) {

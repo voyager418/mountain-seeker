@@ -26,6 +26,10 @@ describe("Global utils", () => {
             expect(GlobalUtils.increaseNumberByPercent(10, 50)).toBe(15);
         });
 
+        test("Should correctly increase a number by percent", () => {
+            expect(GlobalUtils.increaseNumberByPercent(100, 0.1)).toBe(100.1);
+        });
+
         test("Should throw an error for an invalid argument", () => {
             try {
                 GlobalUtils.increaseNumberByPercent(-10, -50)

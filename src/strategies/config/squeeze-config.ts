@@ -27,6 +27,11 @@ export type SqueezeConfig = BaseStrategyConfig & {
 
     /** Minimum trading volume of origin asset last 24h*/
     minimumTradingVolumeLast24h?: number;
+
+    /** Key is the name of the market, value is the date of the last finished trade.
+     * This will allow to implement a logic to wait x amount of time between consecutive trades on
+     * same market */
+    marketLastTradeDate?: Map<string, Date>
 }
 
 /** This configuration can be different for each candlestick interval */
