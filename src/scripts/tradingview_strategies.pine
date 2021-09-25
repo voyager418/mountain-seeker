@@ -1,0 +1,286 @@
+// @version=4
+// Strategy based on LazyBear Squeeze Momentum Indicator
+// @author _
+
+strategy(shorttitle="Squeeze+Ichimoku", title="Squeeze+Ichimoku", overlay=false,
+     calc_on_every_tick=false, pyramiding=0, default_qty_type=strategy.cash,
+     default_qty_value=1000, currency=currency.EUR, initial_capital=1000,
+     commission_type=strategy.commission.percent, commission_value=0.1)
+
+length = input(20, title="BB Length")
+mult = input(2.0, title="BB MultFactor")
+lengthKC = input(16, title="KC Length")
+mult_kc = input(1.5, title="KC MultFactor")
+
+
+
+// Calculate BB
+src = ohlc4
+
+ma_1 = sma(src, length)
+ma_2 = sma(src, lengthKC)
+range_ma = sma(high - low, lengthKC)
+
+dev = mult * stdev(src, length)
+
+upper_bb = ma_1 + dev
+lower_bb = ma_1 - dev
+
+upper_kc = ma_2 + range_ma * mult_kc
+lower_kc = ma_2 - range_ma * mult_kc
+
+sqz_on = lower_bb > lower_kc and upper_bb < upper_kc
+sqz_off = lower_bb < lower_kc and upper_bb > upper_kc
+no_sqz = sqz_on == false and sqz_off == false
+
+val = linreg(src - avg(avg(highest(hl2, lengthKC), lowest(low, lengthKC)), sma(hl2, lengthKC)), lengthKC, 0)
+
+bcolor = iff(val > 0, iff(val > nz(val[1]), color.lime, color.green), iff(val < nz(val[1]), color.red, color.maroon))
+scolor = no_sqz ? color.gray : sqz_on ? color.black : color.gray
+
+
+
+
+////////////////////////////// ICHIMOKU START //////////////////////////////
+
+//Inputs
+ts_bars = input(9, minval=1, title="Tenkan-Sen Bars")
+ks_bars = input(26, minval=1, title="Kijun-Sen Bars")
+ssb_bars = input(52, minval=1, title="Senkou-Span B Bars")
+cs_offset = input(26, minval=1, title="Chikou-Span Offset")
+ss_offset = input(26, minval=1, title="Senkou-Span Offset")
+
+
+middle(len) => avg(lowest(len), highest(len))
+
+// Ichimoku Components
+tenkan = middle(ts_bars)
+kijun = middle(ks_bars)
+senkouA = avg(tenkan, kijun)
+senkouB = middle(ssb_bars)
+
+ss_high = max(senkouA[ss_offset-1], senkouB[ss_offset-1])
+ss_low = min(senkouA[ss_offset-1], senkouB[ss_offset-1])
+
+// Entry/Exit Signals
+conversion_above_base = tenkan >= kijun
+conversion_is_rising = tenkan[1] < tenkan[0]
+cs_cross_bull = mom(close, cs_offset-1) > 0
+price_above_kumo = close > ss_high
+green_cloud = senkouA[ss_offset-1] >= senkouB[ss_offset-1]
+
+
+//ichimoku_condition = conversion_above_base and conversion_is_rising and price_above_kumo
+
+////////////////////////////// ICHIMOKU END //////////////////////////////
+
+////////////////////////////// LAGUERRE RSI START //////////////////////////////
+
+//setups
+h = high
+l = low
+o = open
+c = close
+
+//inputs
+g = input(0.75, title="Gamma")
+ob = input(0.80, title="Over Bought")
+os = input(0.20, title="Over Sold")
+smooth = input(1, minval=1, title="Smoothing (1 = off)")
+coloring = input(true,title="3 colors?")
+//calc
+p = c
+L0 = 0.0
+L1 = 0.0
+L2 = 0.0
+L3 = 0.0
+L0 := (1 - g) * p + g * nz(L0[1])
+L1 := -g * L0 + nz(L0[1]) + g * nz(L1[1])
+L2 := -g * L1 + nz(L1[1]) + g * nz(L2[1])
+L3 := -g * L2 + nz(L2[1]) + g * nz(L3[1])
+cu = (L0 > L1 ? L0 - L1 : 0) + (L1 > L2 ? L1 - L2 : 0) + (L2 > L3 ? L2 - L3 : 0)
+cd = (L0 < L1 ? L1 - L0 : 0) + (L1 < L2 ? L2 - L1 : 0) + (L2 < L3 ? L3 - L2 : 0)
+//plots
+lrsi = ema((cu + cd == 0 ? -1 : cu + cd) == -1 ? 0 : cu / (cu + cd == 0 ? -1 : cu + cd), smooth)
+col1 =  lrsi > lrsi[1] and lrsi > os ? #00FF7B : lrsi < lrsi[1] and lrsi < ob ? #FF3571 : lrsi == lrsi ? #ECA700 : #ECA700
+col2 =  lrsi > lrsi[1] and lrsi > os ? #00FF7B : lrsi < lrsi[1] and lrsi < ob ? #FF3571 : lrsi < os ? #FF3571 : lrsi > ob ? #00FF7B : lrsi == lrsi ? #ECA700 : #ECA700
+col = coloring ? col1 : col2
+lrsi_condition = col == #00FF7B
+
+////////////////////////////// LAGUERRE RSI END //////////////////////////////
+
+////////////////////////////// MACD START //////////////////////////////
+Lx1=input(12)
+Lx2=input(26)
+tp=input(close)
+mx0 = ema(tp,Lx1)
+mx1 = ema(tp,Lx2)
+source = (mx0-mx1)
+LxS=input(9)
+outA = sma(source, LxS)
+macd_condition = source > outA
+////////////////////////////// MACD END //////////////////////////////
+
+////////////////////////////// ATR START //////////////////////////////
+
+nATRPeriod = input(5)
+nATRMultip = input(1)
+xATR = atr(nATRPeriod)
+nLoss = nATRMultip * xATR
+xATRTrailingStop = 0.0
+xATRTrailingStop := iff(close > nz(xATRTrailingStop[1], 0) and close[1] > nz(xATRTrailingStop[1], 0), max(nz(xATRTrailingStop[1]), close - nLoss), iff(close < nz(xATRTrailingStop[1], 0) and close[1] < nz(xATRTrailingStop[1], 0), min(nz(xATRTrailingStop[1]), close + nLoss), iff(close > nz(xATRTrailingStop[1], 0), close - nLoss, close + nLoss)))
+
+//plot(xATRTrailingStop, color=color.green, title="ATR Trailing Stop")
+////////////////////////////// ATR END //////////////////////////////
+
+////////////////////////////// WAIT BARS START //////////////////////////////
+n_candles = input(defval = 1, minval = 0, title = "Wait number of bars")
+wait(n_candles) =>
+    res = true
+    for counter = 1 to n_candles
+        if strategy.wintrades[counter] != strategy.wintrades or strategy.losstrades[counter] != strategy.losstrades
+            res := false
+            break
+    res
+////////////////////////////// WAIT BARS END //////////////////////////////
+
+////////////////////////////// ADX START //////////////////////////////
+lensig = input(14, title="ADX Smoothing", minval=1, maxval=50)
+len = input(14, minval=1, title="DI Length")
+up = change(high)
+down = -change(low)
+plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
+minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+trur = rma(tr, len)
+plus = fixnan(100 * rma(plusDM, len) / trur)
+minus = fixnan(100 * rma(minusDM, len) / trur)
+sum = plus + minus
+adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+//plot(adx, color=#F50057, title="ADX")
+//plot(plus, color=#2962FF, title="+DI")
+//plot(minus, color=#FF6D00, title="-DI")
+////////////////////////////// ADX END //////////////////////////////
+
+
+
+////////////////////////////// CONDITIONS //////////////////////////////
+
+
+// buy condition
+strat1 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[0] == color.lime
+strat2 = conversion_above_base and conversion_is_rising and price_above_kumo and green_cloud and bcolor[0] == color.lime
+strat3 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[0] == color.lime and scolor == color.gray
+strat4 = conversion_above_base and price_above_kumo and bcolor[0] == color.lime
+strat5 = strat1 and bcolor[3] == color.maroon
+strat6 = strat1 and lrsi_condition
+strat7 = strat5 and strat6
+strat8 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[3] == color.maroon
+strat14 = strat8 and bcolor[3] == color.maroon and bcolor[2] == color.maroon and bcolor[1] == color.lime and bcolor[0] == color.lime
+strat15 = bcolor[3] == color.maroon and bcolor[2] == color.maroon and bcolor[1] == color.lime and bcolor[0] == color.lime
+strat16 =  strat15 and scolor[0] == color.gray
+strat17 = scolor[1] == color.black and scolor[0] == color.gray and bcolor[0] == color.lime
+longCondition = strat15
+
+//strat16 = bcolor[3] == color.green and bcolor[2] == color.green and bcolor[1] == color.red and bcolor[0] == color.red
+shortCondition = bcolor[3] == color.green and bcolor[2] == color.green and bcolor[1] == color.red and bcolor[0] == color.red
+
+
+
+
+// Risk Management
+stop_loss = input(defval = 5.0, title = "Max loss", minval = 0) // -5% by default
+stop_loss := strategy.position_avg_price * (1 - (stop_loss / 100))
+stop_loss_short = strategy.position_avg_price * (1 + (stop_loss / 100))
+trailing_loss = input(defval = 1.0, minval = 0, title = "Percent trailing loss")
+trailing_stop_activation = close * (trailing_loss / 100) / syminfo.mintick
+
+
+
+
+// ORDERS
+// long
+strategy.entry("Buy", strategy.long, when = longCondition and (n_candles != 0 ? wait(n_candles) : true))
+strategy.exit("Sell", from_entry = "Buy", trail_points = trailing_stop_activation, trail_offset = trailing_stop_activation, stop = stop_loss)
+
+// short
+//strategy.entry("Short", strategy.short, when = shortCondition and (n_candles != 0 ? wait(n_candles) : true))
+//strategy.exit("Sell", from_entry = "Short", trail_points = trailing_stop_activation, trail_offset = trailing_stop_activation, stop = stop_loss_short)
+
+//strategy.exit("Sell", from_entry = "Buy", stop = xATRTrailingStop)
+//strategy.close("Buy", when = close <= strategy.position_avg_price * 0.95)
+
+
+
+
+
+
+// PLOTTING
+
+// Plot Squeeze momentum
+plot(val, color=bcolor, style=plot.style_histogram, linewidth=4)
+plot(0, color=scolor, style=plot.style_cross, linewidth=2)
+
+// Plot Ichimoku Kinko Hyo
+//plot(tenkan, color=#0496ff, title="Tenkan-Sen")
+//plot(kijun, color=#991515, title="Kijun-Sen")
+//plot(close, offset=-cs_offset+1, color=#459915, title="Chikou-Span")
+//sa=plot(senkouA, offset=ss_offset-1, color=color.green, title="Senkou-Span A")
+//sb=plot(senkouB, offset=ss_offset-1, color=color.red, title="Senkou-Span B")
+//fill(sa, sb, color = senkouA > senkouB ? color.green : color.red, title="Cloud color")
+
+// Laguerre RSI
+//plot(lrsi, color=col, linewidth=2)
+
+
+//plot(strategy.position_size, color=color.orange, style=plot.style_line, linewidth=1)
+//plot(trailing_stop_activation, color=color.green, style=plot.style_line, linewidth=1)
+//plot(strategy.wintrades[1], color=color.blue, style=plot.style_line, linewidth=1)
+
+//plot(barsSince, color=color.blue, style=plot.style_line, linewidth=1)
+//plot(syminfo.mintick, color=color.green, style=plot.style_line, linewidth=1)
+
+
+
+// MACD
+//plot(outA, color=color.red,transp=0,linewidth=4,title="signal line ")
+//plot(source, color=color.blue,linewidth=3,title=" macd line")
+//plot(source, color=(source>source[1])?color.green:color.red,linewidth=2,transp=50,style=plot.style_histogram,title=" macd")
+//plot(0,color=color.yellow,linewidth=3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// === Backtesting Dates === thanks to Trost
+
+testPeriodSwitch = input(true, "Custom Backtesting Dates")
+testStartYear = input(2020, "Backtest Start Year")
+testStartMonth = input(1, "Backtest Start Month")
+testStartDay = input(1, "Backtest Start Day")
+testStartHour = input(0, "Backtest Start Hour")
+testPeriodStart = timestamp(testStartYear, testStartMonth, testStartDay, testStartHour, 0)
+testStopYear = input(2021, "Backtest Stop Year")
+testStopMonth = input(8, "Backtest Stop Month")
+testStopDay = input(31, "Backtest Stop Day")
+testStopHour = input(23, "Backtest Stop Hour")
+testPeriodStop = timestamp(testStopYear, testStopMonth, testStopDay, testStopHour, 0)
+testPeriod() =>
+    time >= testPeriodStart and time <= testPeriodStop ? true : false
+testPeriod_1 = testPeriod()
+isPeriod = testPeriodSwitch == true ? testPeriod_1 : true
+// === /END
+
+if not isPeriod
+    strategy.cancel_all()
+    strategy.close_all()

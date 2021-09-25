@@ -39,6 +39,7 @@ export class BinanceConnector {
     private readonly binance;
 
     private readonly V1_URL_BASE_PATH = "https://api.binance.com/sapi/v1";
+    private readonly V3_URL_BASE_PATH = "https://api.binance.com/api/v3";
 
     private readonly headers = {};
 
@@ -184,6 +185,8 @@ export class BinanceConnector {
         return Promise.resolve(success);
     }
 
+
+
     /**
      * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
      * needed to call private Binance endpoints (like buy order)
@@ -289,7 +292,7 @@ export class BinanceConnector {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: amount,
-            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side, targetAsset),
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, side, targetAsset, binanceOrder.info?.fills),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average!,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, side),
@@ -321,21 +324,21 @@ export class BinanceConnector {
             return Promise.resolve(o);
         }
 
-        log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, targetAsset);
-        let binanceOrder;
+        log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, originAsset);
+        let binanceOrder: Order | undefined;
         const orderCompletionRetries = 3;
 
         try {
-            binanceOrder = await this.binance.createMarketBuyOrder(`${targetAsset}/${originAsset}`, quoteAmount);
+            binanceOrder = await this.createBuyMarketOrderOnBinance(originAsset, targetAsset, quoteAmount);
         } catch (e) {
             log.error(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
         if (!binanceOrder && retries) {
             while (retries-- > 0) {
                 await GlobalUtils.sleep(3);
-                log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, targetAsset);
+                log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, originAsset);
                 try {
-                    binanceOrder = await this.binance.createMarketBuyOrder(`${targetAsset}/${originAsset}`, quoteAmount);
+                    binanceOrder = await this.createBuyMarketOrderOnBinance(originAsset, targetAsset, quoteAmount);
                 } catch (e) {
                     log.warn(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}: ${e}`);
                 }
@@ -345,24 +348,50 @@ export class BinanceConnector {
             return Promise.reject(`Failed to execute buy market order on market ${targetAsset}/${originAsset}`);
         }
 
-        const order: Order = {
-            id: uuidv4(),
-            externalId: binanceOrder.id,
-            amountOfTargetAsset: binanceOrder.amount,
-            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "buy", targetAsset),
-            remaining: binanceOrder.remaining,
-            average: binanceOrder.average!,
-            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, "buy"),
-            status: binanceOrder.status,
-            originAsset,
-            targetAsset,
-            side: "buy",
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
-            type: OrderType.MARKET,
-            info: binanceOrder.info
-        }
-        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+        return await this.waitMarketOrderCompletion(awaitCompletion, binanceOrder, originAsset, targetAsset, orderCompletionRetries);
     }
+
+    /**
+     * Creates a BUY MARKET order by calling Binance API directly
+     */
+    public async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order | undefined> {
+        const query = `symbol=${targetAsset}${originAsset.toString()}&side=BUY&type=MARKET&quoteOrderQty=${amountOfQuoteCurrency}`;
+        const url = this.generateURL(`${this.V3_URL_BASE_PATH}/order`, query);
+        let binanceOrder;
+
+        try {
+            binanceOrder = await axios.post(url, undefined, { headers: this.headers });
+        } catch (e) {
+            log.warn(`Error when creating market buy order: ${JSON.stringify(e)}`);
+        }
+
+        if (binanceOrder && binanceOrder.status === 200) {
+            const order: Order = {
+                id: uuidv4(),
+                externalId: binanceOrder.data.orderId,
+                amountOfOriginAsset: Number(binanceOrder.data.cummulativeQuoteQty),
+                filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled,
+                    OrderType.MARKET, "buy", targetAsset, binanceOrder.data.fills),
+                amountOfTargetAsset: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled,
+                    OrderType.MARKET, "buy", targetAsset, binanceOrder.data.fills),
+                remaining: Number(binanceOrder.data.origQty) - Number(binanceOrder.data.executedQty),
+                status: binanceOrder.data.status === "FILLED" ? "closed" : "open",
+                originAsset,
+                targetAsset,
+                side: "buy",
+                type: OrderType.MARKET,
+                info: binanceOrder.data,
+                datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.data.transactTime),
+                average: BinanceConnector.computeAveragePrice(binanceOrder.data.fills)
+            }
+            return Promise.resolve(order);
+        } else {
+            log.warn(`Received response from binance : ${JSON.stringify(binanceOrder)}`);
+        }
+
+        return Promise.resolve(undefined);
+    }
+
 
     /**
      * Creates market buy order.
@@ -410,10 +439,10 @@ export class BinanceConnector {
             id: uuidv4(),
             externalId: binanceOrder.id,
             amountOfTargetAsset: binanceOrder.amount,
-            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "sell", targetAsset),
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "sell", targetAsset, binanceOrder.info?.fills),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average!,
-            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, "sell"),
+            amountOfOriginAsset: binanceOrder.cost,
             status: binanceOrder.status,
             originAsset,
             targetAsset,
@@ -624,7 +653,7 @@ export class BinanceConnector {
                     externalId: binanceOrder.id,
                     side: binanceOrder.side,
                     amountOfTargetAsset: binanceOrder.amount,
-                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset),
+                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset, binanceOrder.info?.fills),
                     remaining: binanceOrder.remaining,
                     average: binanceOrder.average!,
                     amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
@@ -839,12 +868,11 @@ export class BinanceConnector {
      * @return Amount of target asset that was purchased when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfFilledAsset(binanceOrder: ccxt.Order, filled: number, orderType: OrderType,
-        side: "buy" | "sell", targetAsset: string): number {
+        side: "buy" | "sell", targetAsset: string, fills: [MarketOrderFill] | undefined): number {
         if (orderType !== OrderType.MARKET) {
             return filled;
         }
 
-        const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
         if (!fills) {
             return filled;
         }
@@ -856,9 +884,21 @@ export class BinanceConnector {
                 amountOfTargetAsset += Number(fill.qty) - Number(fill.commission);
             }
         }
-        return amountOfTargetAsset;
+        return GlobalUtils.truncateNumber(amountOfTargetAsset, 8);
     }
 
+    /**
+     * Computes average price based on "fills" array that is returned by Binance
+     */
+    private static computeAveragePrice(fills: [MarketOrderFill]): number {
+        let num = 0;
+        let denom = 0;
+        for (const fill of fills) {
+            num += Number(fill.price) * Number(fill.qty);
+            denom += Number(fill.qty);
+        }
+        return num/denom;
+    }
 }
 
 /**

@@ -28,9 +28,8 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 50;
-    private readonly minimumPercentFor24hVariation = -15;
+    private readonly minimumPercentFor24hVariation = -1000;
     private readonly authorizedCurrencies = [Currency.EUR];
-    private readonly minimumTradingVolumeLast24h = 100;
 
 
     constructor(private configService: ConfigService,
@@ -62,16 +61,20 @@ export class BinanceDataService implements Subject {
 
     async getMarketsFromBinance(): Promise<void> {
         try {
+            // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.binanceConnector.setMarketAmountPrecision(this.markets);
             this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
-            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.minimumTradingVolumeLast24h);
             await this.fetchAndSetCandleSticks();
 
+            // notify strategies
             this.notifyObservers();
 
+            // sleep
             if (this.allObserversAreRunning() || this.observers.length === 0) {
-                await GlobalUtils.sleep(30);
+                await GlobalUtils.sleep(1800); // 30 min
+            } else {
+                await GlobalUtils.sleep(60); // 1 min
             }
 
             // to add markets to a DB

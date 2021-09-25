@@ -1,5 +1,6 @@
 import { BaseStrategyConfig } from "../../models/strategy-details";
 import { Currency } from "../../enums/trading-currencies.enum";
+import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 
 export type SqueezeConfig = BaseStrategyConfig & {
     /** The maximum amount of money (in EUR) that a strategy is allowed to use for trading. */
@@ -23,7 +24,7 @@ export type SqueezeConfig = BaseStrategyConfig & {
     minimumPercentFor24hVariation?: number;
 
     /** Intervals (e.g. '1m', '15m', '1h' ...) that will be used for selecting a market and their config */
-    activeCandleStickIntervals?: Map<string, TradingLoopConfig>;
+    activeCandleStickIntervals?: Map<CandlestickInterval, TradingLoopConfig>;
 
     /** Minimum trading volume of origin asset last 24h*/
     minimumTradingVolumeLast24h?: number;
@@ -36,6 +37,10 @@ export type SqueezeConfig = BaseStrategyConfig & {
 
 /** This configuration can be different for each candlestick interval */
 export type TradingLoopConfig = {
+    /** Seconds to sleep during trading loop while monitoring the price.
+     * FOR FIRST LIMIT ORDER IN THE LOOP ONLY (to limit the risk of loss) */
+    initialSecondsToSleepInTheTradingLoop: number;
+
     /** Seconds to sleep during trading loop while monitoring the price */
     secondsToSleepInTheTradingLoop: number;
 

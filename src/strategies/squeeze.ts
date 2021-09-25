@@ -17,7 +17,7 @@ import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
 import { SqueezeConfig, TradingLoopConfig } from "./config/squeeze-config";
-import { MACDIndicator } from "../indicators/macd-indicator";
+import { SqueezeIndicator } from "../indicators/squeeze-indicator";
 
 
 /**
@@ -31,7 +31,6 @@ export class Squeeze implements BaseStrategy {
     private strategyDetails: any;
     private markets: Array<Market> = [];
     private account: Account = {};
-    private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private state: SqueezeState;
     private config: SqueezeConfig & BaseStrategyConfig = { maxMoneyToTrade: -1 };
@@ -43,7 +42,7 @@ export class Squeeze implements BaseStrategy {
         private cryptoExchangePlatform: BinanceConnector,
         private emailService: EmailService,
         private binanceDataService: BinanceDataService,
-        private macdIndicator: MACDIndicator) {
+        private squeezeIndicator: SqueezeIndicator) {
         this.state = { id: uuidv4() };
         if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
@@ -102,6 +101,7 @@ export class Squeeze implements BaseStrategy {
         }
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor1h: TradingLoopConfig = {
+                initialSecondsToSleepInTheTradingLoop: 5, // 5 sec
                 secondsToSleepInTheTradingLoop: 300, // 5 min
                 trailPricePercent: 1.0,
                 stopTradingMaxPercentLoss: -5
@@ -109,13 +109,11 @@ export class Squeeze implements BaseStrategy {
             this.config.activeCandleStickIntervals = new Map([[CandlestickInterval.ONE_HOUR, configFor1h]]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
-            this.config.minimumPercentFor24hVariation = -10;
+            this.config.minimumPercentFor24hVariation = -1000;
         }
         if (!strategyDetails.config.authorizedMarkets) {
-            this.config.authorizedMarkets = [];
-        }
-        if (!strategyDetails.config.minimumTradingVolumeLast24h) {
-            this.config.minimumTradingVolumeLast24h = 100;
+            // sorted by order of preference
+            this.config.authorizedMarkets = ["BTC/EUR", "BNB/EUR", "ETH/EUR"];
         }
     }
 
@@ -126,7 +124,7 @@ export class Squeeze implements BaseStrategy {
 
         if (!market) {
             if (this.configService.isSimulation()) {
-                log.info("No market was found"); // best log this only in simulation mode to not pollute the logs
+                log.debug("No market was found");
             }
             return Promise.resolve();
         }
@@ -153,68 +151,74 @@ export class Squeeze implements BaseStrategy {
             eurAmountToInvest, true, 5).catch(e => Promise.reject(e));
         this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
 
-        // 4. First LIMIT SELL order
-        const limitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
+        // 4. First STOP LIMIT SELL order (default: -5%)
+        const stopLimitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
             this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss);
-        const firstSellLimitOrder = await this.cryptoExchangePlatform.createLimitSellOrder(market.originAsset, market.targetAsset,
-            buyOrder.filled, limitPrice, 5).catch(e => Promise.reject(e)); // TODO : shall we not sell everything that is in the wallet instead?
+        const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
+            "sell", buyOrder.filled, stopLimitPrice, stopLimitPrice, 5).catch(e => Promise.reject(e));
 
         // 5. Start price monitor loop
-        const lastSellLimitOrder = await this.runTradingLoop(buyOrder, limitPrice, firstSellLimitOrder, market,
+        const lastSellStopLimitOrder = await this.runTradingLoop(buyOrder, stopLimitPrice, firstSellStopLimitOrder, market,
             buyOrder.filled).catch(e => Promise.reject(e));
 
         // 6. Finishing
-        return await this.handleTradeEnd(market, lastSellLimitOrder, buyOrder).catch(e => Promise.reject(e));
+        return await this.handleTradeEnd(market, lastSellStopLimitOrder).catch(e => Promise.reject(e));
     }
 
     /**
      * Monitors the current market price and creates new stop limit orders if price increases.
      */
-    private async runTradingLoop(buyOrder: Order, limitPrice: number, sellLimitOrder: Order, market: Market,
+    private async runTradingLoop(buyOrder: Order, stopLimitPrice: number, sellStopLimitOrder: Order, market: Market,
         targetAssetAmount: number): Promise<Order> {
-        let newSellLimitPrice = buyOrder.average;
+        let newSellStopLimitPrice = buyOrder.average;
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-        let tempTrailPrice = 0;
-        let lastSellLimitOrder = sellLimitOrder;
+        let tempTrailPrice = stopLimitPrice;
+        let lastSellStopLimitOrder = sellStopLimitOrder;
         let potentialProfit;
         let marketUnitPrice = Infinity;
 
-        while (limitPrice < marketUnitPrice) {
-            await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
-            if ((await this.cryptoExchangePlatform.orderIsClosed(lastSellLimitOrder.externalId, lastSellLimitOrder.originAsset, lastSellLimitOrder.targetAsset,
-                lastSellLimitOrder.id, lastSellLimitOrder.type!, 300).catch(e => Promise.reject(e)))) {
+        while (tempTrailPrice < marketUnitPrice) {
+            if (tempTrailPrice !== stopLimitPrice) {
+                // if first trailing limit is set, wait longer
+                await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
+            } else {
+                await GlobalUtils.sleep(tradingLoopConfig.initialSecondsToSleepInTheTradingLoop);
+            }
+
+            if ((await this.cryptoExchangePlatform.orderIsClosed(lastSellStopLimitOrder.externalId, lastSellStopLimitOrder.originAsset, lastSellStopLimitOrder.targetAsset,
+                lastSellStopLimitOrder.id, lastSellStopLimitOrder.type!, 300).catch(e => Promise.reject(e)))) {
                 break;
             }
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
             tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent);
-            if (tempTrailPrice > newSellLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
+            if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
                 // cancel the previous sell limit order
-                await this.cryptoExchangePlatform.cancelOrder(lastSellLimitOrder.externalId, sellLimitOrder.id,
+                await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
                     market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
 
-                // update sell limit price
-                newSellLimitPrice = tempTrailPrice;
+                // update sell stop limit price
+                newSellStopLimitPrice = tempTrailPrice;
 
-                // create new sell limit order
-                lastSellLimitOrder = await this.cryptoExchangePlatform.createLimitSellOrder(market.originAsset, market.targetAsset,
-                    targetAssetAmount, newSellLimitPrice, 3).catch(e => Promise.reject(e));
+                // create new sell stop limit order
+                lastSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
+                    "sell", targetAssetAmount, newSellStopLimitPrice, newSellStopLimitPrice, 3).catch(e => Promise.reject(e));
             }
             this.state.pricePercentChangeOnYEur = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
-            potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellLimitPrice);
+            potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
             log.info(`Buy : ${buyOrder.average}, current : ${(marketUnitPrice)
-                .toFixed(8)}, change % : ${this.state.pricePercentChangeOnYEur}% | Sell price : ${limitPrice
+                .toFixed(8)}, change % : ${this.state.pricePercentChangeOnYEur}% | Sell price : ${stopLimitPrice
                 .toFixed(8)} | Potential profit : ${potentialProfit.toFixed(3)}%`);
         }
-        return Promise.resolve(lastSellLimitOrder);
+        return Promise.resolve(lastSellStopLimitOrder);
     }
 
     /**
      * If the initial selected market was not accepting EUR (e.g. "CAKE/BNB")
      * then the full amount of origin asset is traded for EUR (e.g. => BNB is sold on "BNB/EUR" market)
      */
-    private async handleTradeEnd(market: Market, lastStopLimitOrder: Order, buyOrder: Order): Promise<void> {
+    private async handleTradeEnd(market: Market, lastStopLimitOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
         let completedOrder = await this.cryptoExchangePlatform.waitForOrderCompletion(lastStopLimitOrder, market.originAsset,
             market.targetAsset, 3).catch(e => Promise.reject(e));
@@ -226,7 +230,6 @@ export class Squeeze implements BaseStrategy {
         }
 
         this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
-        await this.convertRemainingTargetAssetToBNB(market); // TODO : is this needed?
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
         this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
@@ -264,28 +267,26 @@ export class Squeeze implements BaseStrategy {
             return Promise.resolve(undefined);
         }
 
-        const oneHourMarket = StrategyUtils.highestBy24hVariation(potentialMarkets.filter(market => market.interval === CandlestickInterval.ONE_HOUR));
-        if (oneHourMarket) {
-            this.state.selectedCandleStickInterval = CandlestickInterval.ONE_HOUR;
-            return Promise.resolve(oneHourMarket);
+        let selectedMarket;
+        const potentialMarketSymbols = potentialMarkets.map(element => element.market.symbol);
+        for (const marketSymbol of this.config.authorizedMarkets!) {
+            if (potentialMarketSymbols.includes(marketSymbol)) {
+                selectedMarket = potentialMarkets.filter(element => element.market.symbol === marketSymbol)[0];
+                this.state.selectedCandleStickInterval = selectedMarket.interval;
+                return Promise.resolve(selectedMarket.market);
+            }
         }
-
-        // by default, take the first market
-        this.state.selectedCandleStickInterval = potentialMarkets[0].interval;
-        return Promise.resolve(potentialMarkets[0].market);
     }
 
     private selectMarketByOneHourCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval }>) {
-        const candleStickPercentVariations = getCandleSticksPercentageVariationsByInterval(market, CandlestickInterval.ONE_HOUR);
-
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
             return;
         }
 
-        // if MACD indicator on 1h candlesticks thinks it's better not to buy
-        if (!this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!).shouldBuy) {
+        // if Squeeze indicator on 1h candlesticks thinks it's better not to buy
+        if (!this.squeezeIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!).shouldBuy) {
             return;
         }
 
@@ -298,54 +299,10 @@ export class Squeeze implements BaseStrategy {
      */
     private getFilteredMarkets(): Array<Market> {
         this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.config.authorizedCurrencies);
-        this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, this.config.minimumTradingVolumeLast24h);
         this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.config.ignoredMarkets);
         this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.config.authorizedMarkets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
         return this.markets;
-    }
-
-
-    /**
-     * Tries to convert the remaining {@link market.targetAsset} into {@link Currency.BNB} in order to compute the total equivalent of the converted
-     * {@link Currency.BNB} in EUR of and add the result to {@link this.state.retrievedAmountOfEuro}.
-     * If the conversion is not possible, then computes the EUR equivalent of
-     * {@link market.targetAsset} and adds it to {@link this.state.retrievedAmountOfEuro}.
-     */
-    private async convertRemainingTargetAssetToBNB(market: Market): Promise<void> {
-        const walletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BNB, market.targetAsset])
-            .catch(e => Promise.reject(e));
-        if (walletBalance.get(market.targetAsset)! > 0) {
-            const success = await this.cryptoExchangePlatform.convertSmallAmountsToBNB([market.targetAsset]);
-            if (!success) {
-                return;
-            }
-
-            const finalBNBAmount = await this.cryptoExchangePlatform.getBalanceForAsset(Currency.BNB).catch(e => Promise.reject(e));
-
-            if (!this.state.retrievedAmountOfEuro) {
-                this.state.retrievedAmountOfEuro = 0;
-            }
-
-            const initialBNBAmount = walletBalance.get(Currency.BNB)!;
-            if (initialBNBAmount === finalBNBAmount) {
-                log.warn(`Was unable to convert ${walletBalance.get(market.targetAsset)}${market.targetAsset} to ${Currency.BNB}`);
-                const priceOfTargetAssetInOriginAsset = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, true, 10)
-                    .catch(e => Promise.reject(e));
-                const priceOfOriginAssetInEUR = await this.cryptoExchangePlatform.getUnitPrice(Currency.EUR, market.originAsset, true, 10)
-                    .catch(e => Promise.reject(e));
-                const equivalentInEUR = walletBalance.get(market.targetAsset)! * priceOfTargetAssetInOriginAsset * priceOfOriginAssetInEUR;
-                log.debug(`Remaining ${walletBalance.get(market.targetAsset)!}${market.targetAsset} equals to ${equivalentInEUR}€`);
-                this.state.retrievedAmountOfEuro += equivalentInEUR;
-            } else {
-                const priceOfBNBInEUR = await this.cryptoExchangePlatform.getUnitPrice(Currency.EUR, Currency.BNB, true, 10)
-                    .catch(e => Promise.reject(e));
-                this.state.profitBNB = finalBNBAmount - initialBNBAmount;
-                const equivalentInEUR = priceOfBNBInEUR * this.state.profitBNB;
-                log.debug(`Converted ${this.state.profitBNB}${Currency.BNB} equals to ${equivalentInEUR}€`);
-                this.state.retrievedAmountOfEuro += equivalentInEUR; // TODO : think if it's good to do that
-            }
-        }
     }
 
     /**
