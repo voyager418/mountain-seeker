@@ -325,7 +325,7 @@ export class BinanceConnector {
         }
 
         log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, originAsset);
-        let binanceOrder: Order | undefined;
+        let binanceOrder;
         const orderCompletionRetries = 3;
 
         try {
@@ -354,7 +354,7 @@ export class BinanceConnector {
     /**
      * Creates a BUY MARKET order by calling Binance API directly
      */
-    public async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order | undefined> {
+    public async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order> {
         const query = `symbol=${targetAsset}${originAsset.toString()}&side=BUY&type=MARKET&quoteOrderQty=${amountOfQuoteCurrency}`;
         const url = this.generateURL(`${this.V3_URL_BASE_PATH}/order`, query);
         let binanceOrder;
@@ -368,7 +368,7 @@ export class BinanceConnector {
         if (binanceOrder && binanceOrder.status === 200) {
             const order: Order = {
                 id: uuidv4(),
-                externalId: binanceOrder.data.orderId,
+                externalId: String(binanceOrder.data.orderId),
                 amountOfOriginAsset: Number(binanceOrder.data.cummulativeQuoteQty),
                 filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled,
                     OrderType.MARKET, "buy", targetAsset, binanceOrder.data.fills),
@@ -389,7 +389,7 @@ export class BinanceConnector {
             log.warn(`Received response from binance : ${JSON.stringify(binanceOrder)}`);
         }
 
-        return Promise.resolve(undefined);
+        return Promise.reject(undefined);
     }
 
 
@@ -897,7 +897,7 @@ export class BinanceConnector {
             num += Number(fill.price) * Number(fill.qty);
             denom += Number(fill.qty);
         }
-        return num/denom;
+        return GlobalUtils.truncateNumber(num/denom, 8);
     }
 }
 

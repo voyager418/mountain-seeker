@@ -186,7 +186,8 @@ export class StrategyUtils {
     }
 
     /**
-     * @param numberOf30mCandlesInDesiredPeriod For example if we want to convert 30m to 4h candle sticks then this value must be
+     * @param inputCandleSticks
+     * @param numberOf30mCandlesInDesiredPeriod For example to convert 30m to 4h candle sticks then this value must be
      * 8 because there are 8 30m candle sticks in 4h
      */
     private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOf30mCandlesInDesiredPeriod: number): Array<TOHLCV> {
