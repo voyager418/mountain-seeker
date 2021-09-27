@@ -1,65 +1,35 @@
 {
-  "info": {
-    "symbol": "BNBEUR",
-    "orderId": 234063358,
+  "status": 200,
+  "statusText": "OK",
+  "data": {
+    "symbol": "BTCEUR",
+    "orderId": 1199969870,
     "orderListId": -1,
-    "clientOrderId": "x-R4BD3S827a90aa835d154a00b2eebc",
-    "transactTime": 1622115564641,
+    "clientOrderId": "tKjhU7EOKfNGXbEklTF7qz",
+    "transactTime": 1632652932185,
     "price": "0.00000000",
-    "origQty": "0.03890000",
-    "executedQty": "0.03890000",
-    "cummulativeQuoteQty": "11.97147500",
+    "origQty": "0.00053000",
+    "executedQty": "0.00053000",
+    "cummulativeQuoteQty": "19.66228700",
     "status": "FILLED",
     "timeInForce": "GTC",
     "type": "MARKET",
     "side": "BUY",
     "fills": [
       {
-        "price": "307.75000000",
-        "qty": "0.03890000",
-        "commission": "0.00002917",
+        "price": "37095.78000000",
+        "qty": "0.00001000",
+        "commission": "0.00000094",
         "commissionAsset": "BNB",
-        "tradeId": 14693522
+        "tradeId": 64708797
+      },
+      {
+        "price": "37098.71000000",
+        "qty": "0.00052000",
+        "commission": "0.00004948",
+        "commissionAsset": "BNB",
+        "tradeId": 64708798
       }
     ]
-  },
-  "id": "234063358",
-  "clientOrderId": "x-R4BD3S827a90aa835d154a00b2eebc",
-  "timestamp": 1622115564641,
-  "datetime": "2021-05-27T11:39:24.641Z",
-  "symbol": "BNB/EUR",
-  "type": "market",
-  "timeInForce": "GTC",
-  "postOnly": false,
-  "side": "buy",
-  "price": 307.75,
-  "amount": 0.0389,
-  "cost": 11.971475,
-  "average": 307.75,
-  "filled": 0.0389,
-  "remaining": 0,
-  "status": "closed",
-  "fee": {
-    "cost": 0.00002917,
-    "currency": "BNB"
-  },
-  "trades": [
-    {
-      "info": {
-        "price": "307.75000000",
-        "qty": "0.03890000",
-        "commission": "0.00002917",
-        "commissionAsset": "BNB",
-        "tradeId": 14693522
-      },
-      "symbol": "BNB/EUR",
-      "price": 307.75,
-      "amount": 0.0389,
-      "cost": 11.971475,
-      "fee": {
-        "cost": 0.00002917,
-        "currency": "BNB"
-      }
-    }
-  ]
+  }
 }

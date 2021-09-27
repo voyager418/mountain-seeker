@@ -12,7 +12,8 @@ export class TestHelper {
     private static BINANCE_FETCH_BNB_TICKER_FILE_PATH = "/files/binance_fetch_BNB_ticker.json";
     private static BINANCE_FETCH_OHLCV_FILE_PATH = "/files/binance_fetch_ohlcv.json";
     private static BINANCE_FETCH_BALANCE_FILE_PATH = "/files/binance_fetch_wallet_balance.json";
-    private static BINANCE_MARKET_BUY_ORDER_FILE_PATH = "/files/binance_create_MARKET_BUY_order.json";
+    private static BINANCE_MARKET_BUY_ORDER_FILE_PATH = "/files/binance_ccxt_create_MARKET_BUY_order.json";
+    private static DIRECT_BINANCE_MARKET_BUY_ORDER_FILE_PATH = "/files/binance_create_MARKET_BUY_order.json";
     private static CANDLESTICKS = "/files/ADAUP_USDT_30m_candlesticks.json";
     private static CANDLESTICKS_PERCENT_VARIATIONS = "/files/ADAUP_USDT_30m_candlesticks_percent_variations.json";
     private static CURRENT_DIRECTORY_PATH = __dirname;
@@ -44,6 +45,11 @@ export class TestHelper {
 
     static getBinanceCreateBuyMarketOrder(): ccxt.Order {
         return JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.BINANCE_MARKET_BUY_ORDER_FILE_PATH,
+            "utf8")) as ccxt.Order;
+    }
+
+    static getDirectBinanceCreateBuyMarketOrder(): any {
+        return JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.DIRECT_BINANCE_MARKET_BUY_ORDER_FILE_PATH,
             "utf8")) as ccxt.Order;
     }
 

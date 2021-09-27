@@ -1,10 +1,13 @@
 import "reflect-metadata";
+import axios from "axios";
 import { BinanceConnector } from "../../src/api-connectors/binance-connector";
 import { TestHelper } from "../test-helper";
 import { GlobalUtils } from "../../src/utils/global-utils";
 import { Currency } from "../../src/enums/trading-currencies.enum";
 import { binance } from "ccxt";
 import { ConfigService } from "../../src/services/config-service";
+jest.mock("axios");
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 
 describe("Binance connector", () => {
@@ -255,47 +258,54 @@ describe("Binance connector", () => {
             configService.isSimulation = jest.fn(() => false);
         });
 
-        // TODO
-        xtest("Should correctly create a MARKET BUY order", async() => {
+        test("Should correctly create a MARKET BUY order", async() => {
             // arrange
             const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
-            //binanceConnector.createBuyMarketOrderOnBinance = jest.fn(async () => Promise.resolve({ id: "123" }));
+            const createBuyMarketOrderOnBinanceSpy = jest.spyOn(binanceConnector, 'createBuyMarketOrderOnBinance');
+            mockedAxios.post.mockResolvedValueOnce(TestHelper.getDirectBinanceCreateBuyMarketOrder());
 
             // act
-            const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BNB", 12, true);
+            const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BTC", 20, true);
 
             // assert
-            expect(binanceConnector.createBuyMarketOrderOnBinance).toHaveBeenCalled();
+            expect(createBuyMarketOrderOnBinanceSpy).toHaveBeenCalledWith(Currency.EUR.toString(), "BTC", 20);
             expect(waitForOrderCompletionSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    externalId: "234063358",
+                    externalId: "1199969870",
                     status: "closed"
                 }),
-                Currency.EUR,
-                "BNB",
+                Currency.EUR.toString(),
+                "BTC",
                 3
             );
             expect(res).toMatchObject({
                 side: "buy",
-                externalId: "234063358",
-                amountOfTargetAsset: 0.0389,
-                amountOfOriginAsset: 11.971475,
-                filled: 0.03887082,
+                externalId: "1199969870",
+                amountOfTargetAsset: 0.00053,
+                amountOfOriginAsset: 19.662287,
+                filled: 0.00053,
                 remaining: 0,
-                average: 307.75,
+                average: 37098.65471698,
                 status: "closed",
                 originAsset: "EUR",
-                targetAsset: "BNB",
+                targetAsset: "BTC",
                 type: "MARKET",
-                datetime: "2021-05-27T13:39:24.641Z",
+                datetime: "2021-09-26T12:42:12.185Z",
                 info : {
                     fills: [
                         {
-                            "price": "307.75000000",
-                            "qty": "0.03890000",
-                            "commission": "0.00002917",
+                            "price": "37095.78000000",
+                            "qty": "0.00001000",
+                            "commission": "0.00000094",
                             "commissionAsset": "BNB",
-                            "tradeId": 14693522
+                            "tradeId": 64708797
+                        },
+                        {
+                            "price": "37098.71000000",
+                            "qty": "0.00052000",
+                            "commission": "0.00004948",
+                            "commissionAsset": "BNB",
+                            "tradeId": 64708798
                         }
                     ]
                 }
