@@ -192,9 +192,11 @@ export class StrategyUtils {
      */
     private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOf30mCandlesInDesiredPeriod: number): Array<TOHLCV> {
         const res: Array<TOHLCV> = [];
-        for (let i = inputCandleSticks.length - 1; i > 0; i -= numberOf30mCandlesInDesiredPeriod) {
+        res.push(inputCandleSticks[inputCandleSticks.length - 1]); // putting latest 30min candle as the last candle in desired period
+
+        for (let i = inputCandleSticks.length - 2; i > 0; i -= numberOf30mCandlesInDesiredPeriod) {
             if (i - numberOf30mCandlesInDesiredPeriod > 0) {
-                const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOf30mCandlesInDesiredPeriod - 1, i + 1);
+                const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOf30mCandlesInDesiredPeriod + 1, i + 1);
                 const first30MinCandle = candleSticksInDesiredPeriod[0];
                 const last30MinCandle = candleSticksInDesiredPeriod[numberOf30mCandlesInDesiredPeriod - 1];
 

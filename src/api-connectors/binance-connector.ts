@@ -838,7 +838,6 @@ export class BinanceConnector {
         }
 
         // for stop-limit orders Binance does not provide commission data so it has to be computed manually
-        // TODO : see if for limit orders we have commissions available
         if (orderType !== OrderType.MARKET) {
             // 0.1% is the default binance transaction fee, see https://www.binance.com/en/fee/schedule or in the account settings
             // If BNB is available then Binance pays the fee from BNB wallet, so the below number is an approximation
