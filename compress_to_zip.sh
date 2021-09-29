@@ -19,7 +19,7 @@ cp -a .ebextensions \
 		tsconfig.json \
 		tempFolder
 
-ditto -c -k --sequesterRsrc tempFolder "$fileName"
+cd tempFolder && zip -r ../"$fileName" ./* && cd ..
 
 rm -rf tempFolder
 
