@@ -8,7 +8,6 @@ import { DynamodbRepository } from "../../src/repository/dynamodb-repository";
 import { TestHelper } from "../test-helper";
 import { CandlestickInterval } from "../../src/enums/candlestick-interval.enum";
 import { StrategyUtils } from "../../src/utils/strategy-utils";
-import { Currency } from "../../src/enums/trading-currencies.enum";
 
 
 describe("Binance data service", () => {
@@ -33,7 +32,7 @@ describe("Binance data service", () => {
 
         test("Should correctly fetch, construct candlesticks and filter markets", async() => {
             // arrange
-            jest.spyOn(StrategyUtils, 'filterByAuthorizedCurrencies').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
+            jest.spyOn(StrategyUtils, 'filterByAuthorizedMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumTradingVolume').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumAmountOfCandleSticks').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByStrangeMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
@@ -45,8 +44,9 @@ describe("Binance data service", () => {
 
             // assert
             expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-1000);
-            expect(StrategyUtils.filterByAuthorizedCurrencies).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                [Currency.EUR]);
+            expect(StrategyUtils.filterByAuthorizedMarkets).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
+                ["BTC/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHDOWN/USDT",
+                    "ADA/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCDOWN/USDT"]);
 
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.THIRTY_MINUTES, 500);

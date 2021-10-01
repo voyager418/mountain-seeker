@@ -6,7 +6,6 @@ import { BinanceConnector } from "../../api-connectors/binance-connector";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { Market } from "../../models/market";
 import { StrategyUtils } from "../../utils/strategy-utils";
-import { Currency } from "../../enums/trading-currencies.enum";
 import { Subject } from "./subject.interface";
 import { BaseStrategy } from "../../strategies/base-strategy.interface";
 import { GlobalUtils } from "../../utils/global-utils";
@@ -29,8 +28,8 @@ export class BinanceDataService implements Subject {
     private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 50;
     private readonly minimumPercentFor24hVariation = -1000;
-    private readonly authorizedCurrencies = [Currency.EUR];
-
+    private readonly authorizedMarkets = ["BTC/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHDOWN/USDT",
+        "ADA/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCDOWN/USDT"];
 
     constructor(private configService: ConfigService,
         private repository: DynamodbRepository,
@@ -64,7 +63,8 @@ export class BinanceDataService implements Subject {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.binanceConnector.setMarketAmountPrecision(this.markets);
-            this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
+            this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.authorizedMarkets);
+
             await this.fetchAndSetCandleSticks();
 
             // notify strategies

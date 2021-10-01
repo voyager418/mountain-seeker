@@ -17,7 +17,7 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.SQZ,
         config: {
-            maxMoneyToTrade: 100,
+            maxMoneyToTrade: 1000,
             autoRestartOnProfit: true
         }
     }

@@ -99,11 +99,19 @@ export class Squeeze implements BaseStrategy {
         if (!strategyDetails.config.authorizedCurrencies) {
             this.config.authorizedCurrencies = [Currency.EUR];
         }
+        const trailingPricePercentMap = new Map();
+        trailingPricePercentMap.set("BTC/USDT", 1.0);
+        trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
+        trailingPricePercentMap.set("BNB/USDT", 1.0);
+        trailingPricePercentMap.set("ETH/USDT", 1.0);
+        trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
+        trailingPricePercentMap.set("ADA/USDT", 1.0);
+        trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor1h: TradingLoopConfig = {
                 initialSecondsToSleepInTheTradingLoop: 5, // 5 sec
                 secondsToSleepInTheTradingLoop: 300, // 5 min
-                trailPricePercent: 1.0,
+                trailPricePercent: trailingPricePercentMap,
                 stopTradingMaxPercentLoss: -5
             };
             this.config.activeCandleStickIntervals = new Map([[CandlestickInterval.ONE_HOUR, configFor1h]]);
@@ -113,7 +121,7 @@ export class Squeeze implements BaseStrategy {
         }
         if (!strategyDetails.config.authorizedMarkets) {
             // sorted by order of preference
-            this.config.authorizedMarkets = ["BTC/EUR", "BNB/EUR", "ETH/EUR"];
+            this.config.authorizedMarkets = Array.from(trailingPricePercentMap!.keys());
         }
     }
 
@@ -140,16 +148,16 @@ export class Squeeze implements BaseStrategy {
             "Current state : \n" + JSON.stringify(this.state, GlobalUtils.replacer, 4) +
             "\n\nMarket details : \n" + JSON.stringify(market, GlobalUtils.replacer, 4)).then().catch(e => log.error(e));
 
-        // 2. Fetch wallet balance and compute amount of EUR to invest
-        await this.getInitialBalance([Currency.EUR.toString(), market.targetAsset]);
-        const availableEurAmount = this.initialWalletBalance?.get(Currency.EUR.toString());
-        const eurAmountToInvest = this.computeAmountToInvest(market, availableEurAmount!);
+        // 2. Fetch wallet balance and compute amount of USDT to invest
+        await this.getInitialBalance([Currency.USDT.toString(), market.targetAsset]);
+        const availableUsdtAmount = this.initialWalletBalance?.get(Currency.USDT.toString());
+        const usdtAmountToInvest = this.computeAmountToInvest(market, availableUsdtAmount!);
 
         // 3. First MARKET BUY order to buy market.targetAsset
-        log.debug("Preparing to execute the first buy order on %O market to invest %O€", market.symbol, eurAmountToInvest);
+        log.debug("Preparing to execute the first buy order on %O market to invest %OUSDT", market.symbol, usdtAmountToInvest);
         const buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(market.originAsset, market.targetAsset,
-            eurAmountToInvest, true, 5).catch(e => Promise.reject(e));
-        this.state.investedAmountOfEuro = buyOrder.amountOfOriginAsset;
+            usdtAmountToInvest, true, 5).catch(e => Promise.reject(e));
+        this.state.investedAmountOfUsdt = buyOrder.amountOfOriginAsset;
 
         // 4. First STOP LIMIT SELL order (default: -5%)
         const stopLimitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
@@ -176,9 +184,10 @@ export class Squeeze implements BaseStrategy {
         let lastSellStopLimitOrder = sellStopLimitOrder;
         let potentialProfit;
         let marketUnitPrice = Infinity;
+        let firstTrailPriceSet = false;
 
         while (tempTrailPrice < marketUnitPrice) {
-            if (tempTrailPrice !== stopLimitPrice) {
+            if (firstTrailPriceSet) {
                 // if first trailing limit is set, wait longer
                 await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
             } else {
@@ -192,8 +201,9 @@ export class Squeeze implements BaseStrategy {
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
-            tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent);
+            tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent.get(market.symbol)!);
             if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
+                firstTrailPriceSet = true;
                 // cancel the previous sell limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
                     market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
@@ -215,8 +225,7 @@ export class Squeeze implements BaseStrategy {
     }
 
     /**
-     * If the initial selected market was not accepting EUR (e.g. "CAKE/BNB")
-     * then the full amount of origin asset is traded for EUR (e.g. => BNB is sold on "BNB/EUR" market)
+     *
      */
     private async handleTradeEnd(market: Market, lastStopLimitOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
@@ -229,15 +238,15 @@ export class Squeeze implements BaseStrategy {
                 lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
 
-        this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
-        this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
+        this.state.retrievedAmountOfUsdt = completedOrder!.amountOfOriginAsset!;
+        this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
+        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.EUR.toString(), market.targetAsset])
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
-            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitEuro.toFixed(2)}€)`, "Final state is : \n" +
+            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitUsdt.toFixed(2)}USDT)`, "Final state is : \n" +
             JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         log.info(`Final percent change : ${this.state.profitPercent} | Final state : ${JSON.stringify(this.state)}`);

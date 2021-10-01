@@ -10,11 +10,11 @@ export type SqueezeState = TradingState & {
     /** Indicates the made profit in %, can be negative */
     profitPercent?: number;
     /** Indicates the made profit in €, can be negative */
-    profitEuro?: number;
-    /** The amount in EUR that was put in the market */
-    investedAmountOfEuro?: number;
-    /** The amount in EUR that was retrieved at the end of the trade */
-    retrievedAmountOfEuro?: number;
+    profitUsdt?: number;
+    /** The amount in USDT that was put in the market */
+    investedAmountOfUsdt?: number;
+    /** The amount in USDT that was retrieved at the end of the trade */
+    retrievedAmountOfUsdt?: number;
     /** The number of open positions */
     openOrders?: number;
     /** The market price percent change last 24h */

@@ -362,7 +362,7 @@ export class BinanceConnector {
         try {
             binanceOrder = await axios.post(url, undefined, { headers: this.headers });
         } catch (e) {
-            log.warn(`Error when creating market buy order: ${JSON.stringify(e)}`);
+            log.error(`Error when creating market buy order: ${JSON.stringify(e)}`);
         }
 
         if (binanceOrder && binanceOrder.status === 200) {
@@ -386,7 +386,7 @@ export class BinanceConnector {
             }
             return Promise.resolve(order);
         } else {
-            log.warn(`Received response from binance : ${JSON.stringify(binanceOrder)}`);
+            log.error(`Received response from binance : ${JSON.stringify(binanceOrder)}`);
         }
 
         return Promise.reject(undefined);
