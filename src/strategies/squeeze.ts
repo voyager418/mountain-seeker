@@ -103,8 +103,9 @@ export class Squeeze implements BaseStrategy {
         trailingPricePercentMap.set("BTCUP/USDT", 0.5);
         trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
         trailingPricePercentMap.set("BNBUP/USDT", 0.5);
-        trailingPricePercentMap.set("ETHUP/USDT", 0.5);
         trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
+        trailingPricePercentMap.set("ETHUP/USDT", 0.5);
+        trailingPricePercentMap.set("ETHDOWN/USDT", 0.5);
         trailingPricePercentMap.set("ADAUP/USDT", 0.5);
         trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
         if (!strategyDetails.config.activeCandleStickIntervals) {
