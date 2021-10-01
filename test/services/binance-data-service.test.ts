@@ -45,8 +45,8 @@ describe("Binance data service", () => {
             // assert
             expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-1000);
             expect(StrategyUtils.filterByAuthorizedMarkets).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                ["BTC/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHDOWN/USDT",
-                    "ADA/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCDOWN/USDT"]);
+                ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
+                    "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT"]);
 
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.THIRTY_MINUTES, 500);

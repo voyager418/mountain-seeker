@@ -28,8 +28,8 @@ export class BinanceDataService implements Subject {
     private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 50;
     private readonly minimumPercentFor24hVariation = -1000;
-    private readonly authorizedMarkets = ["BTC/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHDOWN/USDT",
-        "ADA/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCDOWN/USDT"];
+    private readonly authorizedMarkets = ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
+        "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT"];
 
     constructor(private configService: ConfigService,
         private repository: DynamodbRepository,

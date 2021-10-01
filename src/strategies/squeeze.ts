@@ -100,12 +100,12 @@ export class Squeeze implements BaseStrategy {
             this.config.authorizedCurrencies = [Currency.EUR];
         }
         const trailingPricePercentMap = new Map();
-        trailingPricePercentMap.set("BTC/USDT", 1.0);
+        trailingPricePercentMap.set("BTCUP/USDT", 0.5);
         trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
-        trailingPricePercentMap.set("BNB/USDT", 1.0);
-        trailingPricePercentMap.set("ETH/USDT", 1.0);
+        trailingPricePercentMap.set("BNBUP/USDT", 0.5);
+        trailingPricePercentMap.set("ETHUP/USDT", 0.5);
         trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
-        trailingPricePercentMap.set("ADA/USDT", 1.0);
+        trailingPricePercentMap.set("ADAUP/USDT", 0.5);
         trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor1h: TradingLoopConfig = {
