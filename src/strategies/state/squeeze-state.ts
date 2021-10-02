@@ -24,7 +24,7 @@ export type SqueezeState = TradingState & {
     /** Indicates whether the trading ended without problems */
     endedWithoutErrors?: boolean;
     /** For example : if trading market is "BNB/EUR", then Y = BNB */
-    pricePercentChangeOnYEur?: number;
+    pricePercentChangeOnYUsdt?: number;
     /** Amount of Y that was bought */
     amountOfYBought?: number;
     /** The candlestick interval that is being used by a strategy */
