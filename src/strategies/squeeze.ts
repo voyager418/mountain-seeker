@@ -18,6 +18,7 @@ import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
 import { SqueezeConfig, TradingLoopConfig } from "./config/squeeze-config";
 import { SqueezeIndicator } from "../indicators/squeeze-indicator";
+import assert from "assert";
 
 
 /**
@@ -97,18 +98,18 @@ export class Squeeze implements BaseStrategy {
     private initDefaultConfig(strategyDetails: StrategyDetails<SqueezeConfig>) {
         this.config.marketLastTradeDate = new Map<string, Date>();
         if (!strategyDetails.config.authorizedCurrencies) {
-            this.config.authorizedCurrencies = [Currency.EUR];
+            this.config.authorizedCurrencies = [Currency.USDT];
         }
         const trailingPricePercentMap = new Map();
-        trailingPricePercentMap.set("BTCUP/USDT", 0.5);
-        trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
-        trailingPricePercentMap.set("BNBUP/USDT", 0.5);
-        trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
-        trailingPricePercentMap.set("ETHUP/USDT", 0.5);
-        trailingPricePercentMap.set("ETHDOWN/USDT", 0.5);
-        trailingPricePercentMap.set("ADAUP/USDT", 0.5);
-        trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
         if (!strategyDetails.config.activeCandleStickIntervals) {
+            trailingPricePercentMap.set("BTCUP/USDT", 0.5);
+            trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
+            trailingPricePercentMap.set("BNBUP/USDT", 0.5);
+            trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
+            trailingPricePercentMap.set("ETHUP/USDT", 0.5);
+            trailingPricePercentMap.set("ETHDOWN/USDT", 0.5);
+            trailingPricePercentMap.set("ADAUP/USDT", 0.5);
+            trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
             const configFor1h: TradingLoopConfig = {
                 initialSecondsToSleepInTheTradingLoop: 5, // 5 sec
                 secondsToSleepInTheTradingLoop: 300, // 5 min
@@ -124,6 +125,11 @@ export class Squeeze implements BaseStrategy {
             // sorted by order of preference
             this.config.authorizedMarkets = Array.from(trailingPricePercentMap!.keys());
         }
+
+        // each authorised market must be defined in trailPricePercent map
+        strategyDetails.config.authorizedMarkets!.forEach(marketSymbol =>
+            assert(this.config.activeCandleStickIntervals?.get(CandlestickInterval.ONE_HOUR)!
+                .trailPricePercent.get(marketSymbol) !== undefined), "Something is not correct in the configuration");
     }
 
     public async run(): Promise<void> {
