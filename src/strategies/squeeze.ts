@@ -158,7 +158,7 @@ export class Squeeze implements BaseStrategy {
         // 2. Fetch wallet balance and compute amount of USDT to invest
         await this.getInitialBalance([Currency.USDT.toString(), market.targetAsset]);
         const availableUsdtAmount = this.initialWalletBalance?.get(Currency.USDT.toString());
-        const usdtAmountToInvest = this.computeAmountToInvest(market, availableUsdtAmount!);
+        const usdtAmountToInvest = this.computeAmountToInvest(availableUsdtAmount!);
 
         // 3. First MARKET BUY order to buy market.targetAsset
         log.debug("Preparing to execute the first buy order on %O market to invest %OUSDT", market.symbol, usdtAmountToInvest);
@@ -222,10 +222,10 @@ export class Squeeze implements BaseStrategy {
                 lastSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
                     "sell", targetAssetAmount, newSellStopLimitPrice, newSellStopLimitPrice, 3).catch(e => Promise.reject(e));
             }
-            this.state.pricePercentChangeOnYEur = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            this.state.pricePercentChangeOnYUsdt = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
             potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
             log.info(`Buy : ${buyOrder.average}, current : ${(marketUnitPrice)
-                .toFixed(8)}, change % : ${this.state.pricePercentChangeOnYEur}% | Sell price : ${stopLimitPrice
+                .toFixed(8)}, change % : ${this.state.pricePercentChangeOnYUsdt}% | Sell price : ${stopLimitPrice
                 .toFixed(8)} | Potential profit : ${potentialProfit.toFixed(3)}%`);
         }
         return Promise.resolve(lastSellStopLimitOrder);
@@ -249,7 +249,7 @@ export class Squeeze implements BaseStrategy {
         this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
         this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
 
-        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.EUR.toString(), market.targetAsset])
+        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), market.targetAsset])
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
@@ -333,9 +333,9 @@ export class Squeeze implements BaseStrategy {
     }
 
     /**
-     * @return The amount of {@link Currency.EUR} that will be invested (the minimum between the available and the max money to trade)
+     * @return The amount of {@link Currency.USDT} that will be invested (the minimum between the available and the max money to trade)
      */
-    private computeAmountToInvest(market: Market, availableAmountOfEur: number): number {
-        return Math.min(availableAmountOfEur, this.config.maxMoneyToTrade);
+    private computeAmountToInvest(availableAmountOfUsdt: number): number {
+        return Math.min(availableAmountOfUsdt, this.config.maxMoneyToTrade);
     }
 }
