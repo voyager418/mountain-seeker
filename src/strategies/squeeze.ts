@@ -102,16 +102,16 @@ export class Squeeze implements BaseStrategy {
         }
         const trailingPricePercentMap = new Map();
         if (!strategyDetails.config.activeCandleStickIntervals) {
-            trailingPricePercentMap.set("BTCUP/USDT", 0.5);
-            trailingPricePercentMap.set("BTCDOWN/USDT", 0.5);
-            trailingPricePercentMap.set("BNBUP/USDT", 0.5);
-            trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
-            trailingPricePercentMap.set("ETHUP/USDT", 0.5);
-            trailingPricePercentMap.set("ETHDOWN/USDT", 0.5);
             trailingPricePercentMap.set("ADAUP/USDT", 0.5);
             trailingPricePercentMap.set("ADADOWN/USDT", 0.5);
+            trailingPricePercentMap.set("BNBUP/USDT", 0.5);
+            trailingPricePercentMap.set("BNBDOWN/USDT", 0.5);
+            trailingPricePercentMap.set("EOSUP/USDT", 0.5);
+            trailingPricePercentMap.set("EOSDOWN/USDT", 0.5);
+            trailingPricePercentMap.set("ETHUP/USDT", 0.5);
+            trailingPricePercentMap.set("ETHDOWN/USDT", 0.5);
             const configFor1h: TradingLoopConfig = {
-                initialSecondsToSleepInTheTradingLoop: 5, // 5 sec
+                initialSecondsToSleepInTheTradingLoop: 3, // 3 sec
                 secondsToSleepInTheTradingLoop: 300, // 5 min
                 trailPricePercent: trailingPricePercentMap,
                 stopTradingMaxPercentLoss: -5
