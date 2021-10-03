@@ -2,7 +2,6 @@ import { Indicator, IndicatorOutput } from "./indicator.interface";
 import { singleton } from "tsyringe";
 import { TOHLCV } from "../models/market";
 import { spawnSync } from "child_process";
-import log from "../logging/log.instance";
 
 /**
  * Squeeze momentum indicator
@@ -15,7 +14,7 @@ export class SqueezeIndicator implements Indicator {
 
         const pythonProcess = spawnSync("python3", ["src/scripts/squeeze_indicator.py", candleSticks.toString()]);
         if (pythonProcess.stderr.toString()) {
-            log.error(pythonProcess.stderr.toString());
+            throw new Error(pythonProcess.stderr.toString());
         }
 
         const pythonOutput = pythonProcess.stdout.toString();

@@ -14,9 +14,7 @@ export type SqueezeConfig = BaseStrategyConfig & {
      * It is an array of market symbols, for example : ["BNB/EUR", ...] */
     authorizedMarkets?: Array<string>;
 
-    /** The currencies that the strategy is allowed to use for trading.
-     * Example: we want to buy on GAS/BTC market but we only have EUR in the wallet.
-     * Therefore, the strategy will convert EUR to BTC */
+    /** The currencies that the strategy is allowed to use for trading */
     authorizedCurrencies?: Array<Currency>;
 
     /** Used to keep only those markets that have at least this number of percentage variation

@@ -12,7 +12,7 @@ export class EmailService {
         this.transporter = nodemailer.createTransport({
             service: process.env.EMAIL_PROVIDER,
             auth: {
-                user: process.env.EMAIL_ADDRESS,
+                user: process.env.PROVIDER_EMAIL_ADDRESS,
                 pass: process.env.EMAIL_PASS
             }
         });
@@ -22,8 +22,8 @@ export class EmailService {
         if (!this.configService.isSimulation()) {
             try {
                 await this.transporter.sendMail({
-                    from: `"MS 🏔" <${process.env.EMAIL_ADDRESS}>`, // sender address
-                    to: process.env.EMAIL_ADDRESS, // list of receivers
+                    from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
+                    to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
                     subject: subject,
                     text: text
                 });

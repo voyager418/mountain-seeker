@@ -133,13 +133,24 @@ export class BinanceConnector {
 
     /**
      * @param assets Array of assets for which the balance will be retrieved even if it's 0
+     * @param retries
      * @return A map for each requested currency
      */
-    public async getBalance(assets: Array<string>): Promise<Map<string, number>> {
-        // TODO maybe add retries or increase the sleep interval
-        await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
-        const balance = await this.binance.fetchBalance()
-            .catch(e => Promise.reject(`Failed to fetch wallet balance : ${e}`));
+    public async getBalance(assets: Array<string>, retries: number): Promise<Map<string, number>> {
+        assert(retries > 0, "`retries` must be a positive number");
+        let balance;
+        while (retries-- > -1) {
+            await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
+            try {
+                balance = await this.binance.fetchBalance();
+            } catch (e) {
+                log.error(`Failed to fetch wallet balance : ${e}`);
+            }
+        }
+        if (!balance) {
+            return Promise.reject(`Failed to fetch wallet balance for ${JSON.stringify(assets)} after ${Math.abs(retries) + 1} retries`);
+        }
+
         const res = new Map<string, number>();
         for (const currency of balance.info.balances) {
             if (assets.indexOf(currency.asset) >= 0) {
@@ -185,19 +196,6 @@ export class BinanceConnector {
         return Promise.resolve(success);
     }
 
-
-
-    /**
-     * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
-     * needed to call private Binance endpoints (like buy order)
-     */
-    private generateURL(urlBasePath: string, query: string): string {
-        const queryString = `${query}&timestamp=${Date.now()}`;
-        const urlPath = `${urlBasePath}?${queryString}`;
-        const signature = hmacSHA256(queryString, this.binance.secret).toString();
-        return `${urlPath}&signature=${signature}`;
-    }
-
     /**
      * This method always returns a valid result or exits with an error.
      * @return A number that stands for the amount of `inAsset` needed to buy 1 unit of `ofAsset`
@@ -236,7 +234,7 @@ export class BinanceConnector {
      * @param awaitCompletion If `true` then there will be a delay in order to wait for the order status to
      * change from `open` to `closed`
      * @param retries Indicates the number of times the order will be repeated after a failure
-     * @param amountToInvest The number of origin asset that is going to be invested (needed for retries).
+     * @param amountToInvest The number of origin asset that is going to be invested. Needed to recalculate the {@link amount} in case of sudden price move
      * @param marketAmountPrecision Stands for the number of digits after the dot that the market authorises to use and
      * uses it to truncate the {@link amount}
      */
@@ -261,12 +259,9 @@ export class BinanceConnector {
         if (!binanceOrder && retries) {
             // This variable is used to decrease the amount price by small steps in case of a InsufficientFunds exception in a buy order.
             // This scenario happens when the market price is quickly changing.
-            // It is possible to avoid this, but for that we would need to use Binance's API for creating orders
-            // and use the "quoteOrderQty" parameter in order to create market orders by specifying how many we want to spend
-            // instead of how much to buy.
             let percentDecreaseMultiplier = 1;
 
-            while (retries-- > 0) {
+            while (retries-- > 0 && !binanceOrder) {
                 await GlobalUtils.sleep(3);
                 log.debug("Creating new market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
                 try {
@@ -333,15 +328,13 @@ export class BinanceConnector {
         } catch (e) {
             log.error(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
-        if (!binanceOrder && retries) {
-            while (retries-- > 0) {
-                await GlobalUtils.sleep(3);
-                log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, originAsset);
-                try {
-                    binanceOrder = await this.createBuyMarketOrderOnBinance(originAsset, targetAsset, quoteAmount);
-                } catch (e) {
-                    log.warn(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}: ${e}`);
-                }
+        while (retries !== undefined && !binanceOrder && retries-- > 0) {
+            await GlobalUtils.sleep(3);
+            log.debug("Creating new buy market order on %O/%O of %O %O", targetAsset, originAsset, quoteAmount, originAsset);
+            try {
+                binanceOrder = await this.createBuyMarketOrderOnBinance(originAsset, targetAsset, quoteAmount);
+            } catch (e) {
+                log.warn(`Failed to execute buy market order of ${quoteAmount} on market ${targetAsset}/${originAsset}: ${e}`);
             }
         }
         if (!binanceOrder) {
@@ -354,7 +347,7 @@ export class BinanceConnector {
     /**
      * Creates a BUY MARKET order by calling Binance API directly
      */
-    public async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order> {
+    private async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order> {
         const query = `symbol=${targetAsset}${originAsset.toString()}&side=BUY&type=MARKET&quoteOrderQty=${amountOfQuoteCurrency}`;
         const url = this.generateURL(`${this.V3_URL_BASE_PATH}/order`, query);
         let binanceOrder;
@@ -394,7 +387,7 @@ export class BinanceConnector {
 
 
     /**
-     * Creates market buy order.
+     * Creates market sell order.
      *
      * @param originAsset
      * @param targetAsset
@@ -420,15 +413,13 @@ export class BinanceConnector {
         } catch (e) {
             log.error(`Failed to execute sell market order of ${amount} on market ${targetAsset}/${originAsset}. ${e}`);
         }
-        if (!binanceOrder && retries) {
-            while (retries-- > 0) {
-                await GlobalUtils.sleep(3);
-                log.debug("Creating new sell market order on %O/%O of %O %O", targetAsset, originAsset, targetAsset);
-                try {
-                    binanceOrder = await this.binance.createMarketSellOrder(`${targetAsset}/${originAsset}`, amount);
-                } catch (e) {
-                    log.warn(`Failed to execute sell market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
-                }
+        while (retries !== undefined && !binanceOrder && retries-- > 0) {
+            await GlobalUtils.sleep(3);
+            log.debug("Creating new sell market order on %O/%O of %O %O", targetAsset, originAsset, targetAsset);
+            try {
+                binanceOrder = await this.binance.createMarketSellOrder(`${targetAsset}/${originAsset}`, amount);
+            } catch (e) {
+                log.warn(`Failed to execute sell market order of ${amount} on market ${targetAsset}/${originAsset}: ${e}`);
             }
         }
         if (!binanceOrder) {
@@ -491,19 +482,17 @@ export class BinanceConnector {
         } catch (e) {
             log.error(`Failed to execute stop limit order of ${amount} on ${targetAsset}/${originAsset}: ${e}`);
         }
-        if (!binanceOrder && retries) {
-            while (retries-- > 0) {
-                await GlobalUtils.sleep(3);
-                log.debug("Creating %O stop limit order on %O/%O of %O %O. With stopPrice : %O, limitPrice: %O",
-                    side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
-                try {
-                    binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
-                        "STOP_LOSS_LIMIT", side, amount, limitPrice, {
-                            stopPrice: stopPrice
-                        });
-                } catch (e) {
-                    log.error("Failed to create order : ", e);
-                }
+        while (retries !== undefined && !binanceOrder && retries-- > 0) {
+            await GlobalUtils.sleep(3);
+            log.debug("Creating %O stop limit order on %O/%O of %O %O. With stopPrice : %O, limitPrice: %O",
+                side, targetAsset, originAsset, amount, targetAsset, stopPrice, limitPrice);
+            try {
+                binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`,
+                    "STOP_LOSS_LIMIT", side, amount, limitPrice, {
+                        stopPrice: stopPrice
+                    });
+            } catch (e) {
+                log.error("Failed to create order : ", e);
             }
         }
 
@@ -553,16 +542,14 @@ export class BinanceConnector {
         } catch (e) {
             log.error(`Failed to execute sell limit order of ${amount} on ${targetAsset}/${originAsset}: ${e}`);
         }
-        if (!binanceOrder && retries) {
-            while (retries-- > 0) {
-                await GlobalUtils.sleep(3);
-                log.debug("Creating sell limit order on %O/%O of %O %O. With limitPrice: %O",
-                    targetAsset, originAsset, amount, targetAsset, limitPrice);
-                try {
-                    binanceOrder = await this.binance.createLimitSellOrder(`${targetAsset}/${originAsset}`, amount, limitPrice);
-                } catch (e) {
-                    log.error("Failed to create order : ", e);
-                }
+        while (retries !== undefined && !binanceOrder && retries-- > 0) {
+            await GlobalUtils.sleep(3);
+            log.debug("Creating sell limit order on %O/%O of %O %O. With limitPrice: %O",
+                targetAsset, originAsset, amount, targetAsset, limitPrice);
+            try {
+                binanceOrder = await this.binance.createLimitSellOrder(`${targetAsset}/${originAsset}`, amount, limitPrice);
+            } catch (e) {
+                log.error("Failed to create order : ", e);
             }
         }
 
@@ -606,7 +593,7 @@ export class BinanceConnector {
             return Promise.resolve(order);
         }
         let remainingRetries = retries;
-        while (!filled && remainingRetries > 0) {
+        while (!filled && remainingRetries-- > 0) {
             log.debug("Waiting for order completion");
             try {
                 order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, order.type!, undefined, true);
@@ -618,12 +605,10 @@ export class BinanceConnector {
             } catch (e) {
                 log.warn(`Order with binance id ${order.externalId} was not found : `, e);
             }
-
-            if (remainingRetries === 0) {
-                return Promise.resolve(undefined);
-            }
-            remainingRetries--;
             await GlobalUtils.sleep(2);
+        }
+        if (!filled) {
+            return Promise.resolve(undefined);
         }
         return Promise.resolve(undefined);
     }
@@ -643,50 +628,49 @@ export class BinanceConnector {
         if (verbose) {
             log.debug(`Getting information about binance order ${externalId}`);
         }
+
         let binanceOrder;
-        while (!binanceOrder || (retries && retries > -1)) {
+        try {
+            binanceOrder = await this.binance.fetchOrder(externalId, `${targetAsset}/${originAsset}`);
+        } catch (e) {
+            log.warn(`Error while getting order ${externalId}`, e);
+        }
+        while (retries !== undefined && !binanceOrder && retries-- > 0) {
+            await GlobalUtils.sleep(2);
             try {
                 binanceOrder = await this.binance.fetchOrder(externalId, `${targetAsset}/${originAsset}`);
-                const order: Order = {
-                    type: orderType,
-                    id: internalOrderId,
-                    externalId: binanceOrder.id,
-                    side: binanceOrder.side,
-                    amountOfTargetAsset: binanceOrder.amount,
-                    filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset, binanceOrder.info?.fills),
-                    remaining: binanceOrder.remaining,
-                    average: binanceOrder.average!,
-                    amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
-                    status: binanceOrder.status,
-                    datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
-                    info: binanceOrder.info,
-                    originAsset,
-                    targetAsset
-                };
                 if (verbose) {
-                    log.debug(`Fetched information about order : ${JSON.stringify(order)}`);
+                    log.debug(`Fetched information about order : ${JSON.stringify(binanceOrder)}`);
                 }
-                return Promise.resolve(order);
             } catch (e) {
                 log.warn(`Error while getting order ${externalId}`, e);
-                if (retries) {
-                    if (retries === -1) {
-                        return Promise.reject(e);
-                    } else {
-                        retries--;
-                        await GlobalUtils.sleep(2);
-                        log.debug("Retrying to get order %O", externalId);
-                    }
-                } else {
-                    return Promise.reject(e);
-                }
             }
         }
-        return Promise.reject(`Order ${externalId} was not found`);
+        if (!binanceOrder) {
+            return Promise.reject(`Order ${externalId} was not found`);
+        }
+
+        const order: Order = {
+            type: orderType,
+            id: internalOrderId,
+            externalId: binanceOrder.id,
+            side: binanceOrder.side,
+            amountOfTargetAsset: binanceOrder.amount,
+            filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, orderType, binanceOrder.side, targetAsset, binanceOrder.info?.fills),
+            remaining: binanceOrder.remaining,
+            average: binanceOrder.average!,
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
+            status: binanceOrder.status,
+            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            info: binanceOrder.info,
+            originAsset,
+            targetAsset
+        };
+        return order;
     }
 
     /**
-     * @return `true` if order is closed
+     * @return `true` if order is closed or `false` otherwise
      */
     public async orderIsClosed(externalId: string, originAsset: Currency, targetAsset: string,
         internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean): Promise<boolean> {
@@ -722,7 +706,7 @@ export class BinanceConnector {
         };
         while (order.status !== "canceled") {
             try {
-                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.MARKET); // the OrderType.MARKET here has no importance
+                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.STOP_LIMIT); // the OrderType has no importance
             } catch (e) {
                 log.warn(`Failed to get the cancelled order ${order.externalId} : ${e}`);
             }
@@ -752,6 +736,48 @@ export class BinanceConnector {
             const amountPrecision = this.binance.markets[markets[i].symbol]?.precision?.amount;
             if (amountPrecision && amountPrecision >= 0) {
                 markets[i].amountPrecision = amountPrecision;
+            }
+        }
+    }
+
+    /**
+     * Sets the {@link Market.pricePrecision} field
+     */
+    public setPricePrecision(markets: Array<Market>): void {
+        // fori and not a for of loop is needed because the array's content is modified in the loop
+        for (let i = 0; i < markets.length; i++) {
+            const pricePrecision = this.binance.markets[markets[i].symbol]?.precision?.price;
+            if (pricePrecision && pricePrecision >= 0) {
+                markets[i].pricePrecision = pricePrecision;
+            }
+        }
+    }
+
+    /**
+     * Sets the {@link Market.maxPosition} field
+     */
+    public setMaxPosition(markets: Array<Market>): void {
+        // fori and not a for of loop is needed because the array's content is modified in the loop
+        for (let i = 0; i < markets.length; i++) {
+            const maxPositionFilter = this.binance.markets[markets[i].symbol]?.info.filters
+                .filter((element: { filterType: string; }) => element.filterType === "MAX_POSITION")[0];
+            if (maxPositionFilter) {
+                markets[i].maxPosition = Number(maxPositionFilter.maxPosition);
+            } else {
+                markets[i].maxPosition = Infinity;
+            }
+        }
+    }
+
+    /**
+     * Sets the {@link Market.quoteOrderQtyMarketAllowed} field
+     */
+    public setQuoteOrderQtyMarketAllowed(markets: Array<Market>): void {
+        // fori and not a for of loop is needed because the array's content is modified in the loop
+        for (let i = 0; i < markets.length; i++) {
+            const quoteOrderQtyMarketAllowed = this.binance.markets[markets[i].symbol]?.info?.quoteOrderQtyMarketAllowed;
+            if (quoteOrderQtyMarketAllowed !== undefined) {
+                markets[i].quoteOrderQtyMarketAllowed = quoteOrderQtyMarketAllowed;
             }
         }
     }
@@ -811,8 +837,8 @@ export class BinanceConnector {
      * Used for debug purposes
      */
     public printMarketDetails(market: Market): void {
-        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
-        log.debug(`Market details from local object : ${JSON.stringify(market)}`);
+        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol], GlobalUtils.replacer, 4)}`);
+        log.debug(`Market details from local object : ${JSON.stringify(market, GlobalUtils.replacer, 4)}`);
     }
 
     /**
@@ -884,6 +910,17 @@ export class BinanceConnector {
             }
         }
         return GlobalUtils.truncateNumber(amountOfTargetAsset, 8);
+    }
+
+    /**
+     * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
+     * needed to call private Binance endpoints (like buy order)
+     */
+    private generateURL(urlBasePath: string, query: string): string {
+        const queryString = `${query}&timestamp=${Date.now()}`;
+        const urlPath = `${urlBasePath}?${queryString}`;
+        const signature = hmacSHA256(queryString, this.binance.secret).toString();
+        return `${urlPath}&signature=${signature}`;
     }
 
     /**

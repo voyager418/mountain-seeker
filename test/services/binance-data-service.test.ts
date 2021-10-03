@@ -49,26 +49,21 @@ describe("Binance data service", () => {
                     "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT"]);
 
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                CandlestickInterval.THIRTY_MINUTES, 500);
+                CandlestickInterval.DEFAULT, 400);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                50, CandlestickInterval.THIRTY_MINUTES);
-            expect(StrategyUtils.filterByStrangeMarkets).toHaveBeenCalledWith(expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+                200, CandlestickInterval.DEFAULT);
 
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(1,
-                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+                expect.anything(), CandlestickInterval.DEFAULT);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(2,
-                expect.anything(), CandlestickInterval.ONE_HOUR);
+                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
-                expect.anything(), CandlestickInterval.FOUR_HOURS);
-            expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(4,
-                expect.anything(), CandlestickInterval.SIX_HOURS);
+                expect.anything(), CandlestickInterval.ONE_HOUR);
 
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(1,
-                expect.anything(), CandlestickInterval.ONE_HOUR);
+                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
-                expect.anything(), CandlestickInterval.FOUR_HOURS);
-            expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(3,
-                expect.anything(), CandlestickInterval.SIX_HOURS);
+                expect.anything(), CandlestickInterval.ONE_HOUR);
         });
     });
 

@@ -42,9 +42,20 @@ export type Market = {
      * is the price * quantity */
     minNotional?: number;
 
+    /** Maximum amount of target asset that an account can hold */
+    maxPosition?: number;
+
     /** Number of digits after the dot related to the quantity of the {@link targetAsset} that the market authorizes
      * for buy/sell orders */
     amountPrecision?: number;
+
+    /** Number of digits after the dot related to the quantity of the {@link originAsset} that the market authorizes
+     * for buy/sell orders */
+    pricePrecision?: number;
+
+    /** If `true` then for buy orders we can specify the price that we want to spend.
+     * We also can but are not obliged to specify the amount that we want to buy instead of the price to spend. */
+    quoteOrderQtyMarketAllowed?: boolean;
 }
 
 /** [ timestamp, open, high, low, close, volume ] */

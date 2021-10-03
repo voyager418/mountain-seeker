@@ -294,7 +294,7 @@ export class MountainSeeker implements BaseStrategy {
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
         this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
-        const endWalletBalance = await this.cryptoExchangePlatform.getBalance(this.config.authorizedCurrencies!)
+        const endWalletBalance = await this.cryptoExchangePlatform.getBalance(this.config.authorizedCurrencies!, 3)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
@@ -460,13 +460,13 @@ export class MountainSeeker implements BaseStrategy {
      * Fetches wallet information and refills it if needed
      */
     private async prepareWallet(market: Market, authorizedCurrencies: Array<Currency>): Promise<void> {
-        this.initialWalletBalance = await this.cryptoExchangePlatform.getBalance(authorizedCurrencies)
+        this.initialWalletBalance = await this.cryptoExchangePlatform.getBalance(authorizedCurrencies, 3)
             .catch(e => Promise.reject(e));
         this.state.initialWalletBalance = JSON.stringify(Array.from(this.initialWalletBalance!.entries()));
         log.info("Initial wallet balance : %O", this.initialWalletBalance);
         await this.refillOriginAsset(market, this.initialWalletBalance!)
             .catch(e => Promise.reject(e));
-        this.refilledWalletBalance = await this.cryptoExchangePlatform.getBalance(authorizedCurrencies)
+        this.refilledWalletBalance = await this.cryptoExchangePlatform.getBalance(authorizedCurrencies, 3)
             .catch(e => Promise.reject(e));
         this.state.refilledWalletBalance = JSON.stringify(Array.from(this.refilledWalletBalance!.entries()));
         log.info("Updated wallet balance after refill : %O", this.refilledWalletBalance);
@@ -518,7 +518,7 @@ export class MountainSeeker implements BaseStrategy {
      * {@link market.targetAsset} and adds it to {@link this.state.retrievedAmountOfEuro}.
      */
     private async convertRemainingTargetAssetToBNB(market: Market): Promise<void> {
-        const walletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BNB, market.targetAsset])
+        const walletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BNB, market.targetAsset], 3)
             .catch(e => Promise.reject(e));
         if (walletBalance.get(market.targetAsset)! > 0) {
             const success = await this.cryptoExchangePlatform.convertSmallAmountsToBNB([market.targetAsset]);

@@ -10,4 +10,5 @@ export enum CandlestickInterval {
   EIGHT_HOURS = "8h",
   TWELVE_HOURS = "12h",
   ONE_DAY = "1d",
+  DEFAULT = FIFTEEN_MINUTES
 }

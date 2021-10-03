@@ -6,6 +6,10 @@ import { GlobalUtils } from "../../src/utils/global-utils";
 import { Currency } from "../../src/enums/trading-currencies.enum";
 import { binance } from "ccxt";
 import { ConfigService } from "../../src/services/config-service";
+import * as mockdate from "mockdate";
+import { OrderType } from "../../src/enums/order-type.enum";
+import { fail } from "assert";
+
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -100,13 +104,12 @@ describe("Binance connector", () => {
     });
 
     describe("getBalance & getBalanceForAsset", () => {
-        beforeAll(() => {
-            binanceInstance.fetchBalance = jest.fn(async() => TestHelper.getBinanceFetchBalance());
-        });
-
         test("Should correctly return wallet balance for all expected assets", async() => {
+            // arrange
+            binanceInstance.fetchBalance = jest.fn(async() => TestHelper.getBinanceFetchBalance());
+
             // act
-            const res = await binanceConnector.getBalance(["EUR", "BNB", "BTC", "ETH"]);
+            const res = await binanceConnector.getBalance(["EUR", "BNB", "BTC", "ETH"], 1);
 
             // assert
             expect(res.size).toEqual(4);
@@ -116,7 +119,24 @@ describe("Binance connector", () => {
             expect(res.get("ETH")).toEqual(0);
         });
 
+        test("Should correctly retry when can not get wallet balance", async() => {
+            // arrange
+            binanceInstance.fetchBalance = jest.fn(async() => Promise.reject(undefined));
+
+            // act
+            try {
+                await binanceConnector.getBalance(["EUR", "BNB", "BTC", "ETH"], 3);
+                fail("Should throw an exception");
+            } catch (e) {
+                expect(binanceInstance.fetchBalance).toHaveBeenCalledTimes(4);
+                expect(e).toEqual("Failed to fetch wallet balance for [\"EUR\",\"BNB\",\"BTC\",\"ETH\"] after 3 retries");
+            }
+        });
+
         test("Should correctly return wallet balance for a particular asset", async() => {
+            // arrange
+            binanceInstance.fetchBalance = jest.fn(async() => TestHelper.getBinanceFetchBalance());
+
             // act
             const res = await binanceConnector.getBalanceForAsset("BNB");
 
@@ -261,14 +281,12 @@ describe("Binance connector", () => {
         test("Should correctly create a MARKET BUY order", async() => {
             // arrange
             const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
-            const createBuyMarketOrderOnBinanceSpy = jest.spyOn(binanceConnector, 'createBuyMarketOrderOnBinance');
             mockedAxios.post.mockResolvedValueOnce(TestHelper.getDirectBinanceCreateBuyMarketOrder());
 
             // act
             const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BTC", 20, true);
 
             // assert
-            expect(createBuyMarketOrderOnBinanceSpy).toHaveBeenCalledWith(Currency.EUR.toString(), "BTC", 20);
             expect(waitForOrderCompletionSpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     externalId: "1199969870",
@@ -314,8 +332,9 @@ describe("Binance connector", () => {
 
         test("Should retry when order creation fails and retries are set", async() => {
             // arrange
+            mockdate.set(new Date('14 Sep 2020 00:00:00'));
             binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
-            binanceConnector.createBuyMarketOrderOnBinance = jest.fn(async () => Promise.reject());
+            mockedAxios.post.mockResolvedValueOnce(undefined);
 
             try {
                 // act
@@ -324,8 +343,14 @@ describe("Binance connector", () => {
             } catch (e) {
                 // assert
                 expect(e).toEqual("Failed to execute buy market order on market BNB/EUR");
-                expect(binanceConnector.createBuyMarketOrderOnBinance).toHaveBeenCalledTimes(6);
+                expect(axios.post).toHaveBeenCalledWith(
+                    "https://api.binance.com/api/v3/order?symbol=BNBEUR&side=BUY&type=MARKET&quoteOrderQty=25&timestamp=1600034400000&signature=d4bbfa7c90879b92174976b266fc183413c3bb4923a4d285a8f24f5a7acd2878",
+                    undefined,
+                    { "headers": { "Content-Type": "application/json", "X-MBX-APIKEY": process.env.BINANCE_API_KEY } }
+                );
+                expect(axios.post).toHaveBeenCalledTimes(6);
             }
+            mockdate.reset();
         });
     });
 
@@ -391,6 +416,106 @@ describe("Binance connector", () => {
                 expect(e).toEqual("Failed to execute sell stop limit order of 10 on market BNB/EUR");
                 expect(binanceInstance.createOrder).toHaveBeenCalledTimes(4);
             }
+        });
+    });
+
+    describe("getOrder", () => {
+        test("Should correctly return an order", async() => {
+            // arrange
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.resolve(TestHelper.fetchOrder()));
+
+            // act
+            const order = await binanceConnector.getOrder("1217145293", Currency.EUR,
+                "BTC", "123", OrderType.STOP_LIMIT);
+
+            // assert
+            expect(binanceInstance.fetchOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
+            expect(order).toEqual({
+                type: "STOP_LIMIT",
+                id: "123",
+                externalId: "1217145293",
+                side: "sell",
+                amountOfTargetAsset: 0.00085,
+                filled: 0.00085,
+                remaining: 0,
+                average: 40727.25,
+                amountOfOriginAsset: 34.583544339999996,
+                status: "closed",
+                datetime: "2021-10-01T12:44:24.935Z",
+                info: {
+                    symbol: "BTCEUR",
+                    orderId: "1217145293",
+                    orderListId: "-1",
+                    clientOrderId: "x-R4BD3S82bb809fd68e67455aa44798",
+                    price: "40727.25000000",
+                    origQty: "0.00085000",
+                    executedQty: "0.00085000",
+                    cummulativeQuoteQty: "34.61816250",
+                    status: "FILLED",
+                    timeInForce: "GTC",
+                    type: "STOP_LOSS_LIMIT",
+                    side: "SELL",
+                    stopPrice: "40727.25000000",
+                    icebergQty: "0.00000000",
+                    time: "1633085064935",
+                    updateTime: "1633085234864",
+                    isWorking: true,
+                    origQuoteOrderQty: "0.00000000"
+                },
+                originAsset: "EUR",
+                targetAsset: "BTC"
+            });
+        });
+
+        test("Should retry several times when failing to fetch an order", async() => {
+            // arrange
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.reject(undefined));
+
+            // act
+            try {
+                await binanceConnector.getOrder("1217145293", Currency.EUR, "BTC", "123", OrderType.STOP_LIMIT, 3);
+                fail("Should throw an exception");
+            } catch (e) {
+                expect(binanceInstance.fetchOrder).toHaveBeenCalledTimes(4);
+                expect(e).toEqual("Order 1217145293 was not found")
+            }
+        });
+    });
+
+    describe("cancelOrder", () => {
+        test("Should correctly cancel an order and not call getOrder() if it already canceled", async() => {
+            // arrange
+            const binanceCanceledOder = TestHelper.getBinanceCreateSellStopLimitOrder();
+            binanceCanceledOder.status = "canceled";
+            binanceInstance.cancelOrder = jest.fn(async() => Promise.resolve(binanceCanceledOder));
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.resolve(binanceCanceledOder));
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(TestHelper.getMockedOrder()));
+
+            // act
+            await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC");
+
+            // assert
+            expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
+            expect(binanceConnector.getOrder).not.toHaveBeenCalled();
+        });
+
+        // TODO
+        xtest("Should retry to cancel an order", async() => {
+            // arrange
+            const binanceOpenOrder = TestHelper.getBinanceCreateSellStopLimitOrder();
+            binanceOpenOrder.status = "open";
+            const ourOpenOrder = TestHelper.getMockedOrder();
+            ourOpenOrder.status = "open";
+            binanceInstance.cancelOrder = jest.fn(async() => Promise.resolve(binanceOpenOrder));
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.resolve(binanceOpenOrder));
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(ourOpenOrder));
+
+            // act
+            await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC");
+
+            // assert
+            expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
+            expect(binanceConnector.getOrder).not.toHaveBeenCalled();
         });
     });
 

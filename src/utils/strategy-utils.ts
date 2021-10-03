@@ -53,8 +53,8 @@ export class StrategyUtils {
      */
     static addCandleSticksWithInterval(markets: Array<Market>, interval: CandlestickInterval): void {
         for (const market of markets) {
-            const candleSticksToAdd = this.convert(CandlestickInterval.THIRTY_MINUTES, interval,
-                getCandleSticksByInterval(market, CandlestickInterval.THIRTY_MINUTES));
+            const candleSticksToAdd = this.convert(CandlestickInterval.DEFAULT, interval,
+                getCandleSticksByInterval(market, CandlestickInterval.DEFAULT));
             market.candleSticks.set(interval, candleSticksToAdd);
             market.candleStickIntervals.push(interval);
         }
@@ -172,15 +172,13 @@ export class StrategyUtils {
      * @param inputCandleSticks Input candlesticks with interval of {@param from}
      */
     private static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
-        assert(from === CandlestickInterval.THIRTY_MINUTES, `Unhandled interval ${from}.
-         Can only convert from ${CandlestickInterval.THIRTY_MINUTES}`);
+        assert(from === CandlestickInterval.DEFAULT, `Unhandled interval ${from}.
+         Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
-        case CandlestickInterval.ONE_HOUR:
+        case CandlestickInterval.THIRTY_MINUTES:
             return this.constructCandleSticks(inputCandleSticks, 2);
-        case CandlestickInterval.FOUR_HOURS:
-            return this.constructCandleSticks(inputCandleSticks, 8);
-        case CandlestickInterval.SIX_HOURS:
-            return this.constructCandleSticks(inputCandleSticks, 12);
+        case CandlestickInterval.ONE_HOUR:
+            return this.constructCandleSticks(inputCandleSticks, 4);
         default: throw new Error(`Unhandled candlestick interval: ${to}`);
         }
     }

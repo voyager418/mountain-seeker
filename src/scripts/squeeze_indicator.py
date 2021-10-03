@@ -64,7 +64,7 @@ if __name__ == '__main__':
 			if val >= 0:
 				color = "lime"
 			else:
-				color="red"
+				color = "red"
 		else:
 			if val >= 0:
 				color = "green"
@@ -73,7 +73,7 @@ if __name__ == '__main__':
 			else:
 				color = "maroon"
 				if val < df['value'][ind-1]:
-					color="red"
+					color = "red"
 		colors.append(color)
 
 	print([values, colors])

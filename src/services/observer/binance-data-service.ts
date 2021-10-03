@@ -23,10 +23,10 @@ export class BinanceDataService implements Subject {
 
     // Default config for fetching candlesticks from Binance //
     /** This interval is used to construct other intervals (e.g. for 1h, 4h ...) */
-    private readonly defaultCandleStickInterval = CandlestickInterval.THIRTY_MINUTES;
+    private readonly defaultCandleStickInterval = CandlestickInterval.DEFAULT;
     /** Number of candlesticks that will be fetched */
-    private readonly defaultNumberOfCandlesticks = 500;
-    private readonly minimumNumberOfCandlesticks = 50;
+    private readonly defaultNumberOfCandlesticks = 400;
+    private readonly minimumNumberOfCandlesticks = 200;
     private readonly minimumPercentFor24hVariation = -1000;
     private readonly authorizedMarkets = ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
         "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT"];
@@ -62,8 +62,11 @@ export class BinanceDataService implements Subject {
         try {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
-            this.binanceConnector.setMarketAmountPrecision(this.markets);
             this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.authorizedMarkets);
+            this.binanceConnector.setMarketAmountPrecision(this.markets);
+            this.binanceConnector.setPricePrecision(this.markets);
+            this.binanceConnector.setQuoteOrderQtyMarketAllowed(this.markets);
+            this.binanceConnector.setMaxPosition(this.markets);
 
             await this.fetchAndSetCandleSticks();
 
@@ -74,7 +77,7 @@ export class BinanceDataService implements Subject {
             if (this.allObserversAreRunning() || this.observers.length === 0) {
                 await GlobalUtils.sleep(1800); // 30 min
             } else {
-                await GlobalUtils.sleep(60); // 1 min
+                await GlobalUtils.sleep(50);
             }
 
             // to add markets to a DB
@@ -88,18 +91,16 @@ export class BinanceDataService implements Subject {
         await this.binanceConnector.fetchCandlesticks(this.markets, this.defaultCandleStickInterval, this.defaultNumberOfCandlesticks)
             .catch(e => Promise.reject(e));
         this.markets = StrategyUtils.filterByMinimumAmountOfCandleSticks(this.markets, this.minimumNumberOfCandlesticks,
-            CandlestickInterval.THIRTY_MINUTES);
-        // 30 min candlesticks are added by default
+            CandlestickInterval.DEFAULT);
+        // default candlesticks are added by default
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
-        for (const interval of [CandlestickInterval.ONE_HOUR,
-            CandlestickInterval.FOUR_HOURS,
-            CandlestickInterval.SIX_HOURS]) {
+        for (const interval of [
+            CandlestickInterval.THIRTY_MINUTES,
+            CandlestickInterval.ONE_HOUR]) {
             StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
             StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
         }
-
-        this.markets = StrategyUtils.filterByStrangeMarkets(this.markets, this.defaultCandleStickInterval);
     }
 
     private allObserversAreRunning(): boolean {
