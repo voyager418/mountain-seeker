@@ -277,11 +277,15 @@ export class Squeeze implements BaseStrategy {
         if (!this.market?.quoteOrderQtyMarketAllowed) {
             const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(market.targetAsset);
             if (amountNotSold && amountNotSold > 0) {
-                const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
-                if (this.state.retrievedAmountOfUsdt) {
-                    this.state.retrievedAmountOfUsdt += redeemOrder.amount;
-                } else {
-                    this.state.retrievedAmountOfUsdt = redeemOrder.amount;
+                try {
+                    const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
+                    if (this.state.retrievedAmountOfUsdt) {
+                        this.state.retrievedAmountOfUsdt += redeemOrder.amount;
+                    } else {
+                        this.state.retrievedAmountOfUsdt = redeemOrder.amount;
+                    }
+                } catch (e) {
+                    log.error(`Failed to redeem BLVT : ${JSON.stringify(e)}`)
                 }
             }
         }
