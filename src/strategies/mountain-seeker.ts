@@ -155,7 +155,6 @@ export class MountainSeeker implements BaseStrategy {
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
         this.state.marketSymbol = market.symbol;
-        this.cryptoExchangePlatform.setMarketMinNotional(market);
         this.cryptoExchangePlatform.printMarketDetails(market);
         this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
         this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(market, this.state.selectedCandleStickInterval!);

@@ -23,8 +23,8 @@ export type SqueezeState = TradingState & {
     candleSticksPercentageVariations?: Array<number>;
     /** Indicates whether the trading ended without problems */
     endedWithoutErrors?: boolean;
-    /** For example : if trading market is "BNB/EUR", then Y = BNB */
-    pricePercentChangeOnYUsdt?: number;
+    /** The maximum possible percentage gain */
+    runUp?: number;
     /** Amount of Y that was bought */
     amountOfYBought?: number;
     /** The candlestick interval that is being used by a strategy */

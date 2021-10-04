@@ -37,7 +37,9 @@ export class Squeeze implements BaseStrategy {
     private config: SqueezeConfig & BaseStrategyConfig = { maxMoneyToTrade: -1 };
     /** If a loss of -7% or less is reached it means that something went wrong and we abort everything */
     private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
-
+    private market?: Market;
+    private latestSellStopLimitOrder?: Order;
+    private amountOfTargetAssetThatWasBought?: number;
 
     constructor(private configService: ConfigService,
         private cryptoExchangePlatform: BinanceConnector,
@@ -70,6 +72,7 @@ export class Squeeze implements BaseStrategy {
                 await this.run();
                 this.prepareForNextTrade();
             } catch (e) {
+                await this.abort();
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e);
                 log.error("Trading was aborted due to an error : ", error);
@@ -135,9 +138,9 @@ export class Squeeze implements BaseStrategy {
     public async run(): Promise<void> {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
-        const market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
+        this.market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
 
-        if (!market) {
+        if (!this.market) {
             if (this.configService.isSimulation()) {
                 log.debug("No market was found");
             }
@@ -145,42 +148,143 @@ export class Squeeze implements BaseStrategy {
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
-        this.state.marketSymbol = market.symbol;
-        this.cryptoExchangePlatform.setMarketMinNotional(market);
-        this.cryptoExchangePlatform.printMarketDetails(market);
-        this.state.marketPercentChangeLast24h = market.percentChangeLast24h;
-        this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(market, this.state.selectedCandleStickInterval!);
-        log.info("Found market %O", market.symbol);
-        this.emailService.sendEmail(`Trading started on ${market.symbol}`,
+        this.state.marketSymbol = this.market.symbol;
+        this.cryptoExchangePlatform.printMarketDetails(this.market);
+        this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
+        this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market, this.state.selectedCandleStickInterval!);
+        log.info("Found market %O", this.market.symbol);
+        this.emailService.sendEmail(`Trading started on ${this.market.symbol}`,
             "Current state : \n" + JSON.stringify(this.state, GlobalUtils.replacer, 4) +
-            "\n\nMarket details : \n" + JSON.stringify(market, GlobalUtils.replacer, 4)).then().catch(e => log.error(e));
+            "\n\nMarket details : \n" + JSON.stringify(this.market, GlobalUtils.replacer, 4)).then().catch(e => log.error(e));
 
         // 2. Fetch wallet balance and compute amount of USDT to invest
-        await this.getInitialBalance([Currency.USDT.toString(), market.targetAsset]);
+        await this.getInitialBalance([Currency.USDT.toString(), this.market.targetAsset]);
         const availableUsdtAmount = this.initialWalletBalance?.get(Currency.USDT.toString());
-        const currentMarketPrice = market.candleSticks.get(CandlestickInterval.ONE_HOUR)!.reverse()[0][4]; // = close price of last candlestick
+        const currentMarketPrice = this.market.candleSticks.get(CandlestickInterval.ONE_HOUR)!.reverse()[0][4]; // = close price of last candlestick
         const usdtAmountToInvest = this.computeAmountToInvest(availableUsdtAmount!,
-            market.maxPosition! * currentMarketPrice);
+            ((this.market.maxPosition! - this.initialWalletBalance!.get(this.market.targetAsset)!) * currentMarketPrice));
 
         // 3. First BUY MARKET order to buy market.targetAsset
-        const buyOrder = await this.createFirstMarketBuyOrder(market, usdtAmountToInvest, currentMarketPrice)
+        const buyOrder = await this.createFirstMarketBuyOrder(this.market, usdtAmountToInvest, currentMarketPrice)
             .catch(e => Promise.reject(e));
+        this.amountOfTargetAssetThatWasBought = buyOrder.filled;
 
         // 4. First SELL STOP LIMIT order (default: -5%)
-        // TODO : if this fails sell everything and abort
         let stopLimitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
             this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss);
-        stopLimitPrice = GlobalUtils.truncateNumber(stopLimitPrice, market.pricePrecision!);
+        stopLimitPrice = GlobalUtils.truncateNumber(stopLimitPrice, this.market.pricePrecision!);
 
-        const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
+        const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, stopLimitPrice, stopLimitPrice, 5).catch(e => Promise.reject(e));
+        this.latestSellStopLimitOrder = firstSellStopLimitOrder;
 
         // 5. Start price monitor loop
-        const lastSellStopLimitOrder = await this.runTradingLoop(buyOrder, stopLimitPrice, firstSellStopLimitOrder, market,
+        const lastSellStopLimitOrder = await this.runTradingLoop(buyOrder, stopLimitPrice, firstSellStopLimitOrder, this.market,
             buyOrder.filled).catch(e => Promise.reject(e));
 
         // 6. Finishing
-        return await this.handleTradeEnd(market, lastSellStopLimitOrder).catch(e => Promise.reject(e));
+        return await this.handleTradeEnd(this.market, lastSellStopLimitOrder).catch(e => Promise.reject(e));
+    }
+
+    /**
+     * Monitors the current market price and creates new stop limit orders if price increases.
+     */
+    private async runTradingLoop(buyOrder: Order, stopLimitPrice: number, sellStopLimitOrder: Order, market: Market,
+        targetAssetAmount: number): Promise<Order> {
+        let newSellStopLimitPrice = buyOrder.average;
+        const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
+        let tempTrailPrice = stopLimitPrice;
+        let lastSellStopLimitOrder = sellStopLimitOrder;
+        let potentialProfit;
+        let marketUnitPrice = Infinity;
+        let firstTrailPriceSet = false;
+        this.state.runUp = -Infinity;
+        let priceChange;
+
+        while (tempTrailPrice < marketUnitPrice) {
+            if (firstTrailPriceSet) {
+                // if first trailing limit is set, wait longer
+                await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
+            } else {
+                await GlobalUtils.sleep(tradingLoopConfig.initialSecondsToSleepInTheTradingLoop);
+            }
+
+            if ((await this.cryptoExchangePlatform.orderIsClosed(lastSellStopLimitOrder.externalId, lastSellStopLimitOrder.originAsset, lastSellStopLimitOrder.targetAsset,
+                lastSellStopLimitOrder.id, lastSellStopLimitOrder.type!, 300).catch(e => Promise.reject(e)))) {
+                break;
+            }
+            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
+                .catch(e => Promise.reject(e));
+
+            tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent.get(market.symbol)!);
+            if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
+                firstTrailPriceSet = true;
+                // cancel the previous sell limit order
+                await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
+                    market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
+
+                // update sell stop limit price
+                newSellStopLimitPrice = tempTrailPrice;
+
+                // create new sell stop limit order
+                lastSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
+                    "sell", targetAssetAmount, newSellStopLimitPrice, newSellStopLimitPrice, 3).catch(e => Promise.reject(e));
+                this.latestSellStopLimitOrder = lastSellStopLimitOrder;
+            }
+            priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            this.state.runUp = Math.max(this.state.runUp, priceChange);
+            potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
+            log.info(`Buy : ${buyOrder.average.toFixed(8)}, current : ${(marketUnitPrice)
+                .toFixed(8)}, change % : ${priceChange}% | Sell price : ${stopLimitPrice
+                .toFixed(8)} | Potential profit : ${potentialProfit.toFixed(3)}%`);
+        }
+        return Promise.resolve(lastSellStopLimitOrder);
+    }
+
+    private async handleTradeEnd(market: Market, lastStopLimitOrder: Order): Promise<void> {
+        log.debug("Finishing trading...");
+        let completedOrder = await this.cryptoExchangePlatform.waitForOrderCompletion(lastStopLimitOrder, market.originAsset,
+            market.targetAsset, 3).catch(e => Promise.reject(e));
+        if (!completedOrder) { // LIMIT order took too long => use a MARKET order
+            await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
+                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
+            completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(market.originAsset, market.targetAsset,
+                lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
+        }
+
+        this.state.retrievedAmountOfUsdt = completedOrder!.amountOfOriginAsset!;
+        await this.handleRedeem(market);
+
+        this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
+        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
+
+        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), market.targetAsset], 3)
+            .catch(e => Promise.reject(e));
+        this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
+        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
+            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitUsdt.toFixed(2)}USDT)`, "Final state is : \n" +
+            JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
+        this.state.endedWithoutErrors = true;
+        log.info(`Final percent change : ${this.state.profitPercent} | Final state : ${JSON.stringify(this.state)}`);
+        return Promise.resolve();
+    }
+
+    /**
+     * Sometimes Binance is not able to sell everything so in this method, if the market is BLVT,
+     * we will try to sell the remaining amount. In order to add it into the profit
+     */
+    private async handleRedeem(market: Market) {
+        if (!this.market?.quoteOrderQtyMarketAllowed) {
+            const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(market.targetAsset);
+            if (amountNotSold && amountNotSold > 0) {
+                const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
+                if (this.state.retrievedAmountOfUsdt) {
+                    this.state.retrievedAmountOfUsdt += redeemOrder.amount;
+                } else {
+                    this.state.retrievedAmountOfUsdt = redeemOrder.amount;
+                }
+            }
+        }
     }
 
     /**
@@ -203,88 +307,6 @@ export class Squeeze implements BaseStrategy {
         }
         this.state.investedAmountOfUsdt = buyOrder.amountOfOriginAsset;
         return buyOrder;
-    }
-
-    /**
-     * Monitors the current market price and creates new stop limit orders if price increases.
-     */
-    private async runTradingLoop(buyOrder: Order, stopLimitPrice: number, sellStopLimitOrder: Order, market: Market,
-        targetAssetAmount: number): Promise<Order> {
-        let newSellStopLimitPrice = buyOrder.average;
-        const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-        let tempTrailPrice = stopLimitPrice;
-        let lastSellStopLimitOrder = sellStopLimitOrder;
-        let potentialProfit;
-        let marketUnitPrice = Infinity;
-        let firstTrailPriceSet = false;
-
-        while (tempTrailPrice < marketUnitPrice) {
-            if (firstTrailPriceSet) {
-                // if first trailing limit is set, wait longer
-                await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
-            } else {
-                await GlobalUtils.sleep(tradingLoopConfig.initialSecondsToSleepInTheTradingLoop);
-            }
-
-            if ((await this.cryptoExchangePlatform.orderIsClosed(lastSellStopLimitOrder.externalId, lastSellStopLimitOrder.originAsset, lastSellStopLimitOrder.targetAsset,
-                lastSellStopLimitOrder.id, lastSellStopLimitOrder.type!, 300).catch(e => Promise.reject(e)))) {
-                break;
-            }
-            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
-                .catch(e => Promise.reject(e));
-
-            tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent.get(market.symbol)!);
-            if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.1)) {
-                firstTrailPriceSet = true;
-                // cancel the previous sell limit order
-                // TODO : if this fails sell everything and abort
-                await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
-                    market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
-
-                // update sell stop limit price
-                newSellStopLimitPrice = tempTrailPrice;
-
-                // create new sell stop limit order
-                // TODO : if this fails sell everything and abort
-                lastSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
-                    "sell", targetAssetAmount, newSellStopLimitPrice, newSellStopLimitPrice, 3).catch(e => Promise.reject(e));
-            }
-            this.state.pricePercentChangeOnYUsdt = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
-            potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
-            log.info(`Buy : ${buyOrder.average.toFixed(8)}, current : ${(marketUnitPrice)
-                .toFixed(8)}, change % : ${this.state.pricePercentChangeOnYUsdt}% | Sell price : ${stopLimitPrice
-                .toFixed(8)} | Potential profit : ${potentialProfit.toFixed(3)}%`);
-        }
-        return Promise.resolve(lastSellStopLimitOrder);
-    }
-
-    /**
-     *
-     */
-    private async handleTradeEnd(market: Market, lastStopLimitOrder: Order): Promise<void> {
-        log.debug("Finishing trading...");
-        let completedOrder = await this.cryptoExchangePlatform.waitForOrderCompletion(lastStopLimitOrder, market.originAsset,
-            market.targetAsset, 3).catch(e => Promise.reject(e));
-        if (!completedOrder) { // LIMIT order took too long => use a MARKET order
-            await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
-                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
-            completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(market.originAsset, market.targetAsset,
-                lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
-        }
-
-        this.state.retrievedAmountOfUsdt = completedOrder!.amountOfOriginAsset!;
-        this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
-
-        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), market.targetAsset], 3)
-            .catch(e => Promise.reject(e));
-        this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendEmail(`Trading finished on ${market.symbol} (${this.state.profitPercent > 0
-            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitUsdt.toFixed(2)}USDT)`, "Final state is : \n" +
-            JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
-        this.state.endedWithoutErrors = true;
-        log.info(`Final percent change : ${this.state.profitPercent} | Final state : ${JSON.stringify(this.state)}`);
-        return Promise.resolve();
     }
 
     /**
@@ -365,5 +387,43 @@ export class Squeeze implements BaseStrategy {
      */
     private computeAmountToInvest(availableAmountOfUsdt: number, maxAmountToBuy: number): number {
         return Math.min(availableAmountOfUsdt, this.config.maxMoneyToTrade, maxAmountToBuy);
+    }
+
+    /**
+     * First tries to cancel the stop limit order and then tries to sell {@link Market.targetAsset}
+     */
+    private async abort(): Promise<void> {
+        if (this.latestSellStopLimitOrder && this.latestSellStopLimitOrder.externalId) {
+            await this.cryptoExchangePlatform.cancelOrder(this.latestSellStopLimitOrder?.externalId,
+                this.latestSellStopLimitOrder?.id, this.latestSellStopLimitOrder.originAsset,
+                this.latestSellStopLimitOrder.targetAsset);
+        }
+
+        if (this.amountOfTargetAssetThatWasBought) {
+            let sellMarketOrder;
+            try {
+                sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
+                this.market!.targetAsset!, "sell", this.amountOfTargetAssetThatWasBought, true, 3);
+            } catch (e) {
+                log.error(`Exception occurred while creating market sell order : ${JSON.stringify(e)}`);
+            }
+
+            if (!sellMarketOrder) {
+                for (const percent of [0.05, 0.5, 1, 2]) {
+                    this.amountOfTargetAssetThatWasBought = GlobalUtils.decreaseNumberByPercent(
+                        this.amountOfTargetAssetThatWasBought, percent);
+                    try {
+                        sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
+                            this.market!.targetAsset!, "sell", this.amountOfTargetAssetThatWasBought,
+                            true, 3);
+                        if (sellMarketOrder) {
+                            break;
+                        }
+                    } catch (e) {
+                        log.error(`Exception occurred while creating market sell order : ${JSON.stringify(e)}`);
+                    }
+                }
+            }
+        }
     }
 }

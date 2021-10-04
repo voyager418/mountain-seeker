@@ -63,10 +63,7 @@ export class BinanceDataService implements Subject {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.authorizedMarkets);
-            this.binanceConnector.setMarketAmountPrecision(this.markets);
-            this.binanceConnector.setPricePrecision(this.markets);
-            this.binanceConnector.setQuoteOrderQtyMarketAllowed(this.markets);
-            this.binanceConnector.setMaxPosition(this.markets);
+            this.binanceConnector.setMarketAdditionalParameters(this.markets);
 
             await this.fetchAndSetCandleSticks();
 
@@ -75,9 +72,9 @@ export class BinanceDataService implements Subject {
 
             // sleep
             if (this.allObserversAreRunning() || this.observers.length === 0) {
-                await GlobalUtils.sleep(1800); // 30 min
+                await GlobalUtils.sleep(840); // 14 min
             } else {
-                await GlobalUtils.sleep(50);
+                await GlobalUtils.sleep(15);
             }
 
             // to add markets to a DB

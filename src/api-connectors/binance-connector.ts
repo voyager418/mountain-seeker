@@ -13,6 +13,7 @@ import { ConfigService } from "../services/config-service";
 import { singleton } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
+import { RedeemOrder } from "../models/redeem-order";
 
 const axios = require('axios').default;
 
@@ -303,6 +304,43 @@ export class BinanceConnector {
     }
 
     /**
+     * Redeems BLVT token by calling Binance API directly
+     * @param targetAsset Example "BNBUP"
+     * @param amount Example amount of "BNBUP" that we want to sell/redeem
+     * @param retries
+     */
+    public async redeemBlvt(targetAsset: string, amount: number, retries: number): Promise<RedeemOrder> {
+        const query = `tokenName=${targetAsset}&amount=${amount}`;
+        const url = this.generateURL(`${this.V1_URL_BASE_PATH}/blvt/redeem`, query);
+        let redeemOrder;
+
+        while (!redeemOrder && retries-- > -1) {
+            try {
+                redeemOrder = await axios.post(url, undefined, { headers: this.headers });
+                log.debug(`Response received for redeem BLVT : ${JSON.stringify(redeemOrder.data)}`)
+            } catch (e) {
+                log.error(`Error when redeeming BLVT: ${JSON.stringify(e)}`);
+            }
+
+            if (redeemOrder && redeemOrder.status === 200) {
+                const order: RedeemOrder = {
+                    externalId: String(redeemOrder.data.id),
+                    amount: Number(redeemOrder.data.amount),
+                    redeemAmount: Number(redeemOrder.data.redeemAmount),
+                    status: redeemOrder.data.status,
+                    targetAsset: redeemOrder.data.tokenName,
+                    timestamp: redeemOrder.data.timestamp
+                }
+                return Promise.resolve(order);
+            } else if (redeemOrder && redeemOrder.status !== 200) {
+                log.error(`Received response from binance : ${JSON.stringify(redeemOrder)}`);
+            }
+        }
+
+        return Promise.reject(undefined);
+    }
+
+    /**
      * Creates market buy order.
      *
      * @param originAsset
@@ -378,7 +416,7 @@ export class BinanceConnector {
                 average: BinanceConnector.computeAveragePrice(binanceOrder.data.fills)
             }
             return Promise.resolve(order);
-        } else {
+        } else if (binanceOrder && binanceOrder.status !== 200) {
             log.error(`Received response from binance : ${JSON.stringify(binanceOrder)}`);
         }
 
@@ -704,7 +742,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset
         };
-        while (order.status !== "canceled") {
+        while (order.status !== "canceled") { // TODO
             try {
                 order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.STOP_LIMIT); // the OrderType has no importance
             } catch (e) {
@@ -716,69 +754,68 @@ export class BinanceConnector {
         return Promise.resolve(order);
     }
 
+    public setMarketAdditionalParameters(markets: Array<Market>): void {
+        // fori and not a for of loop is needed because the array's content is modified in the loop
+        for (let i = 0; i < markets.length; i++) {
+            this.setMarketMinNotional(markets[i]);
+            this.setMarketAmountPrecision(markets[i]);
+            this.setPricePrecision(markets[i]);
+            this.setMaxPosition(markets[i]);
+            this.setQuoteOrderQtyMarketAllowed(markets[i]);
+        }
+    }
+
     /**
      * Sets the {@link Market.minNotional} field
      */
-    public setMarketMinNotional(market: Market): void {
-        const minNotionalFilter = this.binance.markets[market.symbol].info.filters.filter((f: { filterType: string; }) => f.filterType === "MIN_NOTIONAL")[0];
+    private setMarketMinNotional(market: Market): void {
+        const minNotionalFilter = this.binance.markets[market.symbol].info.filters
+            .filter((filter: { filterType: string; }) => filter.filterType === "MIN_NOTIONAL")[0];
         if (minNotionalFilter) {
             market.minNotional = Number(minNotionalFilter.minNotional);
-            log.debug("Market's minNotional is %O", market.minNotional);
         }
     }
 
     /**
      * Sets the {@link Market.amountPrecision} field
      */
-    public setMarketAmountPrecision(markets: Array<Market>): void {
-        // fori and not a for of loop is needed because the array's content is modified in the loop
-        for (let i = 0; i < markets.length; i++) {
-            const amountPrecision = this.binance.markets[markets[i].symbol]?.precision?.amount;
-            if (amountPrecision && amountPrecision >= 0) {
-                markets[i].amountPrecision = amountPrecision;
-            }
+    private setMarketAmountPrecision(market: Market): void {
+        const amountPrecision = this.binance.markets[market.symbol]?.precision?.amount;
+        if (amountPrecision && amountPrecision >= 0) {
+            market.amountPrecision = amountPrecision;
         }
     }
 
     /**
      * Sets the {@link Market.pricePrecision} field
      */
-    public setPricePrecision(markets: Array<Market>): void {
-        // fori and not a for of loop is needed because the array's content is modified in the loop
-        for (let i = 0; i < markets.length; i++) {
-            const pricePrecision = this.binance.markets[markets[i].symbol]?.precision?.price;
-            if (pricePrecision && pricePrecision >= 0) {
-                markets[i].pricePrecision = pricePrecision;
-            }
+    private setPricePrecision(market: Market): void {
+        const pricePrecision = this.binance.markets[market.symbol]?.precision?.price;
+        if (pricePrecision && pricePrecision >= 0) {
+            market.pricePrecision = pricePrecision;
         }
     }
 
     /**
      * Sets the {@link Market.maxPosition} field
      */
-    public setMaxPosition(markets: Array<Market>): void {
-        // fori and not a for of loop is needed because the array's content is modified in the loop
-        for (let i = 0; i < markets.length; i++) {
-            const maxPositionFilter = this.binance.markets[markets[i].symbol]?.info.filters
-                .filter((element: { filterType: string; }) => element.filterType === "MAX_POSITION")[0];
-            if (maxPositionFilter) {
-                markets[i].maxPosition = Number(maxPositionFilter.maxPosition);
-            } else {
-                markets[i].maxPosition = Infinity;
-            }
+    private setMaxPosition(market: Market): void {
+        const maxPositionFilter = this.binance.markets[market.symbol]?.info.filters
+            .filter((element: { filterType: string; }) => element.filterType === "MAX_POSITION")[0];
+        if (maxPositionFilter) {
+            market.maxPosition = Number(maxPositionFilter.maxPosition);
+        } else {
+            market.maxPosition = Infinity;
         }
     }
 
     /**
      * Sets the {@link Market.quoteOrderQtyMarketAllowed} field
      */
-    public setQuoteOrderQtyMarketAllowed(markets: Array<Market>): void {
-        // fori and not a for of loop is needed because the array's content is modified in the loop
-        for (let i = 0; i < markets.length; i++) {
-            const quoteOrderQtyMarketAllowed = this.binance.markets[markets[i].symbol]?.info?.quoteOrderQtyMarketAllowed;
-            if (quoteOrderQtyMarketAllowed !== undefined) {
-                markets[i].quoteOrderQtyMarketAllowed = quoteOrderQtyMarketAllowed;
-            }
+    private setQuoteOrderQtyMarketAllowed(market: Market): void {
+        const quoteOrderQtyMarketAllowed = this.binance.markets[market.symbol]?.info?.quoteOrderQtyMarketAllowed;
+        if (quoteOrderQtyMarketAllowed !== undefined) {
+            market.quoteOrderQtyMarketAllowed = quoteOrderQtyMarketAllowed;
         }
     }
 
@@ -837,8 +874,8 @@ export class BinanceConnector {
      * Used for debug purposes
      */
     public printMarketDetails(market: Market): void {
-        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol], GlobalUtils.replacer, 4)}`);
-        log.debug(`Market details from local object : ${JSON.stringify(market, GlobalUtils.replacer, 4)}`);
+        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
+        log.debug(`Market details from local object : ${JSON.stringify(market)}`);
     }
 
     /**

@@ -35,8 +35,8 @@ describe("Test things with Binance", () => {
         //     100, 2);
 
         // print market details
-        //await binanceConnector.getMarketsBy24hrVariation(-15);
-        //console.log(`${JSON.stringify(binanceConnector.getBinanceInstance().markets["BTCDOWN/USDT"], GlobalUtils.replacer, 4)}`);
+        // await binanceConnector.getMarketsBy24hrVariation(-15);
+        // console.log(`${JSON.stringify(binanceConnector.getBinanceInstance().markets["BTCDOWN/USDT"], GlobalUtils.replacer, 4)}`);
 
         // get order
         // const order = await binanceConnector.getOrder("260287326", Currency.USDT, "BNBUP", "123", OrderType.MARKET);
@@ -48,6 +48,14 @@ describe("Test things with Binance", () => {
         // make buy market order with amount
         // const order = await binanceConnector.createMarketOrder(Currency.USDT, "BTCUP", "buy", 63);
         // console.log(order);
+
+        // get wallet balance
+        // const balance = await binanceConnector.getBalanceForAsset("BNBDOWN");
+        // console.log(balance);
+
+        // redeem BLVT
+        // const redeemOrder = await binanceConnector.redeemBlvt("ETHDOWN", 0.01923400, 2);
+        // console.log(redeemOrder);
 
         // squeeze indicator
         // const res = squeezeIndicator.compute(candleSticks);
