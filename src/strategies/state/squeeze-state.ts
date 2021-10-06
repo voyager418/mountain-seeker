@@ -25,6 +25,8 @@ export type SqueezeState = TradingState & {
     endedWithoutErrors?: boolean;
     /** The maximum possible percentage gain */
     runUp?: number;
+    /** The maximum possible loss of the trade (without taking into account the max loss %) */
+    drawDown?: number;
     /** Amount of Y that was bought */
     amountOfYBought?: number;
     /** The candlestick interval that is being used by a strategy */

@@ -7,13 +7,13 @@ import { OrderType } from "../enums/order-type.enum";
 import { GlobalUtils } from "../utils/global-utils";
 import { v4 as uuidv4 } from "uuid";
 import { SimulationUtils } from "../utils/simulation-utils";
-import hmacSHA256 from 'crypto-js/hmac-sha256';
 import cliProgress from "cli-progress";
 import { ConfigService } from "../services/config-service";
 import { singleton } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
 import { RedeemOrder } from "../models/redeem-order";
+import { BinanceUtils } from "../utils/binance-utils";
 
 const axios = require('axios').default;
 
@@ -187,7 +187,7 @@ export class BinanceConnector {
                 assetsInURLPath += "&asset=" + asset;
             }
         }
-        const url = this.generateURL(`${this.V1_URL_BASE_PATH}/asset/dust`, assetsInURLPath);
+        const url = BinanceUtils.generateURL(`${this.V1_URL_BASE_PATH}/asset/dust`, assetsInURLPath, this.binance.secret);
         try {
             await axios.post(url, undefined, { headers: this.headers });
             success = true;
@@ -296,7 +296,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -311,7 +311,7 @@ export class BinanceConnector {
      */
     public async redeemBlvt(targetAsset: string, amount: number, retries: number): Promise<RedeemOrder> {
         const query = `tokenName=${targetAsset}&amount=${amount}`;
-        const url = this.generateURL(`${this.V1_URL_BASE_PATH}/blvt/redeem`, query);
+        const url = BinanceUtils.generateURL(`${this.V1_URL_BASE_PATH}/blvt/redeem`, query, this.binance.secret);
         let redeemOrder;
 
         while (!redeemOrder && retries-- > -1) {
@@ -325,7 +325,7 @@ export class BinanceConnector {
             if (redeemOrder && redeemOrder.status === 200) {
                 const order: RedeemOrder = {
                     externalId: String(redeemOrder.data.id),
-                    amount: Number(redeemOrder.data.amount),
+                    amount: Number(redeemOrder.data.amount), // commissions are already counted so no need to calculate
                     redeemAmount: Number(redeemOrder.data.redeemAmount),
                     status: redeemOrder.data.status,
                     targetAsset: redeemOrder.data.tokenName,
@@ -387,7 +387,7 @@ export class BinanceConnector {
      */
     private async createBuyMarketOrderOnBinance(originAsset: Currency, targetAsset: string, amountOfQuoteCurrency: number): Promise<Order> {
         const query = `symbol=${targetAsset}${originAsset.toString()}&side=BUY&type=MARKET&quoteOrderQty=${amountOfQuoteCurrency}`;
-        const url = this.generateURL(`${this.V3_URL_BASE_PATH}/order`, query);
+        const url = BinanceUtils.generateURL(`${this.V3_URL_BASE_PATH}/order`, query, this.binance.secret);
         let binanceOrder;
 
         try {
@@ -412,8 +412,8 @@ export class BinanceConnector {
                 side: "buy",
                 type: OrderType.MARKET,
                 info: binanceOrder.data,
-                datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.data.transactTime),
-                average: BinanceConnector.computeAveragePrice(binanceOrder.data.fills)
+                datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.data.transactTime),
+                average: BinanceUtils.computeAveragePrice(binanceOrder.data.fills)
             }
             return Promise.resolve(order);
         } else if (binanceOrder && binanceOrder.status !== 200) {
@@ -476,7 +476,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side: "sell",
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -552,7 +552,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.STOP_LIMIT,
             info: binanceOrder.info
         }
@@ -608,7 +608,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side: "sell",
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             type: OrderType.LIMIT,
             info: binanceOrder.info
         }
@@ -699,7 +699,7 @@ export class BinanceConnector {
             average: binanceOrder.average!,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
             status: binanceOrder.status,
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
             originAsset,
             targetAsset
@@ -737,7 +737,7 @@ export class BinanceConnector {
             remaining: binanceOrder.remaining,
             average: binanceOrder.average!,
             status: binanceOrder.status,
-            datetime: BinanceConnector.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
             originAsset,
             targetAsset
@@ -757,65 +757,11 @@ export class BinanceConnector {
     public setMarketAdditionalParameters(markets: Array<Market>): void {
         // fori and not a for of loop is needed because the array's content is modified in the loop
         for (let i = 0; i < markets.length; i++) {
-            this.setMarketMinNotional(markets[i]);
-            this.setMarketAmountPrecision(markets[i]);
-            this.setPricePrecision(markets[i]);
-            this.setMaxPosition(markets[i]);
-            this.setQuoteOrderQtyMarketAllowed(markets[i]);
-        }
-    }
-
-    /**
-     * Sets the {@link Market.minNotional} field
-     */
-    private setMarketMinNotional(market: Market): void {
-        const minNotionalFilter = this.binance.markets[market.symbol].info.filters
-            .filter((filter: { filterType: string; }) => filter.filterType === "MIN_NOTIONAL")[0];
-        if (minNotionalFilter) {
-            market.minNotional = Number(minNotionalFilter.minNotional);
-        }
-    }
-
-    /**
-     * Sets the {@link Market.amountPrecision} field
-     */
-    private setMarketAmountPrecision(market: Market): void {
-        const amountPrecision = this.binance.markets[market.symbol]?.precision?.amount;
-        if (amountPrecision && amountPrecision >= 0) {
-            market.amountPrecision = amountPrecision;
-        }
-    }
-
-    /**
-     * Sets the {@link Market.pricePrecision} field
-     */
-    private setPricePrecision(market: Market): void {
-        const pricePrecision = this.binance.markets[market.symbol]?.precision?.price;
-        if (pricePrecision && pricePrecision >= 0) {
-            market.pricePrecision = pricePrecision;
-        }
-    }
-
-    /**
-     * Sets the {@link Market.maxPosition} field
-     */
-    private setMaxPosition(market: Market): void {
-        const maxPositionFilter = this.binance.markets[market.symbol]?.info.filters
-            .filter((element: { filterType: string; }) => element.filterType === "MAX_POSITION")[0];
-        if (maxPositionFilter) {
-            market.maxPosition = Number(maxPositionFilter.maxPosition);
-        } else {
-            market.maxPosition = Infinity;
-        }
-    }
-
-    /**
-     * Sets the {@link Market.quoteOrderQtyMarketAllowed} field
-     */
-    private setQuoteOrderQtyMarketAllowed(market: Market): void {
-        const quoteOrderQtyMarketAllowed = this.binance.markets[market.symbol]?.info?.quoteOrderQtyMarketAllowed;
-        if (quoteOrderQtyMarketAllowed !== undefined) {
-            market.quoteOrderQtyMarketAllowed = quoteOrderQtyMarketAllowed;
+            BinanceUtils.setMarketMinNotional(markets[i], this.binance.markets);
+            BinanceUtils.setMarketAmountPrecision(markets[i], this.binance.markets);
+            BinanceUtils.setPricePrecision(markets[i], this.binance.markets);
+            BinanceUtils.setMaxPosition(markets[i], this.binance.markets);
+            BinanceUtils.setQuoteOrderQtyMarketAllowed(markets[i], this.binance.markets);
         }
     }
 
@@ -879,19 +825,6 @@ export class BinanceConnector {
     }
 
     /**
-     * Converts Binance timestamps into Belgian time
-     */
-    private static getBelgiumDateTime(date: string): string {
-        try {
-            const res = new Date(date);
-            res.setHours(res.getHours() + 2);
-            return res.toISOString();
-        } catch (e) {
-            return date;
-        }
-    }
-
-    /**
      * @return 0 if the order is incomplete or the amount of origin asset that was used when commission is deduced (for MARKET orders)
      */
     private static computeAmountOfOriginAsset(binanceOrder: ccxt.Order, remaining: number, orderType: OrderType, side: "buy" | "sell"): number {
@@ -948,30 +881,6 @@ export class BinanceConnector {
         }
         return GlobalUtils.truncateNumber(amountOfTargetAsset, 8);
     }
-
-    /**
-     * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
-     * needed to call private Binance endpoints (like buy order)
-     */
-    private generateURL(urlBasePath: string, query: string): string {
-        const queryString = `${query}&timestamp=${Date.now()}`;
-        const urlPath = `${urlBasePath}?${queryString}`;
-        const signature = hmacSHA256(queryString, this.binance.secret).toString();
-        return `${urlPath}&signature=${signature}`;
-    }
-
-    /**
-     * Computes average price based on "fills" array that is returned by Binance
-     */
-    private static computeAveragePrice(fills: [MarketOrderFill]): number {
-        let num = 0;
-        let denom = 0;
-        for (const fill of fills) {
-            num += Number(fill.price) * Number(fill.qty);
-            denom += Number(fill.qty);
-        }
-        return GlobalUtils.truncateNumber(num/denom, 8);
-    }
 }
 
 /**
@@ -986,7 +895,7 @@ export class BinanceConnector {
  *   "tradeId": 43143323
  *   }
  */
-interface MarketOrderFill {
+export interface MarketOrderFill {
     price: string,
     qty: string,
     commission: string,

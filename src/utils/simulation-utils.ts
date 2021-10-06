@@ -4,9 +4,6 @@ import { Currency } from "../enums/trading-currencies.enum";
 import { v4 as uuidv4 } from "uuid";
 
 export class SimulationUtils {
-    private constructor() {
-        // utility class
-    }
 
     public static getSimulatedMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell"): Order {
         return {
