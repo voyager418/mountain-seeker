@@ -234,6 +234,7 @@ export class Squeeze implements BaseStrategy {
                 lastSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
                     "sell", targetAssetAmount, newSellStopLimitPrice, newSellStopLimitPrice, 3).catch(e => Promise.reject(e));
                 this.latestSellStopLimitOrder = lastSellStopLimitOrder;
+                tempTrailPrice = lastSellStopLimitOrder.limitPrice!;
                 newSellStopLimitPrice = lastSellStopLimitOrder.limitPrice!;
             }
             priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
