@@ -243,8 +243,9 @@ export class Squeeze implements BaseStrategy {
 
             potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
             log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
-                .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${newSellStopLimitPrice
-                .toFixed(this.market?.pricePrecision)} | Potential profit : ${potentialProfit.toFixed(3)}%`);
+                .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(firstTrailPriceSet ? 
+                newSellStopLimitPrice : stopLimitPrice).toFixed(this.market?.pricePrecision)} | Potential profit : ${potentialProfit
+                .toFixed(3)}%`);
         }
         return Promise.resolve(lastSellStopLimitOrder);
     }
