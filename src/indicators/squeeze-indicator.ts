@@ -28,8 +28,8 @@ export class SqueezeIndicator implements Indicator {
             .replace("'", ""));
 
         // should buy when 2 maroon bars are followed by 2 lime
-        const shouldBuy = colorsArray[colorsArray.length - 5] === "maroon" && colorsArray[colorsArray.length - 4] === "maroon"
-            && colorsArray[colorsArray.length - 3] === "lime" && colorsArray[colorsArray.length - 2] === "lime";
+        const shouldBuy = colorsArray[colorsArray.length - 5] === "red" && colorsArray[colorsArray.length - 4] === "red"
+            && colorsArray[colorsArray.length - 3] === "maroon" && colorsArray[colorsArray.length - 2] === "maroon";
 
         return {
             shouldBuy: shouldBuy,
