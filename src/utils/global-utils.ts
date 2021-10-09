@@ -4,9 +4,6 @@ import assert from "assert";
  * General purpose utility class
  */
 export class GlobalUtils {
-    private constructor() {
-        // utility class
-    }
 
     /**
      * Pauses execution for the specified amount of seconds.

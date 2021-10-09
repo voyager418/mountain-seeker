@@ -8,9 +8,6 @@ import log from '../logging/log.instance';
  * Utility class for strategies package
  */
 export class StrategyUtils {
-    private constructor() {
-        // utility class
-    }
 
     /**
      * @return A variation in % between two numbers `start` and `end`. Can be negative.

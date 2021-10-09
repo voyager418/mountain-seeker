@@ -2,7 +2,7 @@
 // Strategy based on LazyBear Squeeze Momentum Indicator
 // @author _
 
-strategy(shorttitle="Squeeze+Ichimoku", title="Squeeze+Ichimoku", overlay=false,
+strategy(shorttitle="Squeeze", title="Squeeze", overlay=false,
      calc_on_every_tick=false, pyramiding=0, default_qty_type=strategy.cash,
      default_qty_value=1000, currency=currency.EUR, initial_capital=1000,
      commission_type=strategy.commission.percent, commission_value=0.1)
@@ -38,7 +38,16 @@ val = linreg(src - avg(avg(highest(hl2, lengthKC), lowest(low, lengthKC)), sma(h
 bcolor = iff(val > 0, iff(val > nz(val[1]), color.lime, color.green), iff(val < nz(val[1]), color.red, color.maroon))
 scolor = no_sqz ? color.gray : sqz_on ? color.black : color.gray
 
-
+////////////////////////////// WAIT BARS START //////////////////////////////
+n_candles = input(defval = 1, minval = 0, title = "Wait number of bars")
+wait(n_candles) =>
+    res = true
+    for counter = 1 to n_candles
+        if strategy.wintrades[counter] != strategy.wintrades or strategy.losstrades[counter] != strategy.losstrades
+            res := false
+            break
+    res
+////////////////////////////// WAIT BARS END //////////////////////////////
 
 
 ////////////////////////////// ICHIMOKU START //////////////////////////////
@@ -133,16 +142,6 @@ xATRTrailingStop := iff(close > nz(xATRTrailingStop[1], 0) and close[1] > nz(xAT
 //plot(xATRTrailingStop, color=color.green, title="ATR Trailing Stop")
 ////////////////////////////// ATR END //////////////////////////////
 
-////////////////////////////// WAIT BARS START //////////////////////////////
-n_candles = input(defval = 1, minval = 0, title = "Wait number of bars")
-wait(n_candles) =>
-    res = true
-    for counter = 1 to n_candles
-        if strategy.wintrades[counter] != strategy.wintrades or strategy.losstrades[counter] != strategy.losstrades
-            res := false
-            break
-    res
-////////////////////////////// WAIT BARS END //////////////////////////////
 
 ////////////////////////////// ADX START //////////////////////////////
 lensig = input(14, title="ADX Smoothing", minval=1, maxval=50)
@@ -161,6 +160,45 @@ adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
 //plot(minus, color=#FF6D00, title="-DI")
 ////////////////////////////// ADX END //////////////////////////////
 
+////////////////////////////// VIXFIX START //////////////////////////////
+
+pd = input(22, title="LookBack Period Standard Deviation High")
+bbl = input(20, title="Bolinger Band Length")
+mult2 = input(2.0    , minval=1, maxval=5, title="Bollinger Band Standard Devaition Up")
+lb = input(50  , title="Look Back Period Percentile High")
+ph = input(.85, title="Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%")
+pl = input(1.01, title="Lowest Percentile - 1.10=90%, 1.05=95%, 1.01=99%")
+hp = input(true, title="Show High Range - Based on Percentile and LookBack Period?")
+sd = input(true, title="Show Standard Deviation Line?")
+
+wvf = ((highest(close, pd)-low)/(highest(close, pd)))*100
+
+sDev = mult2 * stdev(wvf, bbl)
+midLine = sma(wvf, bbl)
+lowerBand = midLine - sDev
+upperBand = midLine + sDev
+
+rangeHigh = (highest(wvf, lb)) * ph
+rangeLow = (lowest(wvf, lb)) * pl
+
+
+col3 = wvf >= upperBand or wvf >= rangeHigh ? color.lime : color.gray
+vixfixCondition = col3[3] == color.lime and col3[2] == color.lime and col3[1] == color.lime and col3[0] == color.gray
+
+
+//plot(hp and rangeHigh ? rangeHigh : na, title="Range High Percentile", style=plot.style_line, linewidth=2, color=color.orange)
+//plot(hp and rangeLow ? rangeLow : na, title="Range High Percentile", style=plot.style_line, linewidth=2, color=color.orange)
+//plot(wvf, title="Williams Vix Fix", style=plot.style_histogram, linewidth = 4, color=col3)
+//plot(sd and upperBand ? upperBand : na, title="Upper Band", style=plot.style_line, linewidth = 2, color=color.aqua)
+////////////////////////////// VIXFIX END //////////////////////////////
+
+////////////////////////////// RSI START //////////////////////////////
+RSI = rsi(close, 14)
+rsiBottomLine = 30
+RSI_was_over_sold =  barssince(RSI <= rsiBottomLine) <= 10
+
+//plot(RSI, color=color.orange, style=plot.style_line, linewidth=1)
+////////////////////////////// RSI END //////////////////////////////
 
 
 ////////////////////////////// CONDITIONS //////////////////////////////
@@ -179,10 +217,18 @@ strat14 = strat8 and bcolor[3] == color.maroon and bcolor[2] == color.maroon and
 strat15 = bcolor[3] == color.maroon and bcolor[2] == color.maroon and bcolor[1] == color.lime and bcolor[0] == color.lime
 strat16 =  strat15 and scolor[0] == color.gray
 strat17 = scolor[1] == color.black and scolor[0] == color.gray and bcolor[0] == color.lime
+strat18 = vixfixCondition and RSI[1] < RSI[0] and
+ (RSI[1] <= rsiBottomLine or RSI[2] <= rsiBottomLine or RSI[3] <= rsiBottomLine)
+strat19 = open < close and (((close - open) / open) * 100) >=  8
+strat20 = bcolor[2] == color.maroon and bcolor[1] == color.maroon and bcolor[0] == color.lime
+strat21 = bcolor[3] == color.red and bcolor[2] == color.red and bcolor[1] == color.maroon and bcolor[0] == color.maroon and val < -7
 longCondition = strat15
 
+
+
+
 //strat16 = bcolor[3] == color.green and bcolor[2] == color.green and bcolor[1] == color.red and bcolor[0] == color.red
-shortCondition = bcolor[3] == color.green and bcolor[2] == color.green and bcolor[1] == color.red and bcolor[0] == color.red
+//shortCondition = bcolor[3] == color.green and bcolor[2] == color.green and bcolor[1] == color.red and bcolor[0] == color.red
 
 
 
@@ -191,7 +237,7 @@ shortCondition = bcolor[3] == color.green and bcolor[2] == color.green and bcolo
 stop_loss = input(defval = 5.0, title = "Max loss", minval = 0) // -5% by default
 stop_loss := strategy.position_avg_price * (1 - (stop_loss / 100))
 stop_loss_short = strategy.position_avg_price * (1 + (stop_loss / 100))
-trailing_loss = input(defval = 1.0, minval = 0, title = "Percent trailing loss")
+trailing_loss = input(defval = 0.5, minval = 0, title = "Percent trailing loss")
 trailing_stop_activation = close * (trailing_loss / 100) / syminfo.mintick
 
 
@@ -207,7 +253,15 @@ strategy.exit("Sell", from_entry = "Buy", trail_points = trailing_stop_activatio
 //strategy.exit("Sell", from_entry = "Short", trail_points = trailing_stop_activation, trail_offset = trailing_stop_activation, stop = stop_loss_short)
 
 //strategy.exit("Sell", from_entry = "Buy", stop = xATRTrailingStop)
-//strategy.close("Buy", when = close <= strategy.position_avg_price * 0.95)
+
+// wait bars since trade start
+//opened_order = strategy.position_size[0] != strategy.position_size[1] and strategy.position_size[0] != 0
+//bars = barssince(opened_order) + 1
+//strategy.close_all(when=(bars>=2))
+
+//strategy.close_all(when=bcolor[0] == color.lime)
+//strategy.exit("Sell", from_entry = "Buy", stop = stop_loss)
+
 
 
 
@@ -218,7 +272,7 @@ strategy.exit("Sell", from_entry = "Buy", trail_points = trailing_stop_activatio
 
 // Plot Squeeze momentum
 plot(val, color=bcolor, style=plot.style_histogram, linewidth=4)
-plot(0, color=scolor, style=plot.style_cross, linewidth=2)
+//plot(0, color=scolor, style=plot.style_cross, linewidth=2)
 
 // Plot Ichimoku Kinko Hyo
 //plot(tenkan, color=#0496ff, title="Tenkan-Sen")
@@ -232,7 +286,7 @@ plot(0, color=scolor, style=plot.style_cross, linewidth=2)
 //plot(lrsi, color=col, linewidth=2)
 
 
-//plot(strategy.position_size, color=color.orange, style=plot.style_line, linewidth=1)
+//plot((((close[1] - open[1]) / open[1]) * 100.0), color=color.orange, style=plot.style_line, linewidth=1)
 //plot(trailing_stop_activation, color=color.green, style=plot.style_line, linewidth=1)
 //plot(strategy.wintrades[1], color=color.blue, style=plot.style_line, linewidth=1)
 
@@ -271,7 +325,7 @@ testStartDay = input(1, "Backtest Start Day")
 testStartHour = input(0, "Backtest Start Hour")
 testPeriodStart = timestamp(testStartYear, testStartMonth, testStartDay, testStartHour, 0)
 testStopYear = input(2021, "Backtest Stop Year")
-testStopMonth = input(8, "Backtest Stop Month")
+testStopMonth = input(9, "Backtest Stop Month")
 testStopDay = input(31, "Backtest Stop Day")
 testStopHour = input(23, "Backtest Stop Hour")
 testPeriodStop = timestamp(testStopYear, testStopMonth, testStopDay, testStopHour, 0)
