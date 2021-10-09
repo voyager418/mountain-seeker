@@ -3,8 +3,9 @@ import pandas as pd
 import numpy as np
 import sys
 
-def squeeze_indicator(df, length = 20, mult = 2, length_KC = 16, mult_KC = 1.5):
-	df['ohlc4'] = (df['Close'] + df['Open'] + df['High'] + df['Low'])/4.
+def squeeze_indicator(df, length = 20, mult = 2, length_KC = 20, mult_KC = 1.5):
+	#df['ohlc4'] = (df['Close'] + df['Open'] + df['High'] + df['Low'])/4.
+	df['ohlc4'] = df['Close']
 	# calculate BB
 	m_avg1 = df['ohlc4'].rolling(window=length).mean()
 	m_avg2 = df['ohlc4'].rolling(window=length_KC).mean()
@@ -46,7 +47,7 @@ if __name__ == '__main__':
 	# parameter setup
 	length = 20
 	mult = 2
-	length_KC = 16
+	length_KC = 20
 	mult_KC = 1.5
 
 	data = sys.argv[1].split(',')
