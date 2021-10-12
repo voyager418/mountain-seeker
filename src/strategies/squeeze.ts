@@ -204,7 +204,7 @@ export class Squeeze implements BaseStrategy {
         this.state.drawDown = Infinity;
         let priceChange;
 
-        while (tempTrailPrice < marketUnitPrice) {
+        while ((firstTrailPriceSet ? newSellStopLimitPrice : stopLimitPrice) < marketUnitPrice) {
             if (firstTrailPriceSet) {
                 // if first trailing limit is set, wait longer
                 await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
