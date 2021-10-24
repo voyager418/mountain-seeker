@@ -48,6 +48,16 @@ export class BinanceDataService implements Subject {
         }
     }
 
+    removeAllObservers(): { removed: number, running: number } {
+        const running = this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
+        const removed = this.observers.length;
+        this.observers.splice(0);
+        return {
+            removed,
+            running
+        }
+    }
+
     notifyObservers(): void {
         this.observers.forEach(observer => observer.update(this.markets));
     }

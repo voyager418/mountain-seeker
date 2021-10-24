@@ -5,6 +5,7 @@ import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
 import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
 import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-config";
+import { BinanceDataService } from "./observer/binance-data-service";
 
 
 /**
@@ -27,8 +28,12 @@ export class TradingService {
         apiSecret: process.env.BINANCE_API_SECRET
     }
 
-    public async beginTrading(): Promise<void> {
+    public beginTrading(): void {
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
     }
 
+    public stopTrading(): string {
+        const removeResult = container.resolve(BinanceDataService).removeAllObservers();
+        return `${removeResult.removed} strategies cancelled <br> ${removeResult.running} strategies still running`
+    }
 }
