@@ -7,6 +7,7 @@ import { ConfigService } from "../src/services/config-service";
 import createMockInstance from "jest-create-mock-instance";
 import { OrderType } from "../src/enums/order-type.enum";
 import { Currency } from "../src/enums/trading-currencies.enum";
+import { RedeemOrder } from "../src/models/redeem-order";
 
 
 export class TestHelper {
@@ -112,6 +113,17 @@ export class TestHelper {
             },
             originAsset: Currency.EUR,
             targetAsset: "BTC"
+        }
+    }
+
+    static getMockedRedeemOrder(): RedeemOrder {
+        return {
+            amount: 10.05022099,
+            redeemAmount: 0.95590905,
+            targetAsset: "LINKUP",
+            externalId: "123",
+            status: "S",
+            timestamp: 1600250279614
         }
     }
 

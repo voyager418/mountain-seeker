@@ -11,6 +11,7 @@ import { Market, TOHLCV } from "../../src//models/market";
 import { CandlestickInterval } from "../../src/enums/candlestick-interval.enum";
 import { OrderType } from "../../src/enums/order-type.enum";
 import { GlobalUtils } from "../../src/utils/global-utils";
+import { ATR } from "technicalindicators";
 
 
 describe("Test things with Binance", () => {
@@ -29,9 +30,9 @@ describe("Test things with Binance", () => {
         squeezeIndicator = container.resolve(SqueezeIndicator);
     });
 
-    xtest("To test things with binance", async () => {
+    test("To test things with binance", async () => {
         // get candle sticks
-        // const candleSticks = await binanceConnector.getCandlesticks("BTCDOWN/USDT", CandlestickInterval.ONE_HOUR,
+        // const candleSticks = await binanceConnector.getCandlesticks("BNBUP/USDT", CandlestickInterval.FIFTEEN_MINUTES,
         //     100, 2);
 
         // print market details
@@ -69,6 +70,14 @@ describe("Test things with Binance", () => {
         //     fastPeriod: 12,
         //     slowPeriod: 26,
         //     signalPeriod: 9
+        // }).reverse());
+
+        // ATR indicator
+        // console.log(ATR.calculate({
+        //     low: candleSticks.map(candle => candle[3]),
+        //     high: candleSticks.map(candle => candle[2]),
+        //     close: candleSticks.map(candle => candle[4]),
+        //     period: 7
         // }).reverse());
     });
 

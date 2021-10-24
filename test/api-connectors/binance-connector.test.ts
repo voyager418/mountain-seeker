@@ -119,7 +119,7 @@ describe("Binance connector", () => {
             expect(res.get("ETH")).toEqual(0);
         });
 
-        test("Should correctly retry when can not get wallet balance", async() => {
+        test("Should retry when can not get wallet balance", async() => {
             // arrange
             binanceInstance.fetchBalance = jest.fn(async() => Promise.reject(undefined));
 
@@ -138,10 +138,24 @@ describe("Binance connector", () => {
             binanceInstance.fetchBalance = jest.fn(async() => TestHelper.getBinanceFetchBalance());
 
             // act
-            const res = await binanceConnector.getBalanceForAsset("BNB");
+            const res = await binanceConnector.getBalanceForAsset("BNB", 3);
 
             // assert
             expect(res).toEqual(0.00159473);
+        });
+
+        test("Should retry when can not get wallet balance for a particular asset", async() => {
+            // arrange
+            binanceInstance.fetchBalance = jest.fn(async() => Promise.reject(undefined));
+
+            // act
+            try {
+                await binanceConnector.getBalanceForAsset("BNB", 3);
+                fail("Should throw an exception");
+            } catch (e) {
+                expect(binanceInstance.fetchBalance).toHaveBeenCalledTimes(4);
+                expect(e).toEqual("Failed to fetch balance for currency BNB");
+            }
         });
     });
 
@@ -492,15 +506,37 @@ describe("Binance connector", () => {
             binanceConnector.getOrder = jest.fn(async() => Promise.resolve(TestHelper.getMockedOrder()));
 
             // act
-            await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC");
+            await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC", 3);
 
             // assert
             expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
             expect(binanceConnector.getOrder).not.toHaveBeenCalled();
         });
 
-        // TODO
-        xtest("Should retry to cancel an order", async() => {
+        test("Should retry to call the cancel operation to cancel an order", async() => {
+            // arrange
+            const binanceOpenOrder = TestHelper.getBinanceCreateSellStopLimitOrder();
+            binanceOpenOrder.status = "open";
+            const ourOpenOrder = TestHelper.getMockedOrder();
+            ourOpenOrder.status = "open";
+            binanceInstance.cancelOrder = jest.fn(async() => Promise.reject(undefined));
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.resolve(binanceOpenOrder));
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(ourOpenOrder));
+
+            try {
+                // act
+                await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC", 3);
+                fail("Should throw an exception");
+            } catch (e) {
+                // assert
+                expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
+                expect(binanceInstance.cancelOrder).toHaveBeenCalledTimes(4);
+                expect(binanceConnector.getOrder).not.toHaveBeenCalled();
+                expect(e).toEqual(`Failed to cancel order 1217145293`);
+            }
+        });
+
+        test("Should retry to cancel an order", async() => {
             // arrange
             const binanceOpenOrder = TestHelper.getBinanceCreateSellStopLimitOrder();
             binanceOpenOrder.status = "open";
@@ -511,16 +547,122 @@ describe("Binance connector", () => {
             binanceConnector.getOrder = jest.fn(async() => Promise.resolve(ourOpenOrder));
 
             // act
-            await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC");
+            try {
+                await binanceConnector.cancelOrder("1217145293", "123", Currency.EUR, "BTC", 3);
+            } catch (e) {
+                // assert
+                expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
+                expect(binanceInstance.cancelOrder).toHaveBeenCalledTimes(1);
+                expect(binanceConnector.getOrder).toHaveBeenCalledTimes(4);
+                expect(e).toEqual(`Failed to cancel order : ${JSON.stringify(ourOpenOrder)}`);
+            }
 
-            // assert
-            expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
-            expect(binanceConnector.getOrder).not.toHaveBeenCalled();
         });
     });
 
     describe("waitForOrderCompletion", () => {
-        // TODO
+        test("Should not wait if an order is already completed", async() => {
+            // arrange
+            const completedOrder = TestHelper.getMockedOrder();
+            completedOrder.status = "closed";
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(completedOrder));
+
+            // act
+            const result = await binanceConnector.waitForOrderCompletion(completedOrder, completedOrder.originAsset, completedOrder.targetAsset, 3);
+
+            // assert
+            expect(result).toEqual(completedOrder);
+            expect(binanceConnector.getOrder).not.toHaveBeenCalled();
+        });
+
+        test("Should retry and wait if an order is not completed", async() => {
+            // arrange
+            const openOrder = TestHelper.getMockedOrder();
+            openOrder.status = "open";
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(openOrder));
+
+            // act
+            const result = await binanceConnector.waitForOrderCompletion(openOrder, openOrder.originAsset, openOrder.targetAsset, 3);
+
+            // assert
+            expect(binanceConnector.getOrder).toHaveBeenCalledTimes(4);
+            expect(result).toBeUndefined();
+        });
+    });
+
+    describe("orderIsclosed", () => {
+        test("Should return true if order is already closed", async() => {
+            // arrange
+            const completedOrder = TestHelper.getMockedOrder();
+            completedOrder.status = "closed";
+            binanceConnector.getOrder = jest.fn(async() => Promise.resolve(completedOrder));
+
+            // act
+            const result = await binanceConnector.orderIsClosed(completedOrder.externalId, completedOrder.originAsset, completedOrder.targetAsset,
+                completedOrder.id, completedOrder.type!);
+
+            // assert
+            expect(result).toBeTruthy();
+        });
+
+        test("Should retry to fetch an oder while verifying if that order is closed", async() => {
+            // arrange
+            const completedOrder = TestHelper.getMockedOrder();
+            completedOrder.status = "closed";
+            binanceInstance.fetchOrder = jest.fn(async() => Promise.reject(undefined));
+
+            try {
+                // act
+                await binanceConnector.orderIsClosed(completedOrder.externalId, completedOrder.originAsset, completedOrder.targetAsset,
+                    completedOrder.id, completedOrder.type!, 3);
+            } catch (e) {
+                // assert
+                expect(e).toEqual(`Order ${completedOrder.externalId} was not found`)
+                expect(binanceInstance.fetchOrder).toHaveBeenCalledTimes(4);
+            }
+
+        });
+    });
+
+    describe("redeemBlvt", () => {
+        test("Should correctly return after redeeming BLVT order", async() => {
+            // arrange
+            const redeemOrder = TestHelper.getMockedRedeemOrder();
+            mockedAxios.post.mockResolvedValueOnce({
+                status: 200,
+                data: {
+                    id: 123,
+                    status: "S", // S, P, and F for "success", "pending", and "failure"
+                    tokenName: "LINKUP",
+                    redeemAmount: "0.95590905",       // Redemption token amount
+                    amount: "10.05022099",    // Redemption value in usdt
+                    timestamp: 1600250279614
+                }
+            });
+
+
+            // act
+            const result = await binanceConnector.redeemBlvt(redeemOrder.targetAsset, redeemOrder.amount, 3);
+
+            // assert
+            expect(result).toEqual(redeemOrder);
+        });
+
+        test("Should retry to redeem BLVT order", async() => {
+            // arrange
+            const redeemOrder = TestHelper.getMockedRedeemOrder();
+            mockedAxios.post.mockResolvedValueOnce({
+                status: 500
+            });
+
+            try {
+                // act
+                await binanceConnector.redeemBlvt(redeemOrder.targetAsset, redeemOrder.amount, 3);
+            } catch (e) {
+                expect(e).toBeUndefined();
+                expect(mockedAxios.post).toHaveBeenCalledTimes(4);
+            }
+        });
     });
 });
 
