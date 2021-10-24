@@ -1,0 +1,595 @@
+// @version=4
+// Strategy based on LazyBear Squeeze Momentum Indicator
+// @author _
+
+strategy(shorttitle="Squeeze", title="Squeeze", overlay=false,
+     calc_on_every_tick=false, pyramiding=0, default_qty_type=strategy.cash,
+     default_qty_value=1000, currency=currency.EUR, initial_capital=1000,
+     commission_type=strategy.commission.percent, commission_value=0.1, max_bars_back=500)
+
+length = input(20, title="BB Length")
+mult = input(2.0,title="BB MultFactor")
+lengthKC=input(10, title="KC Length")
+multKC = input(1.5, title="KC MultFactor")
+
+useTrueRange = true//input(true, title="Use TrueRange (KC)")
+
+// Calculate BB
+source = close
+basis = sma(source, length)
+dev = multKC * stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// Calculate KC
+ma = sma(source, lengthKC)
+range = useTrueRange ? tr : (high - low)
+rangema = sma(range, lengthKC)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+val = linreg(source  -  avg(avg(highest(high, lengthKC), lowest(low, lengthKC)),sma(close,lengthKC)), lengthKC,0)
+
+bcolor = iff( val > 0, iff( val > nz(val[1]), color.lime, color.green),iff( val < nz(val[1]), color.red, color.maroon))
+scolor = noSqz ? color.blue : sqzOn ? color.black : color.gray
+
+////////////////////////////// WAIT BARS START //////////////////////////////
+n_candles = input(defval = 1, minval = 0, title = "Wait number of bars")
+wait(n_candles) =>
+    res = true
+    for counter = 1 to n_candles
+        if strategy.wintrades[counter] != strategy.wintrades or strategy.losstrades[counter] != strategy.losstrades
+            res := false
+            break
+    res
+////////////////////////////// WAIT BARS END //////////////////////////////
+
+////////////////////////////// PERCENT VARIATION START //////////////////////////////
+getPercentVariation(start, end) =>
+    if start <= end
+        abs(((end - start) / start) * 100)
+    else
+        -((start - end) / start) * 100
+////////////////////////////// PERCENT VARIATION END //////////////////////////////
+
+////////////////////////////// Red/Green candle START //////////////////////////////
+isRedCandle(index) => close[index] < open[index]
+isGreenCandle(index) => close[index] > open[index]
+////////////////////////////// Red/Green candle END //////////////////////////////
+
+////////////////////////////// MACD START //////////////////////////////
+Lx1=input(12)
+Lx2=input(26)
+tp=close//input(close)
+mx0 = ema(tp,Lx1)
+mx1 = ema(tp,Lx2)
+source3 = (mx0-mx1)
+LxS=9//input(9)
+outA = ema(source3, LxS)
+
+// after cross
+//min_between_red_blue = min(source3[1], outA[1])
+//max_between_red_blue = max(source3[1], outA[1])
+//percent_difference_between_red_blue = 100 - ((min_between_red_blue / max_between_red_blue) * 100)
+//macd_condition = crossover(source3, outA)
+ //and source3 > outA
+ //and barssince(crossunder(source3, outA)) > 15
+ //and abs(source3[1] - outA[1]) > abs(source3[2] - outA[2])
+
+
+
+// about to cross
+macd_condition = source3 < outA
+ and source3[1] < outA[1]
+ and source3 > source3[1]
+ and barssince(crossunder(source3, outA)) > 15
+//and abs(getPercentVariation(outA, source3)) <= 55.0
+
+//BLUE_MACD_SMA_PERIOD = 3
+//BLUE_MACD_SMA = sma(source3, BLUE_MACD_SMA_PERIOD)
+//slope = (BLUE_MACD_SMA- BLUE_MACD_SMA[BLUE_MACD_SMA_PERIOD])/BLUE_MACD_SMA_PERIOD
+//plot(percent_difference_between_red_blue, color=color.yellow)
+//plot(getPercentVariation(low, open), color=color.purple)
+//plot(outA, color=color.yellow)
+
+////////////////////////////// MACD END //////////////////////////////
+
+////////////////////////////// MFI START //////////////////////////////
+mfi_length = 14//input.int(title="Length", defval=14, minval=1, maxval=2000)
+mfi_src = hlc3
+mfi = mfi(mfi_src, mfi_length)
+mfi_condition = mfi[1] < mfi and mfi < 80
+////////////////////////////// MFI END //////////////////////////////
+
+
+////////////////////////////// ICHIMOKU START //////////////////////////////
+
+//Inputs
+ts_bars = 9//input(9, minval=1, title="Tenkan-Sen Bars")
+ks_bars = 26//input(26, minval=1, title="Kijun-Sen Bars")
+ssb_bars = 52//input(52, minval=1, title="Senkou-Span B Bars")
+cs_offset = 26//input(26, minval=1, title="Chikou-Span Offset")
+ss_offset = 26//input(26, minval=1, title="Senkou-Span Offset")
+
+
+middle(len) => avg(lowest(len), highest(len))
+
+// Ichimoku Components
+tenkan = middle(ts_bars)
+kijun = middle(ks_bars)
+senkouA = avg(tenkan, kijun)
+senkouB = middle(ssb_bars)
+
+ss_high = max(senkouA[ss_offset-1], senkouB[ss_offset-1])
+ss_low = min(senkouA[ss_offset-1], senkouB[ss_offset-1])
+
+// Entry/Exit Signals
+conversion_above_base = tenkan >= kijun
+conversion_is_rising = tenkan[1] < tenkan[0]
+cs_cross_bull = mom(close, cs_offset-1) > 0
+price_above_kumo = close > ss_high
+green_cloud = senkouA[ss_offset-1] >= senkouB[ss_offset-1]
+
+
+ichimoku_condition = conversion_above_base and conversion_is_rising and price_above_kumo
+
+////////////////////////////// ICHIMOKU END //////////////////////////////
+
+////////////////////////////// ATR START //////////////////////////////
+nATRPeriod = input(7)
+stopLossATRMultiplier = input(1.0)
+takeProfitATRMultiplier = input(2.0)
+xATR = atr(nATRPeriod)
+stopLossATR = stopLossATRMultiplier * xATR
+takeProfitATR = takeProfitATRMultiplier * xATR
+//plot(getPercentVariation(open, close), color=color.red,transp=0,linewidth=4,title="signal line ")
+plot(xATR, color=color.purple)
+
+////////////////////////////// ATR END //////////////////////////////
+
+
+////////////////////////////// ADX START //////////////////////////////
+lensig = 14//input(14, title="ADX Smoothing", minval=1, maxval=50)
+len = 14//input(14, minval=1, title="DI Length")
+adx_minimal_value = input(18, title= "ADX minimal value")
+up = change(high)
+down = -change(low)
+plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
+minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+trur = rma(tr, len)
+plus = fixnan(100 * rma(plusDM, len) / trur)
+minus = fixnan(100 * rma(minusDM, len) / trur)
+sum = plus + minus
+adx = 100 * rma(abs(plus - minus) / (sum == 0 ? 1 : sum), lensig)
+adx_condition = adx > adx_minimal_value and plusDM > minusDM// and adx > adx[1]
+
+//plot(adx, color=#F50057, title="ADX")
+//plot(plus, color=#2962FF, title="+DI")
+//plot(minus, color=#FF6D00, title="-DI")
+////////////////////////////// ADX END //////////////////////////////
+
+////////////////////////////// RSI START //////////////////////////////
+RSI = rsi(close, 14)
+rsiBottomLine = 30
+RSI_was_over_sold =  barssince(RSI <= rsiBottomLine) <= 10
+RSI_condition = RSI >= 60
+
+//plot(RSI, color=color.orange, style=plot.style_line, linewidth=1)
+////////////////////////////// RSI END //////////////////////////////
+
+
+////////////////////////////// PIVOT POINT SUPERTREND START //////////////////////////////
+prd = input(defval = 2, title="Pivot Point Period", minval = 1, maxval = 50)
+Factor=input(defval = 3, title = "ATR Factor", minval = 1, step = 0.1)
+Pd=nATRPeriod//input(defval = 7, title = "ATR Period", minval=1)
+showpivot = false//input(defval = false, title="Show Pivot Points")
+showlabel = true//input(defval = true, title="Show Buy/Sell Labels")
+showcl = false//input(defval = false, title="Show PP Center Line")
+showsr = false//input(defval = false, title="Show Support/Resistance")
+
+// get Pivot High/Low
+float ph2 = pivothigh(prd, prd)
+float pl2 = pivotlow(prd, prd)
+
+// drawl Pivot Points if "showpivot" is enabled
+//plotshape(ph2 and showpivot, text="H",  style=shape.labeldown, color=na, textcolor=color.red, location=location.abovebar, transp=0, offset = -prd)
+//plotshape(pl2 and showpivot, text="L",  style=shape.labeldown, color=na, textcolor=color.lime, location=location.belowbar, transp=0, offset = -prd)
+
+// calculate the Center line using pivot points
+var float center = na
+float lastpp = ph2 ? ph2 : pl2 ? pl2 : na
+if lastpp
+    if na(center)
+        center := lastpp
+    else
+        //weighted calculation
+        center := (center * 2 + lastpp) / 3
+
+// upper/lower bands calculation
+Up = center - (Factor * atr(Pd))
+Dn = center + (Factor * atr(Pd))
+
+// get the trend
+float TUp = na
+float TDown = na
+Trend = 0
+TUp := close[1] > TUp[1] ? max(Up, TUp[1]) : Up
+TDown := close[1] < TDown[1] ? min(Dn, TDown[1]) : Dn
+Trend := close > TDown[1] ? 1: close < TUp[1]? -1: nz(Trend[1], 1)
+Trailingsl = Trend == 1 ? TUp : TDown
+
+// plot the trend
+linecolor = Trend == 1 and nz(Trend[1]) == 1 ? color.lime : Trend == -1 and nz(Trend[1]) == -1 ? color.red : na
+//plot(Trailingsl, color = linecolor ,  linewidth = 2, title = "PP SuperTrend")
+
+//plot(showcl ? center : na, color = showcl ? center < hl2 ? color.blue : color.red : na)
+
+// check and plot the signals
+bsignal = Trend == 1 and Trend[1] == -1
+ssignal = Trend == -1 and Trend[1] == 1
+//plotshape(bsignal and showlabel ? Trailingsl : na, title="Buy", text="Buy", location = location.absolute, style = shape.labelup, size = size.tiny, color = color.lime, textcolor = color.black, transp = 0)
+//plotshape(ssignal and showlabel ? Trailingsl : na, title="Sell", text="Sell", location = location.absolute, style = shape.labeldown, size = size.tiny, color = color.red, textcolor = color.white, transp = 0)
+
+//get S/R levels using Pivot Points
+float resistance = na
+float support = na
+support := pl2 ? pl2 : support[1]
+resistance := ph2 ? ph2 : resistance[1]
+
+// if enabled then show S/R levels
+//plot(showsr and support ? support : na, color = showsr and support ? color.lime : na, style = plot.style_circles, offset = -prd)
+//plot(showsr and resistance ? resistance : na, color = showsr and resistance ? color.red : na, style = plot.style_circles, offset = -prd)
+
+////////////////////////////// PIVOT POINT SUPERTREND END //////////////////////////////
+
+////////////////////////////// SLING SHOT START //////////////////////////////
+
+sae = true//input(true, title="Show Aggressive Entry?, Or Use as Alert To Potential Conservative Entry?")
+sce = true//input(true, title="Show Conservative Entry?")
+st = true//input(true, title="Show Trend Arrows at Top and Bottom of Screen?")
+def = false//input(false, title="Only Choose 1 - Either Conservative Entry Arrows or 'B'-'S' Letters")
+pa = true//input(true, title="Show Conservative Entry Arrows?")
+sl = false//input(false, title="Show 'B'-'S' Letters?")
+
+//EMA Definitions
+emaSlow = ema(close, 62)
+emaFast = ema(close, 38)
+//Aggressive Entry or Alert To Potential Trade
+pullbackUpT() => emaFast > emaSlow and close < emaFast
+pullbackDnT() => emaFast < emaSlow and close > emaFast
+//Conservative Entry Code For Highlight Bars
+entryUpT() => emaFast > emaSlow and close[1] < emaFast and close > emaFast
+entryDnT() => emaFast < emaSlow and close[1] > emaFast and close < emaFast
+//Conservative Entry True/False Condition
+entryUpTrend = emaFast > emaSlow and close[1] < emaFast and close > emaFast ? 1 : 0
+entryDnTrend = emaFast < emaSlow and close[1] > emaFast and close < emaFast ? 1 : 0
+//Define Up and Down Trend for Trend Arrows at Top and Bottom of Screen
+upTrend = emaFast >= emaSlow
+downTrend = emaFast < emaSlow
+//Definition for Conseervative Entry Up and Down PlotArrows
+codiff = entryUpTrend == 1 ? entryUpTrend : 0
+codiff2 = entryDnTrend == 1 ? entryDnTrend : 0
+//Color definition for Moving Averages
+col55 = emaFast > emaSlow ? color.lime : emaFast < emaSlow ? color.red : color.yellow
+
+////////////////////////////// SLING SHOT END //////////////////////////////
+
+////////////////////////////// BREAKOUT FINDER START //////////////////////////////
+prd2 = 5///input(defval = 5, title="Period", minval = 2)
+bo_len = 200//input(defval = 200, title="Max Breakout Length", minval = 30, maxval = 300)
+cwidthu = 3//input(defval = 3., title = "Threshold Rate %", minval = 1., maxval = 10) / 100
+mintest = 2//input(defval = 2, title = "Minimum Number of Tests", minval = 1)
+bocolorup = color.blue
+bocolordown = color.red
+lstyle = line.style_solid
+
+//width
+lll = max(min(bar_index, 300), 1)
+float h_ = highest(lll)
+float l_ = lowest(lll)
+float chwidth = (h_ - l_) * cwidthu
+
+// check if PH/PL
+ph = pivothigh(prd2, prd2)
+pl = pivotlow(prd2, prd2)
+
+//keep Pivot Points and their locations in the arrays
+var phval = array.new_float(0)
+var phloc = array.new_int(0)
+var plval = array.new_float(0)
+var plloc = array.new_int(0)
+
+// keep PH/PL levels and locations
+if ph
+    array.unshift(phval, ph)
+    array.unshift(phloc, bar_index - prd)
+    if array.size(phval) > 1 // cleanup old ones
+        for x = array.size(phloc) - 1 to 1
+            if bar_index - array.get(phloc, x) > bo_len
+                array.pop(phloc)
+                array.pop(phval)
+
+if pl
+    array.unshift(plval, pl)
+    array.unshift(plloc, bar_index - prd)
+    if array.size(plval) > 1 // cleanup old ones
+        for x = array.size(plloc) - 1 to 1
+            if bar_index - array.get(plloc, x) > bo_len
+                array.pop(plloc)
+                array.pop(plval)
+
+// check bullish cup
+float bomax = na
+int bostart = bar_index
+num = 0
+hgst = highest(prd2)[1]
+if array.size(phval) >= mintest and close > open and close > hgst
+    bomax := array.get(phval, 0)
+    xx = 0
+    for x = 0 to array.size(phval) - 1
+        if array.get(phval, x) >= close
+            break
+        xx := x
+        bomax := max(bomax, array.get(phval, x))
+    if xx >= mintest and open <= bomax
+        for x = 0 to xx
+            if array.get(phval, x) <= bomax and array.get(phval, x) >= bomax - chwidth
+                num += 1
+                bostart := array.get(phloc, x)
+        if num < mintest or hgst >= bomax
+            bomax := na
+
+//if not na(bomax) and num >= mintest
+    //line.new(x1 = bar_index, y1 = bomax, x2 = bostart, y2 = bomax, color = bocolorup, style = lstyle)
+    //line.new(x1 = bar_index, y1 = bomax - chwidth, x2 = bostart, y2 = bomax - chwidth, color = bocolorup, style = lstyle)
+    //line.new(x1 = bostart, y1 = bomax - chwidth, x2 = bostart, y2 = bomax, color = bocolorup, style = lstyle)
+    //line.new(x1 = bar_index, y1 = bomax - chwidth, x2 = bar_index, y2 = bomax, color = bocolorup, style = lstyle)
+
+//plotshape(not na(bomax) and num >= mintest, location = location.belowbar, style  = shape.triangleup, color = bocolorup, size = size.small)
+//alertcondition(not na(bomax) and num >= mintest, title = "Breakout", message = "Breakout")
+
+// check bearish cup
+float bomin = na
+bostart := bar_index
+num1 = 0
+lwst = lowest(prd2)[1]
+if array.size(plval) >= mintest and close < open and close < lwst
+    bomin := array.get(plval, 0)
+    xx = 0
+    for x = 0 to array.size(plval) - 1
+        if array.get(plval, x) <= close
+            break
+        xx := x
+        bomin := min(bomin, array.get(plval, x))
+    if xx >= mintest and open >= bomin
+        for x = 0 to xx
+            if array.get(plval, x) >= bomin and array.get(plval, x) <= bomin + chwidth
+                num1 += 1
+                bostart := array.get(plloc, x)
+        if num1 < mintest or lwst <= bomin
+            bomin := na
+
+//if not na(bomin) and num1 >= mintest
+    //line.new(x1 = bar_index, y1 = bomin, x2 = bostart, y2 = bomin, color = bocolordown, style = lstyle)
+    //line.new(x1 = bar_index, y1 = bomin + chwidth, x2 = bostart, y2 = bomin + chwidth, color = bocolordown, style = lstyle)
+    //line.new(x1 = bostart, y1 = bomin + chwidth, x2 = bostart, y2 = bomin, color = bocolordown, style = lstyle)
+    //line.new(x1 = bar_index, y1 = bomin + chwidth, x2 = bar_index, y2 = bomin, color = bocolordown, style = lstyle)
+
+//plotshape(not na(bomin) and num1 >= mintest, location = location.abovebar, style  = shape.triangledown, color = bocolordown, size = size.small)
+
+//alertcondition(not na(bomin) and num1 >= mintest, title = "Breakdown", message = "Breakdown")
+//alertcondition((not na(bomax) and num >= mintest) or (not na(bomin) and num1 >= mintest), title = "Breakout or Breakdown", message = "Breakout or Breakdown")
+
+breakout_condition = not na(bomax) and num >= mintest
+////////////////////////////// BREAKOUT FINDER END ////////////////////////////////
+
+
+
+////////////////////////////// CONDITIONS //////////////////////////////
+
+
+// buy condition
+strat1 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[0] == color.lime
+strat2 = conversion_above_base and conversion_is_rising and price_above_kumo and green_cloud and bcolor[0] == color.lime
+strat3 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[0] == color.lime and scolor == color.gray
+strat4 = conversion_above_base and price_above_kumo and bcolor[0] == color.lime
+strat5 = strat1 and bcolor[3] == color.maroon
+strat8 = conversion_above_base and conversion_is_rising and price_above_kumo and bcolor[3] == color.maroon
+strat14 = strat8 and bcolor[3] == color.maroon and bcolor[2] == color.maroon and bcolor[1] == color.lime and bcolor[0] == color.lime
+strat15 = bcolor[3] == color.maroon and bcolor[2] == color.maroon and bcolor[1] == color.lime and bcolor[0] == color.lime
+strat16 =  strat15 and scolor[0] == color.gray
+strat17 = scolor[1] == color.black and scolor[0] == color.gray and bcolor[0] == color.lime
+strat19 = open < close and (((close - open) / open) * 100) >=  8
+strat20 = bcolor[2] == color.maroon and bcolor[1] == color.maroon and bcolor[0] == color.lime
+strat21 = bcolor[3] == color.red and bcolor[2] == color.red and bcolor[1] == color.maroon and bcolor[0] == color.maroon and val < -7
+
+
+
+sling_shot_condition = col55 == color.lime //and barssince(col55 == color.red) <= 10 // and emaFast[1] < emaFast[0]// and (col55[1] == color.red or col55[1] == color.yellow) //and emaFast[1] < emaFast[0] and emaFast - emaSlow >= 0.2 and barssince(col55 == color.red) <= 10// for UP
+//sling_shot_condition = col55[5] == color.lime and col55 == color.lime and barssince(col55 == color.red) < 10 and
+ //emaFast[1] < emaFast[0] and emaFast - emaSlow >= 0.2 and ((emaFast - emaSlow) > (emaFast[1] - emaSlow[1]))// for UP
+
+//sling_shot_condition := col55[5] == color.lime and col55 == color.lime and
+ //emaFast[1] < emaFast[0] and emaFast - emaSlow >= 0.8
+
+//sling_shot_condition = col55 == color.lime and emaFast[1] < emaFast[0] // for DOWN
+
+supertrend_condition = linecolor == color.lime// and (barssince(linecolor == color.red) < 10)
+strat22 = val[1] < val and supertrend_condition and sling_shot_condition
+
+
+
+strat25 = supertrend_condition
+ and macd_condition
+ and mfi_condition
+ //and adx_condition
+ //and val[1] < val
+ //and (bcolor == color.lime )
+
+
+strat26 = isRedCandle(4) and isRedCandle(3) and isRedCandle(2) and isRedCandle(1) and isGreenCandle(0) and close > high[1] and close < open[2]
+
+min_percent = input(defval = 3.0, title = "Min candle % increase", step = 0.1)
+strat27 = getPercentVariation(open, close) >= min_percent and getPercentVariation(open, close) <= min_percent + 1 and getPercentVariation(close, high) <= 1
+  and barssince(crossover(source3, outA)) <= 5 and getPercentVariation(open[1], close[1]) < min_percent + 1
+longCondition = strat27
+
+
+// Risk Management
+max_stop_loss = input(defval = 2.5, title = "Max loss", minval = 0)
+max_stop_loss := close * (1 - (max_stop_loss / 100))
+stop_loss_should_trail = input(defval = true, title = "Stop loss should trail")
+
+
+min_take_profit = input(defval = 0.3, title = "Min take profit", step = 0.1)
+min_take_profit := close * (1 + (min_take_profit / 100))
+
+
+
+// take profit calculation //
+take_profit = close + takeProfitATR // must use close to take profit if price sharply increases on buy candle
+if strategy.opentrades > 0
+    take_profit := strategy.position_avg_price + takeProfitATR
+
+take_profit_price = 0.0
+bought = strategy.position_size[0] > strategy.position_size[1]
+take_profit_price := valuewhen(bought, take_profit, 0)
+
+if longCondition and strategy.opentrades == 0
+    take_profit_price := take_profit
+if strategy.opentrades == 0 and not longCondition
+    take_profit_price := 10000000.0
+if take_profit_price < min_take_profit and strategy.opentrades == 0
+    longCondition := false
+
+
+plot(take_profit_price, color=color.green)
+//plot(min_take_profit, color=color.purple)
+
+
+// stop loss calculation //
+stop_loss = close - stopLossATR // must use close in order to be able to increase
+
+stop_loss_price = stop_loss
+increased = false
+if stop_loss_price[1] < stop_loss_price and strategy.opentrades[1] > 0
+    increased := true
+
+if stop_loss_should_trail == true
+    stop_loss_price := valuewhen(bought or increased, stop_loss, 0)
+else
+    stop_loss_price := valuewhen(bought, stop_loss, 0)
+if longCondition and strategy.opentrades == 0
+    stop_loss_price := stop_loss
+if strategy.opentrades == 0 and not longCondition
+    stop_loss_price := 0.0
+if stop_loss_price < max_stop_loss and strategy.opentrades == 0
+    longCondition := false
+
+//stop_loss_price := max(stop_loss_price, max_stop_loss)
+
+plot(stop_loss_price, color=color.red)
+plot(low, color=color.orange)
+
+//plot(take_profit_price, color=color.red)
+//plot((xATR/close)*100, color=color.white)
+
+
+// ORDERS //
+// long
+strategy.entry("Buy", strategy.long, when = longCondition and (n_candles != 0 ? wait(n_candles) : true))
+strategy.exit("Sell", from_entry = "Buy", stop = stop_loss_price, limit = take_profit_price)
+//strategy.exit("Sell", from_entry = "Buy", limit = take_profit_price)
+
+//strategy.exit("Sell", from_entry = "Buy", stop = stop_loss)
+//strategy.close_all(when = close <= stop_loss_price)
+
+
+// wait bars since trade start
+//opened_order = strategy.position_size[0] != strategy.position_size[1] and strategy.position_size[0] != 0
+//bars = barssince(opened_order) + 1
+//strategy.close_all(when=(bars>=2))
+
+//strategy.close_all(when=bcolor[0] == color.lime)
+//strategy.exit("Sell", from_entry = "Buy", stop = stop_loss)
+
+
+
+
+
+
+
+// PLOTTING
+
+// Plot Squeeze momentum
+//plot(val, color=bcolor, style=plot.style_histogram, linewidth=4)
+//plot(0, color=scolor, style=plot.style_cross, linewidth=2)
+
+// Plot Ichimoku Kinko Hyo
+//plot(tenkan, color=#0496ff, title="Tenkan-Sen")
+//plot(kijun, color=#991515, title="Kijun-Sen")
+//plot(close, offset=-cs_offset+1, color=#459915, title="Chikou-Span")
+//sa=plot(senkouA, offset=ss_offset-1, color=color.green, title="Senkou-Span A")
+//sb=plot(senkouB, offset=ss_offset-1, color=color.red, title="Senkou-Span B")
+//fill(sa, sb, color = senkouA > senkouB ? color.green : color.red, title="Cloud color")
+
+// Laguerre RSI
+//plot(lrsi, color=col, linewidth=2)
+
+
+//plot((((close[1] - open[1]) / open[1]) * 100.0), color=color.orange, style=plot.style_line, linewidth=1)
+//plot(trailing_stop_activation, color=color.green, style=plot.style_line, linewidth=1)
+//plot(strategy.wintrades[1], color=color.blue, style=plot.style_line, linewidth=1)
+
+//plot(barsSince, color=color.blue, style=plot.style_line, linewidth=1)
+//plot(syminfo.mintick, color=color.green, style=plot.style_line, linewidth=1)
+
+
+
+// MACD
+//plot(getPercentVariation(open, close), color=color.red,transp=0,linewidth=4,title="signal line ")
+//plot(source, color=color.blue,linewidth=3,title=" macd line")
+//plot(source, color=(source>source[1])?color.green:color.red,linewidth=2,transp=50,style=plot.style_histogram,title=" macd")
+//plot(0,color=color.yellow,linewidth=3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// === Backtesting Dates === thanks to Trost
+
+testPeriodSwitch = true//input(true, "Custom Backtesting Dates")
+testStartYear = input(2020, "Backtest Start Year")
+testStartMonth = input(1, "Backtest Start Month")
+testStartDay = input(1, "Backtest Start Day")
+testStartHour = input(0, "Backtest Start Hour")
+testPeriodStart = timestamp(testStartYear, testStartMonth, testStartDay, testStartHour, 0)
+testStopYear = input(2021, "Backtest Stop Year")
+testStopMonth = input(10, "Backtest Stop Month")
+testStopDay = input(31, "Backtest Stop Day")
+testStopHour = input(23, "Backtest Stop Hour")
+testPeriodStop = timestamp(testStopYear, testStopMonth, testStopDay, testStopHour, 0)
+testPeriod() =>
+    time >= testPeriodStart and time <= testPeriodStop ? true : false
+testPeriod_1 = testPeriod()
+isPeriod = testPeriodSwitch == true ? testPeriod_1 : true
+// === /END
+
+if not isPeriod
+    strategy.cancel_all()
+    strategy.close_all()

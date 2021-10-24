@@ -164,11 +164,18 @@ export class BinanceConnector {
     /**
      * @return Available balance for asset
      */
-    public async getBalanceForAsset(asset: string): Promise<number> {
+    public async getBalanceForAsset(asset: string, retries: number): Promise<number> {
         await GlobalUtils.sleep(5); // it seems like the wallet balance is not updating instantly sometimes
-        const balance = await this.binance.fetchBalance()
-            .catch(e => Promise.reject(`Failed to fetch balance for currency ${asset}: ${e}`));
-        return balance[asset].free;
+        while (retries-- > -1) {
+            try {
+                const balance = await this.binance.fetchBalance();
+                return balance[asset].free;
+            } catch (e) {
+                log.error(`Failed to fetch balance for currency ${asset}: ${e}`);
+                await GlobalUtils.sleep(1);
+            }
+        }
+        return Promise.reject(`Failed to fetch balance for currency ${asset}`);
     }
 
     /**
@@ -314,7 +321,7 @@ export class BinanceConnector {
         const url = BinanceUtils.generateURL(`${this.V1_URL_BASE_PATH}/blvt/redeem`, query, this.binance.secret);
         let redeemOrder;
 
-        while (!redeemOrder && retries-- > -1) {
+        while ((!redeemOrder || redeemOrder.status !== 200) && retries-- > -1) {
             try {
                 redeemOrder = await axios.post(url, undefined, { headers: this.headers });
                 log.debug(`Response received for redeem BLVT : ${JSON.stringify(redeemOrder.data)}`)
@@ -625,28 +632,22 @@ export class BinanceConnector {
         if (this.configService.isSimulation()) {
             return Promise.resolve(undefined);
         }
-        let filled = order.status === "closed";
-        if (filled) {
+        if (order.status === "closed") {
             log.debug("Skipping order completion waiting as it is already complete");
             return Promise.resolve(order);
         }
-        let remainingRetries = retries;
-        while (!filled && remainingRetries-- > 0) {
+        while (retries-- > -1) {
             log.debug("Waiting for order completion");
             try {
                 order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, order.type!, undefined, true);
                 log.debug("Order %O with status %O was found", order.externalId, order.status);
-                filled = order.status === "closed";
-                if (filled) {
+                if (order.status === "closed") {
                     return Promise.resolve(order);
                 }
             } catch (e) {
-                log.warn(`Order with binance id ${order.externalId} was not found : `, e);
+                log.error(`Failed to get order with binance id ${order.externalId} : `, e);
             }
             await GlobalUtils.sleep(2);
-        }
-        if (!filled) {
-            return Promise.resolve(undefined);
         }
         return Promise.resolve(undefined);
     }
@@ -671,7 +672,7 @@ export class BinanceConnector {
         try {
             binanceOrder = await this.binance.fetchOrder(externalId, `${targetAsset}/${originAsset}`);
         } catch (e) {
-            log.warn(`Error while getting order ${externalId}`, e);
+            log.error(`Error while getting order ${externalId}`, e);
         }
         while (retries !== undefined && !binanceOrder && retries-- > 0) {
             await GlobalUtils.sleep(2);
@@ -681,7 +682,7 @@ export class BinanceConnector {
                     log.debug(`Fetched information about order : ${JSON.stringify(binanceOrder)}`);
                 }
             } catch (e) {
-                log.warn(`Error while getting order ${externalId}`, e);
+                log.error(`Error while getting order ${externalId}`, e);
             }
         }
         if (!binanceOrder) {
@@ -720,38 +721,54 @@ export class BinanceConnector {
     /**
      * @return The cancelled order
      */
-    public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string) : Promise<Order> {
+    public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string, retries: number) : Promise<Order> {
         if (this.configService.isSimulation()) {
             const o = SimulationUtils.getSimulatedCancelOrder();
             log.info(`Executing simulated cancel order %O`, o);
             return Promise.resolve(o);
         }
-        const binanceOrder = await this.binance.cancelOrder(orderId, `${targetAsset}/${originAsset}`)
-            .catch(e => Promise.reject(e));
-        let order: Order = {
-            externalId: binanceOrder.id,
-            id: internalOrderId,
-            side: binanceOrder.side,
-            amountOfTargetAsset: binanceOrder.amount,
-            filled: binanceOrder.filled,
-            remaining: binanceOrder.remaining,
-            average: binanceOrder.average!,
-            status: binanceOrder.status,
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
-            info: binanceOrder.info,
-            originAsset,
-            targetAsset
-        };
-        while (order.status !== "canceled") { // TODO
+        let inputRetries = retries;
+        let canceledOrder: Order | undefined;
+        while (!canceledOrder && retries-- > -1) {
             try {
-                order = await this.getOrder(order.externalId, originAsset, targetAsset, order.id, OrderType.STOP_LIMIT); // the OrderType has no importance
+                const binanceOrder = await this.binance.cancelOrder(orderId, `${targetAsset}/${originAsset}`);
+                canceledOrder = {
+                    externalId: binanceOrder.id,
+                    id: internalOrderId,
+                    side: binanceOrder.side,
+                    amountOfTargetAsset: binanceOrder.amount,
+                    filled: binanceOrder.filled,
+                    remaining: binanceOrder.remaining,
+                    average: binanceOrder.average!,
+                    status: binanceOrder.status,
+                    datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+                    info: binanceOrder.info,
+                    originAsset,
+                    targetAsset
+                };
             } catch (e) {
-                log.warn(`Failed to get the cancelled order ${order.externalId} : ${e}`);
+                log.error(`Failed to cancel order : ${e}`);
+            }
+        }
+        if (!canceledOrder) {
+            return Promise.reject(`Failed to cancel order ${orderId}`);
+        }
+        if (canceledOrder.status === "canceled") {
+            return Promise.resolve(canceledOrder);
+        }
+        while (canceledOrder.status !== "canceled" && inputRetries-- > -1) {
+            try {
+                canceledOrder = await this.getOrder(canceledOrder.externalId, originAsset, targetAsset, canceledOrder.id, OrderType.STOP_LIMIT, retries); // the OrderType has no importance
+                if (canceledOrder.status === "canceled") {
+                    log.debug(`Cancelled order : ${JSON.stringify(canceledOrder)}`);
+                    return Promise.resolve(canceledOrder);
+                }
+            } catch (e) {
+                log.error(`Failed to get the cancelled order ${canceledOrder.externalId} : ${e}`);
             }
             await GlobalUtils.sleep(2);
         }
-        log.debug(`Cancelled order : ${JSON.stringify(order)}`);
-        return Promise.resolve(order);
+        return Promise.reject(`Failed to cancel order : ${JSON.stringify(canceledOrder)}`);
     }
 
     public setMarketAdditionalParameters(markets: Array<Market>): void {

@@ -164,6 +164,33 @@ export class StrategyUtils {
     }
 
     /**
+     * @return 0 if the condition was never true or the number of bars since the last time the condition was true
+     */
+    static barsSince(condition: (x: Array<number>, y: Array<number>) => boolean, x: Array<number>, y: Array<number>): number {
+        let res = 0;
+        for (let i = 0; i < x.length - 1; i++) {
+            if (condition(x.slice(0, x.length - i), y.slice(0, y.length - i))) {
+                return res;
+            }
+            res++;
+        }
+        return 0;
+    }
+
+    /**
+     * The `x`-series is defined as having crossed over `y`-series if the value
+     * of `x` is greater than the value of `y` and the value of `x` was less than the
+     * value of `y` on the bar immediately preceding the current bar.
+     * @param x
+     * @param y
+     */
+    static crossover(x: Array<number>, y: Array<number>): boolean {
+        assert(x.length >= 2, `x array should at least contain 2 elements`);
+        assert(y.length >= 2, `y array should at least contain 2 elements`);
+        return x[x.length - 2] < y[y.length - 2] && x[x.length - 1] > y[y.length - 1];
+    }
+
+    /**
      * @param from Candlesticks interval of {@param inputCandleSticks}
      * @param to The interval with which the new candlesticks will be created
      * @param inputCandleSticks Input candlesticks with interval of {@param from}
