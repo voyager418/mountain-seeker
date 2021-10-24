@@ -225,7 +225,7 @@ export class Squeeze implements BaseStrategy {
                 firstTrailPriceSet = true;
                 // cancel the previous sell limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
-                    market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
+                    market.originAsset, market.targetAsset, 5).catch(e => Promise.reject(e));
 
                 // update sell stop limit price
                 newSellStopLimitPrice = tempTrailPrice;
@@ -256,7 +256,7 @@ export class Squeeze implements BaseStrategy {
             market.targetAsset, 3).catch(e => Promise.reject(e));
         if (!completedOrder) { // LIMIT order took too long => use a MARKET order
             await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
-                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
+                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset, 5).catch(e => Promise.reject(e));
             completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(market.originAsset, market.targetAsset,
                 lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
@@ -284,7 +284,7 @@ export class Squeeze implements BaseStrategy {
      */
     private async handleRedeem(market: Market): Promise<void> {
         if (!this.market?.quoteOrderQtyMarketAllowed) {
-            const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(market.targetAsset);
+            const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(market.targetAsset, 3);
             if (amountNotSold && amountNotSold > 0) {
                 try {
                     const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
@@ -411,7 +411,7 @@ export class Squeeze implements BaseStrategy {
             try {
                 await this.cryptoExchangePlatform.cancelOrder(this.latestSellStopLimitOrder?.externalId,
                     this.latestSellStopLimitOrder?.id, this.latestSellStopLimitOrder.originAsset,
-                    this.latestSellStopLimitOrder.targetAsset);
+                    this.latestSellStopLimitOrder.targetAsset, 5);
             } catch (e) {
                 log.error(`Error while cancelling order ${this.latestSellStopLimitOrder.externalId}: ${JSON.stringify(e)}`);
             }

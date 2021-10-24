@@ -230,7 +230,7 @@ export class MountainSeeker implements BaseStrategy {
             if (StrategyUtils.getPercentVariation(newStopLimitPrice, marketUnitPrice) >= stopLimitPriceTriggerPercent) {
                 // cancel the previous stop limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, stopLimitOrder.id,
-                    market.originAsset, market.targetAsset).catch(e => Promise.reject(e));
+                    market.originAsset, market.targetAsset, 5).catch(e => Promise.reject(e));
 
                 // compute new stop limit price
                 newStopLimitPrice = GlobalUtils.increaseNumberByPercent(newStopLimitPrice, stopLimitPriceIncreaseInTheTradingLoop);
@@ -276,7 +276,7 @@ export class MountainSeeker implements BaseStrategy {
             market.targetAsset, 3).catch(e => Promise.reject(e));
         if (!completedOrder) { // stop limit order took too much => use a MARKET order
             await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, lastStopLimitOrder.id,
-                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset).catch(e => Promise.reject(e));
+                lastStopLimitOrder.originAsset, lastStopLimitOrder.targetAsset, 5).catch(e => Promise.reject(e));
             completedOrder = await this.cryptoExchangePlatform.createMarketOrder(market.originAsset, market.targetAsset,
                 "sell", lastStopLimitOrder.amountOfTargetAsset, true, 5).catch(e => Promise.reject(e));
         }
@@ -285,7 +285,7 @@ export class MountainSeeker implements BaseStrategy {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
             this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled * buyOrder.average, completedOrder!.filled * completedOrder!.average);
-            const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString()).catch(e => Promise.reject(e));
+            const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString(), 3).catch(e => Promise.reject(e));
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }
 
@@ -525,7 +525,7 @@ export class MountainSeeker implements BaseStrategy {
                 return;
             }
 
-            const finalBNBAmount = await this.cryptoExchangePlatform.getBalanceForAsset(Currency.BNB).catch(e => Promise.reject(e));
+            const finalBNBAmount = await this.cryptoExchangePlatform.getBalanceForAsset(Currency.BNB, 3).catch(e => Promise.reject(e));
 
             if (!this.state.retrievedAmountOfEuro) {
                 this.state.retrievedAmountOfEuro = 0;

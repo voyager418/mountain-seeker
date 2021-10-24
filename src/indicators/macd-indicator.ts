@@ -10,7 +10,7 @@ const MACD = require('technicalindicators').MACD;
 @singleton()
 export class MACDIndicator implements Indicator {
 
-    compute(candleSticks: Array<TOHLCV>): IndicatorOutput<MACDOutput> {
+    compute(candleSticks: Array<TOHLCV>): IndicatorOutput<MACDOutput[]> {
         const macdResult = MACD.calculate({
             values: candleSticks.map(candle => candle[4]), // MACD is based on the close price
             SimpleMAOscillator: false, // when both set to false then we get similar results as in tradingview

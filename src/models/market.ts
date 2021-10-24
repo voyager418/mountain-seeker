@@ -61,7 +61,7 @@ export type Market = {
 /** [ timestamp, open, high, low, close, volume ] */
 export type TOHLCV = [number, number, number, number, number, number];
 
-export function getCandleStick(array: Array<Array<number>>, index: number): Array<number> {
+export function getCandleStick(array: Array<TOHLCV>, index: number): TOHLCV {
     assert(array.length >= index, `Candlestick array is too short, wanted at least ${index} elements but got ${array.length}`);
     return array[index];
 }
