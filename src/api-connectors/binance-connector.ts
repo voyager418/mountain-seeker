@@ -787,7 +787,9 @@ export class BinanceConnector {
      * @param numberOfCandleSticks Must not exceed 1000 (limited by Binance)
      */
     public async fetchCandlesticks(markets: Array<Market>, interval: CandlestickInterval, numberOfCandleSticks: number): Promise<void> {
-        log.info(`Fetching candlesticks for ${markets.length} markets`);
+        if (this.configService.isSimulation()) {
+            log.info(`Fetching candlesticks for ${markets.length} markets`);
+        }
         if (numberOfCandleSticks > 1000) {
             log.warn("Binance API limits maximum number of candlesticks to fetch to 1000 per request");
         }

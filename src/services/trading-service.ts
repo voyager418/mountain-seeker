@@ -36,4 +36,9 @@ export class TradingService {
         const removeResult = container.resolve(BinanceDataService).removeAllObservers();
         return `${removeResult.removed} strategies cancelled <br> ${removeResult.running} strategies still running`
     }
+
+    public getStatus(): string {
+        const status = container.resolve(BinanceDataService).getObserversStatus();
+        return `${status.total} strategies are actif <br> ${status.running} strategies currently running`
+    }
 }

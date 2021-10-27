@@ -25,6 +25,11 @@ server.get('/stop', (req, res) =>  {
     res.send(tradingService.stopTrading());
 });
 
+server.get('/status', (req, res) =>  {
+    const tradingService = container.resolve(TradingService);
+    res.send(tradingService.getStatus());
+});
+
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);
     if (process.env.NODE_ENV !== "prod") {

@@ -4,7 +4,7 @@ import log from '../logging/log.instance';
 import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
 import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
-import { getCandleStick, getCandleStickPercentageVariation, getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
+import { getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
 import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
@@ -360,7 +360,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 50, 5).catch(e => Promise.reject(e));
             const ATR = this.atrIndicator.compute(updatedCandleSticks, { period: marketConfig.atrPeriod }).result.reverse()[1];
             const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
-            const close = updatedCandleSticks.reverse()[1][4];
+            const close = StrategyUtils.getCandleStick(updatedCandleSticks, 1)[4];
 
             if(GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!) > tempStopLossPrice) {
                 tempStopLossPrice = GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!);
@@ -503,8 +503,8 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         const marketConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.FIFTEEN_MINUTES)!
             .marketConfig.get(market.symbol)!;
-        const beforeLastCandlestickPercentVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations
-            .get(CandlestickInterval.FIFTEEN_MINUTES)!.reverse(), 1);
+        const beforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations
+            .get(CandlestickInterval.FIFTEEN_MINUTES)!, 1);
 
         // if before last candle percent change is below minimal threshold
         if (beforeLastCandlestickPercentVariation < marketConfig.minCandlePercentChange!) {
@@ -516,8 +516,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        const beforeBeforeLastCandlestickPercentVariation = getCandleStickPercentageVariation(market.candleSticksPercentageVariations
-            .get(CandlestickInterval.FIFTEEN_MINUTES)!.reverse(), 2);
+        const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations
+            .get(CandlestickInterval.FIFTEEN_MINUTES)!, 2);
         // if before before last candle had already a big variation, then it's considered as too late
         if (beforeBeforeLastCandlestickPercentVariation > marketConfig.maxCandlePercentChange) {
             return;
@@ -530,7 +530,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        const beforeLastCandlestick = getCandleStick(market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!.reverse(), 1);
+        const beforeLastCandlestick = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!, 1);
         // if variation between close and high of the before last candle is too high
         if (StrategyUtils.getPercentVariation(beforeLastCandlestick[4], beforeLastCandlestick[2]) > 1) {
             return;

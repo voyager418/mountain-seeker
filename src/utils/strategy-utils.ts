@@ -191,6 +191,25 @@ export class StrategyUtils {
     }
 
     /**
+     * @param array
+     * @param indexFromEnd 0 based
+     */
+    static getCandleStick(array: Array<TOHLCV>, indexFromEnd: number): TOHLCV {
+        assert(array.length >= indexFromEnd, `Candlestick array is too short, wanted at least ${indexFromEnd} elements but got ${array.length}`);
+        return array[array.length - 1 - indexFromEnd];
+    }
+
+    /**
+     * @param array
+     * @param indexFromEnd 0 based
+     */
+    static getCandleStickPercentageVariation(array: Array<number>, indexFromEnd: number): number {
+        assert(array.length >= indexFromEnd, `Candlestick percentage variation array is too short,
+     wanted at least ${indexFromEnd + 1} elements but got ${array.length}`);
+        return array[indexFromEnd - 1 - indexFromEnd];
+    }
+
+    /**
      * @param from Candlesticks interval of {@param inputCandleSticks}
      * @param to The interval with which the new candlesticks will be created
      * @param inputCandleSticks Input candlesticks with interval of {@param from}

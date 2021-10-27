@@ -61,21 +61,11 @@ export type Market = {
 /** [ timestamp, open, high, low, close, volume ] */
 export type TOHLCV = [number, number, number, number, number, number];
 
-export function getCandleStick(array: Array<TOHLCV>, index: number): TOHLCV {
-    assert(array.length >= index, `Candlestick array is too short, wanted at least ${index} elements but got ${array.length}`);
-    return array[index];
-}
-
+// TODO move the methods to a utility class
 export function getCurrentCandleStickPercentageVariation(array: Array<number>): number {
     assert(array.length >= 1, `Candlestick percentage variation array is too short,
      wanted at least 1 element but got ${array.length}`);
     return array[array.length - 1];
-}
-
-export function getCandleStickPercentageVariation(array: Array<number>, index: number): number {
-    assert(array.length >= index, `Candlestick percentage variation array is too short,
-     wanted at least ${index + 1} elements but got ${array.length}`);
-    return array[index];
 }
 
 export function getCandleSticksByInterval(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
