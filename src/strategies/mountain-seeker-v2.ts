@@ -60,6 +60,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     }
 
     public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerV2Config>): MountainSeekerV2 {
+        log.debug(`Adding new strategy ${JSON.stringify(strategyDetails)}`);
         this.account = account;
         this.strategyDetails = strategyDetails;
         this.config = strategyDetails.config;
@@ -247,6 +248,15 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 2,
                 minTakeProfit: 4.5
             });
+            marketConfigMap.set("SHIB/USDT", {
+                atrPeriod: 14,
+                minCandlePercentChange: 3.1,
+                maxCandlePercentChange: 4.1,
+                maxBarsSinceMacdCrossover: 5,
+                stopLossATRMultiplier: 1,
+                takeProfitATRMultiplier: 3,
+                minTakeProfit: 5
+            });
             const configFor15min: TradingLoopConfig = {
                 secondsToSleepInTheTradingLoop: 5,
                 marketConfig: marketConfigMap,
@@ -332,7 +342,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         const marketConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!
             .marketConfig.get(this.market!.symbol)!;
 
-        while (this.state.stopLossPrice! < marketUnitPrice) {
+        while (this.state.stopLossPrice! < marketUnitPrice &&
+            StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) > tradingLoopConfig.stopTradingMaxPercentLoss) {
             await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
 
             if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
@@ -343,8 +354,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 .catch(e => Promise.reject(e));
 
             // if take profit target is reached or if max loss is reached
-            if (marketUnitPrice >= this.state.takeProfitPrice! ||
-                StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) <= tradingLoopConfig.stopTradingMaxPercentLoss) {
+            if (marketUnitPrice >= this.state.takeProfitPrice!) {
                 // cancel the previous sell limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastOrder.externalId, sellStopLimitOrder.id,
                     this.market!.originAsset, this.market!.targetAsset, 5).catch(e => Promise.reject(e));
@@ -381,9 +391,9 @@ export class MountainSeekerV2 implements BaseStrategy {
 
             worstCaseProfit = StrategyUtils.getPercentVariation(buyOrder.average, this.state.stopLossPrice!);
             log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
-                .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)}
-                 | Wanted profit : ${(this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.marketConfig!.get(this.market!.symbol)!.minTakeProfit)}%
-                 | Worst case profit : ${worstCaseProfit.toFixed(3)}%`);
+                .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)} | Wanted profit : ${(this.config
+                .activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.marketConfig!
+                .get(this.market!.symbol)!.minTakeProfit)}% | Worst case profit : ${worstCaseProfit.toFixed(3)}%`);
         }
         return Promise.resolve(lastOrder);
     }

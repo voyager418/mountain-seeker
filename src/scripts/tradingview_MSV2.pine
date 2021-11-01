@@ -494,6 +494,9 @@ if stop_loss_price < max_stop_loss and strategy.opentrades == 0
 
 plot(stop_loss_price, color=color.red)
 plot(low, color=color.orange)
+plot(max_stop_loss, color=color.white)
+plot(stop_loss, color=color.blue)
+
 
 //plot(take_profit_price, color=color.red)
 //plot((xATR/close)*100, color=color.white)

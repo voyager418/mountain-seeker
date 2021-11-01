@@ -39,6 +39,6 @@ export class TradingService {
 
     public getStatus(): string {
         const status = container.resolve(BinanceDataService).getObserversStatus();
-        return `${status.total} strategies are actif <br> ${status.running} strategies currently running`
+        return `${status.total} strategies are active <br> ${status.running} strategies currently running`
     }
 }

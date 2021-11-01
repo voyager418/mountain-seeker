@@ -206,7 +206,7 @@ export class StrategyUtils {
     static getCandleStickPercentageVariation(array: Array<number>, indexFromEnd: number): number {
         assert(array.length >= indexFromEnd, `Candlestick percentage variation array is too short,
      wanted at least ${indexFromEnd + 1} elements but got ${array.length}`);
-        return array[indexFromEnd - 1 - indexFromEnd];
+        return array[array.length - 1 - indexFromEnd];
     }
 
     /**
