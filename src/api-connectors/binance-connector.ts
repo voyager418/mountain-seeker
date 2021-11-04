@@ -135,13 +135,17 @@ export class BinanceConnector {
     /**
      * @param assets Array of assets for which the balance will be retrieved even if it's 0
      * @param retries
+     * @param sleepBeforeFetch Boolean indicating whether the method should sleep for 2 seconds before fetching the balance.
+     * Because it seems like the wallet balance is not updating instantly sometimes
      * @return A map for each requested currency
      */
-    public async getBalance(assets: Array<string>, retries: number): Promise<Map<string, number>> {
+    public async getBalance(assets: Array<string>, retries: number, sleepBeforeFetch?: boolean): Promise<Map<string, number>> {
         assert(retries > 0, "`retries` must be a positive number");
         let balance;
         while (retries-- > -1) {
-            await GlobalUtils.sleep(2); // it seems like the wallet balance is not updating instantly sometimes
+            if (sleepBeforeFetch) {
+                await GlobalUtils.sleep(2);
+            }
             try {
                 balance = await this.binance.fetchBalance();
             } catch (e) {
