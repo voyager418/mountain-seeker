@@ -14,6 +14,10 @@ export type MountainSeekerV2Config = BaseStrategyConfig & {
      * It is an array of market symbols, for example : ["BNB/EUR", ...] */
     authorizedMarkets?: Array<string>;
 
+    /** Markets sorted by priority, from high to low.
+     * It is an array of market symbols, for example : ["BNB/EUR", ...] */
+    privilegedMarkets?: Array<string>;
+
     /** The currencies that the strategy is allowed to use for trading */
     authorizedCurrencies?: Array<Currency>;
 
@@ -38,8 +42,7 @@ export type TradingLoopConfig = {
     /** Seconds to sleep during trading loop while monitoring the price */
     secondsToSleepInTheTradingLoop: number;
 
-    /** Trail price expressed as a percentage below the current price (e.g. 1 for -1% below current price)
-     * where the key is market name */
+    /** Specific market config */
     marketConfig: Map<string, MarketConfig>;
 
     /** Loss in percentage after which the trading will stop.

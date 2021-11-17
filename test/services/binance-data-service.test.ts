@@ -32,7 +32,8 @@ describe("Binance data service", () => {
 
         test("Should correctly fetch, construct candlesticks and filter markets", async() => {
             // arrange
-            jest.spyOn(StrategyUtils, 'filterByAuthorizedMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
+            // jest.spyOn(StrategyUtils, 'filterByAuthorizedMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
+            jest.spyOn(StrategyUtils, 'filterByAuthorizedCurrencies').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumTradingVolume').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumAmountOfCandleSticks').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByStrangeMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
@@ -44,26 +45,30 @@ describe("Binance data service", () => {
 
             // assert
             expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-1000);
-            expect(StrategyUtils.filterByAuthorizedMarkets).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
-                    "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT",
-                    "DOTCUP/USDT", "DOTDOWN/USDT", "YFIUP/USDT", "YFIDOWN/USDT", "SHIB/USDT"]);
+            // expect(StrategyUtils.filterByAuthorizedMarkets).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
+            //     ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
+            //         "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT",
+            //         "DOTCUP/USDT", "DOTDOWN/USDT", "YFIUP/USDT", "YFIDOWN/USDT", "SHIB/USDT"]);
 
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.DEFAULT, 400);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                200, CandlestickInterval.DEFAULT);
+                400, CandlestickInterval.DEFAULT);
 
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(1,
                 expect.anything(), CandlestickInterval.DEFAULT);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(2,
-                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+                expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
+                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+            expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(4,
                 expect.anything(), CandlestickInterval.ONE_HOUR);
 
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(1,
-                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+                expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
+                expect.anything(), CandlestickInterval.THIRTY_MINUTES);
+            expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(3,
                 expect.anything(), CandlestickInterval.ONE_HOUR);
         });
     });

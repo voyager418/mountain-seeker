@@ -19,8 +19,8 @@ export type MountainSeekerV2State = TradingState & {
     openOrders?: number;
     /** The market price percent change last 24h */
     marketPercentChangeLast24h?: number;
-    /** Array of candlesticks percentage variations */
-    candleSticksPercentageVariations?: Array<number>;
+    /** Last 5 candlesticks percentage variations */
+    last5CandleSticksPercentageVariations?: Array<number>;
     /** Indicates whether the trading ended without problems */
     endedWithoutErrors?: boolean;
     /** The maximum possible percentage gain */

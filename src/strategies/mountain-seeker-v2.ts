@@ -15,7 +15,6 @@ import { injectable } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
-import assert from "assert";
 import { MarketConfig, MountainSeekerV2Config, TradingLoopConfig } from "./config/mountain-seeker-v2-config";
 import { ATRIndicator } from "../indicators/atr-indicator";
 import { MACDIndicator } from "../indicators/macd-indicator";
@@ -42,6 +41,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private latestSellStopLimitOrder?: Order;
     private amountOfTargetAssetThatWasBought?: number;
     private takeProfitATR?: number;
+    private stopLossATR?: number;
 
     constructor(private configService: ConfigService,
         private cryptoExchangePlatform: BinanceConnector,
@@ -111,10 +111,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.authorizedCurrencies) {
             this.config.authorizedCurrencies = [Currency.USDT];
         }
-        const marketConfigMap = new Map<string, MarketConfig>();
+        const marketConfigMapFor15min = new Map<string, MarketConfig>();
+        const marketConfigMapFor1h = new Map<string, MarketConfig>();
         if (!strategyDetails.config.activeCandleStickIntervals) {
             // 1/4/2021 -> 3/11/2021 / Profit : 39.16% / Total trades : 17 / Profitable 76.47% / Drawdown : 2.13%
-            marketConfigMap.set("BNBUP/USDT", {
+            marketConfigMapFor15min.set("BNBUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 3,
                 maxCandlePercentChange: 4,
@@ -124,7 +125,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 5.4
             });
             // 14/4/2021 -> 3/11/2021 / Profit : 23.96% / Total trades : 12 / Profitable 58.33% / Drawdown : 2.31%
-            marketConfigMap.set("BNBDOWN/USDT", {
+            marketConfigMapFor15min.set("BNBDOWN/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 3.3,
                 maxCandlePercentChange: 5.3,
@@ -134,7 +135,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 5.4
             });
             // 1/4/2021 -> 3/11/2021 / Profit : 32.92% / Total trades : 10 / Profitable 90% / Drawdown : 1.65%
-            marketConfigMap.set("ETHUP/USDT", {
+            marketConfigMapFor15min.set("ETHUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 2.2,
                 maxCandlePercentChange: 2.4,
@@ -144,7 +145,9 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 5.2
             });
             // 9/7/2021 -> 3/11/2021 / Profit : 38.79% / Total trades : 39 / Profitable 51.28% / Drawdown : 5%
-            marketConfigMap.set("ETHDOWN/USDT", {
+            // 9/7/2021 -> 15/11/2021 / Profit : 41.78% / Total trades : 41 / Profitable 48.78% / Drawdown : 5%
+            // 9/7/2021 -> 16/11/2021 / Profit : 41.94% / Total trades : 42 / Profitable 50% / Drawdown : 5%
+            marketConfigMapFor15min.set("ETHDOWN/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 2,
                 maxCandlePercentChange: 3,
@@ -153,8 +156,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 3
             });
-            // 1/4/2021 -> 3/11/2021 / Profit : 37.2% / Total trades : 19 / Profitable 63.16% / Drawdown : 5.24%
-            marketConfigMap.set("ADAUP/USDT", {
+            // 1/4/2021 -> 9/11/2021 / Profit : 34.56% / Total trades : 20 / Profitable 60% / Drawdown : 5.24%
+            marketConfigMapFor15min.set("ADAUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 3.3,
                 maxCandlePercentChange: 4.8,
@@ -164,7 +167,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 4.1
             });
             // 8/4/2021 -> 3/11/2021 / Profit : 33.94% / Total trades : 13 / Profitable 69.23% / Drawdown : 2.99%
-            marketConfigMap.set("ADADOWN/USDT", {
+            marketConfigMapFor15min.set("ADADOWN/USDT", {
                 atrPeriod: 12,
                 minCandlePercentChange: 2.6,
                 maxCandlePercentChange: 3.4,
@@ -174,7 +177,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 6.2
             });
             // 1/4/2021 -> 3/11/2021 / Profit : 22.1% / Total trades : 10 / Profitable 70% / Drawdown : 2.43%
-            marketConfigMap.set("BTCUP/USDT", {
+            marketConfigMapFor15min.set("BTCUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 1.7,
                 maxCandlePercentChange: 2.5,
@@ -184,7 +187,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 5.3
             });
             // 1/4/2021 -> 3/11/2021 / Profit : 35.6% / Total trades : 16 / Profitable 68.75% / Drawdown : 2.9%
-            marketConfigMap.set("BTCDOWN/USDT", {
+            marketConfigMapFor15min.set("BTCDOWN/USDT", {
                 atrPeriod: 10,
                 minCandlePercentChange: 3.3,
                 maxCandlePercentChange: 6,
@@ -194,7 +197,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 3
             });
             // 24/5/2021 -> 4/11/2021 / Profit : 19.38% / Total trades : 7 / Profitable 100% / Drawdown : 0%
-            marketConfigMap.set("EOSUP/USDT", {
+            marketConfigMapFor15min.set("EOSUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 1.7,
                 maxCandlePercentChange: 2,
@@ -203,18 +206,9 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 6.4
             });
-            // 24/5/2021 -> 4/11/2021 / Profit : 14.49% / Total trades : 6 / Profitable 66.67% / Drawdown : 1.21%
-            marketConfigMap.set("EOSDOWN/USDT", {
-                atrPeriod: 14,
-                minCandlePercentChange: 5.5,
-                maxCandlePercentChange: 6.7,
-                maxBarsSinceMacdCrossover: 3,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 2,
-                minTakeProfit: 3
-            });
             // 24/5/2021 -> 4/11/2021 / Profit : 19.83% / Total trades : 16 / Profitable 68.75% / Drawdown : 2.69%
-            marketConfigMap.set("LTCUP/USDT", {
+            // 24/5/2021 -> 13/11/2021 / Profit : 18.06% / Total trades : 17 / Profitable 64.71% / Drawdown : 2.69%
+            marketConfigMapFor15min.set("LTCUP/USDT", {
                 atrPeriod: 10,
                 minCandlePercentChange: 2.7,
                 maxCandlePercentChange: 3.2,
@@ -224,7 +218,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 3
             });
             // 1/4/2021 -> 4/11/2021 / Profit : 16.93 / Total trades : 8 / Profitable 87.5% / Drawdown : 1.69%
-            marketConfigMap.set("BTC/USDT", {
+            marketConfigMapFor15min.set("BTC/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 1.9,
                 maxCandlePercentChange: 2.9,
@@ -234,7 +228,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 3
             });
             // 1/4/2021 -> 4/11/2021 / Profit : 35.24 / Total trades : 12 / Profitable 75% / Drawdown : 2.23%
-            marketConfigMap.set("SOL/USDT", {
+            marketConfigMapFor15min.set("SOL/USDT", {
                 atrPeriod: 14,
                 minCandlePercentChange: 2.5,
                 maxCandlePercentChange: 5,
@@ -244,7 +238,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 minTakeProfit: 6.2
             });
             // 24/5/2021 -> 4/11/2021 / Profit : 30.2% / Total trades : 14 / Profitable 71.43% / Drawdown : 1.72%
-            marketConfigMap.set("DOTUP/USDT", {
+            marketConfigMapFor15min.set("DOTUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 2.1,
                 maxCandlePercentChange: 2.4,
@@ -253,18 +247,18 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 3
             });
-            // 22/10/2021 -> 4/11/2021 / Profit : 15.33% / Total trades : 10 / Profitable 70% / Drawdown : 2.42%
-            marketConfigMap.set("DOTDOWN/USDT", {
-                atrPeriod: 7,
-                minCandlePercentChange: 1.1,
-                maxCandlePercentChange: 1.9,
-                maxBarsSinceMacdCrossover: 3,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 4.1
-            });
+            // 22/10/2021 -> 9/11/2021 / Profit : 14.89% / Total trades : 12 / Profitable 58.33% / Drawdown : 2.42%
+            // marketConfigMapFor15min.set("DOTDOWN/USDT", {
+            //     atrPeriod: 7,
+            //     minCandlePercentChange: 1.1,
+            //     maxCandlePercentChange: 1.9,
+            //     maxBarsSinceMacdCrossover: 3,
+            //     stopLossATRMultiplier: 1,
+            //     takeProfitATRMultiplier: 3,
+            //     minTakeProfit: 4.1
+            // });
             // 24/5/2021 -> 4/11/2021 / Profit : 13.99% / Total trades : 6 / Profitable 83.33% / Drawdown : 1.11%
-            marketConfigMap.set("YFIUP/USDT", {
+            marketConfigMapFor15min.set("YFIUP/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 1.2,
                 maxCandlePercentChange: 2.7,
@@ -273,8 +267,18 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 7.3
             });
+            // 24/5/2021 -> 4/11/2021 / Profit : 14.49% / Total trades : 6 / Profitable 66.67% / Drawdown : 1.21%
+            marketConfigMapFor15min.set("EOSDOWN/USDT", {
+                atrPeriod: 14,
+                minCandlePercentChange: 5.5,
+                maxCandlePercentChange: 6.7,
+                maxBarsSinceMacdCrossover: 3,
+                stopLossATRMultiplier: 1,
+                takeProfitATRMultiplier: 2,
+                minTakeProfit: 3
+            });
             // 9/8/2021 -> 4/11/2021 / Profit : 9.53% / Total trades : 8 / Profitable 75% / Drawdown : 2.35%
-            marketConfigMap.set("YFIDOWN/USDT", {
+            marketConfigMapFor15min.set("YFIDOWN/USDT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 2.9,
                 maxCandlePercentChange: 3.2,
@@ -285,29 +289,45 @@ export class MountainSeekerV2 implements BaseStrategy {
             });
             const configFor15min: TradingLoopConfig = {
                 secondsToSleepInTheTradingLoop: 5,
-                marketConfig: marketConfigMap,
+                marketConfig: marketConfigMapFor15min,
                 stopTradingMaxPercentLoss: -2.5
             };
-            this.config.activeCandleStickIntervals = new Map([[CandlestickInterval.FIFTEEN_MINUTES, configFor15min]]);
+
+            marketConfigMapFor1h.set("DEFAULT", {
+                atrPeriod: 7,
+                minCandlePercentChange: 6,
+                maxCandlePercentChange: 14.5,
+                maxBarsSinceMacdCrossover: Infinity,
+                stopLossATRMultiplier: 1,
+                takeProfitATRMultiplier: 2,
+                minTakeProfit: -Infinity
+            });
+            const configFor1h: TradingLoopConfig = {
+                secondsToSleepInTheTradingLoop: 5,
+                marketConfig: marketConfigMapFor1h,
+                stopTradingMaxPercentLoss: -2.5
+            };
+            this.config.activeCandleStickIntervals = new Map([
+                [CandlestickInterval.FIFTEEN_MINUTES, configFor15min],
+                [CandlestickInterval.ONE_HOUR, configFor1h]
+            ]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
             this.config.minimumPercentFor24hVariation = -1000;
         }
-        if (!strategyDetails.config.authorizedMarkets) {
+        if (!strategyDetails.config.privilegedMarkets) {
             // sorted by order of preference
-            this.config.authorizedMarkets = Array.from(marketConfigMap!.keys());
+            this.config.privilegedMarkets = Array.from(marketConfigMapFor15min!.keys());
         }
-
-        // each authorised market must have a config
-        strategyDetails.config.authorizedMarkets!.forEach(marketSymbol =>
-            assert(this.config.activeCandleStickIntervals?.get(CandlestickInterval.FIFTEEN_MINUTES)!
-                .marketConfig.get(marketSymbol) !== undefined), "Something is not correct in the configuration");
     }
 
     public async run(): Promise<void> {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
         this.market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
+        // this.market = this.markets[0];
+        // this.state.selectedCandleStickInterval = CandlestickInterval.FIFTEEN_MINUTES;
+        // this.state.stopLossPrice = 100;
 
         if (!this.market) {
             if (this.configService.isSimulation()) {
@@ -320,11 +340,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.marketSymbol = this.market.symbol;
         this.cryptoExchangePlatform.printMarketDetails(this.market);
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
-        this.state.candleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market, this.state.selectedCandleStickInterval!);
+        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market,
+            this.state.selectedCandleStickInterval!).slice(-5);
         log.info("Found market %O", this.market.symbol);
-        this.emailService.sendEmail(`Trading started on ${this.market.symbol}`,
-            "Current state : \n" + JSON.stringify(this.state, GlobalUtils.replacer, 4) +
-            "\n\nMarket details : \n" + JSON.stringify(this.market, GlobalUtils.replacer, 4)).then().catch(e => log.error(e));
 
         // 2. Fetch wallet balance and compute amount of USDT to invest
         await this.getInitialBalance([Currency.USDT.toString(), this.market.targetAsset]);
@@ -340,7 +358,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.takeProfitPrice = buyOrder.average + this.takeProfitATR!;
 
         // 4. First SELL STOP LIMIT order
+        this.state.stopLossPrice = buyOrder.average - this.stopLossATR!;
         this.state.stopLossPrice = GlobalUtils.truncateNumber(this.state.stopLossPrice!, this.market.pricePrecision!);
+        this.emailService.sendInitialEmail(this.market, buyOrder.amountOfOriginAsset!, this.state.stopLossPrice,
+            this.state.takeProfitPrice, buyOrder.average, this.initialWalletBalance!).then().catch(e => log.error(e));
         const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, this.state.stopLossPrice, this.state.stopLossPrice, 5).catch(e => Promise.reject(e));
         this.latestSellStopLimitOrder = firstSellStopLimitOrder;
@@ -350,7 +371,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             .catch(e => Promise.reject(e));
 
         // 6. Finishing
-        return await this.handleTradeEnd(lastSellStopLimitOrder).catch(e => Promise.reject(e));
+        return await this.handleTradeEnd(buyOrder, lastSellStopLimitOrder).catch(e => Promise.reject(e));
     }
 
     /**
@@ -366,7 +387,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.drawDown = Infinity;
         let priceChange;
         const marketConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!
-            .marketConfig.get(this.market!.symbol)!;
+            .marketConfig.get(this.state.selectedCandleStickInterval! === CandlestickInterval.FIFTEEN_MINUTES ? this.market!.symbol : "DEFAULT")!;
 
         while (this.state.stopLossPrice! < marketUnitPrice &&
             StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) > tradingLoopConfig.stopTradingMaxPercentLoss) {
@@ -415,15 +436,15 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.runUp = Math.max(this.state.runUp, priceChange);
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
-            worstCaseProfit = StrategyUtils.getPercentVariation(buyOrder.average, this.state.stopLossPrice!);
+            worstCaseProfit = StrategyUtils.getPercentVariation(buyOrder.average, GlobalUtils.decreaseNumberByPercent(this.state.stopLossPrice!, 0.1));
             log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
                 .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)} | Wanted profit : ${
-                StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!)}% | Worst case profit ≈ ${worstCaseProfit.toFixed(3)}%`);
+                StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${worstCaseProfit.toFixed(3)}%`);
         }
         return Promise.resolve(lastOrder);
     }
 
-    private async handleTradeEnd(lastOrder: Order): Promise<void> {
+    private async handleTradeEnd(firstBuyOrder: Order, lastOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
         let completedOrder = await this.cryptoExchangePlatform.waitForOrderCompletion(lastOrder, this.market!.originAsset,
             this.market!.targetAsset, 3).catch(e => Promise.reject(e));
@@ -443,9 +464,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendEmail(`Trading finished on ${this.market!.symbol} (${this.state.profitPercent > 0
-            ? '+' : ''}${this.state.profitPercent.toFixed(2)}%, ${this.state.profitUsdt.toFixed(2)}USDT)`, "Final state is : \n" +
-            JSON.stringify(this.state, GlobalUtils.replacer, 4)).catch(e => log.error(e));
+        await this.emailService.sendFinalMail(this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfUsdt!,
+            this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | Final state : ${JSON.stringify(this.state)}`);
         return Promise.resolve();
@@ -500,13 +520,16 @@ export class MountainSeekerV2 implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
-        const potentialMarkets: Array<{market: Market, interval: CandlestickInterval}> = [];
+        const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossATR: number}> = [];
         for (const market of markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
                 switch (interval) {
                 case CandlestickInterval.FIFTEEN_MINUTES:
                     this.selectMarketByFifteenMinutesCandleSticks(market, potentialMarkets);
+                    break;
+                case CandlestickInterval.ONE_HOUR:
+                    this.selectMarketByOneHourCandleSticks(market, potentialMarkets);
                     break;
                 default:
                     return Promise.reject(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
@@ -520,16 +543,33 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         let selectedMarket;
         const potentialMarketSymbols = potentialMarkets.map(element => element.market.symbol);
-        for (const marketSymbol of this.config.authorizedMarkets!) {
+        for (const marketSymbol of this.config.privilegedMarkets!) {
             if (potentialMarketSymbols.includes(marketSymbol)) {
                 selectedMarket = potentialMarkets.filter(element => element.market.symbol === marketSymbol)[0];
-                this.state.selectedCandleStickInterval = selectedMarket.interval;
-                return Promise.resolve(selectedMarket.market);
+                if (selectedMarket.interval === CandlestickInterval.FIFTEEN_MINUTES) {
+                    this.state.selectedCandleStickInterval = selectedMarket.interval;
+                    this.takeProfitATR = selectedMarket.takeProfitATR;
+                    this.stopLossATR = selectedMarket.stopLossATR;
+                    return Promise.resolve(selectedMarket.market);
+                }
             }
+        }
+        if (potentialMarkets.length > 0) {
+            this.state.selectedCandleStickInterval = potentialMarkets[0].interval;
+            this.takeProfitATR = potentialMarkets[0].takeProfitATR;
+            this.stopLossATR = potentialMarkets[0].stopLossATR;
+            return Promise.resolve(potentialMarkets[0].market);
         }
     }
 
-    private selectMarketByFifteenMinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval }>) {
+    private selectMarketByFifteenMinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
+        takeProfitATR: number, stopLossATR: number}>) {
+
+        // TODO instead of privileged use markets defined for 15min config
+        if (!this.config.privilegedMarkets!.includes(market.symbol)) {
+            return;
+        }
+
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -574,24 +614,110 @@ export class MountainSeekerV2 implements BaseStrategy {
         const ATR = this.atrIndicator.compute(market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!,
             { period: marketConfig.atrPeriod }).result.reverse()[1];
         const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
-        this.takeProfitATR = marketConfig.takeProfitATRMultiplier * ATR;
+        const takeProfitATR = marketConfig.takeProfitATRMultiplier * ATR;
         const close = beforeLastCandlestick[4];
 
-        this.state.takeProfitPrice = close + this.takeProfitATR;
+        const takeProfitPrice = close + takeProfitATR;
         const minTakeProfit = close * (1 + (marketConfig.minTakeProfit / 100));
-        if (this.state.takeProfitPrice < minTakeProfit) {
+        if (takeProfitPrice < minTakeProfit) {
             return;
         }
 
-        this.state.stopLossPrice = close - stopLossATR;
+        const stopLossPrice = close - stopLossATR;
         const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
             .get(CandlestickInterval.FIFTEEN_MINUTES)!.stopTradingMaxPercentLoss) / 100));
-        if (this.state.stopLossPrice < maxStopLoss) {
+        if (stopLossPrice < maxStopLoss) {
             return;
         }
 
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIFTEEN_MINUTES);
-        potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES });
+        potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES, takeProfitATR, stopLossATR });
+    }
+
+    private selectMarketByOneHourCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
+        takeProfitATR: number, stopLossATR: number}>) {
+
+        // should wait at least 1 hour for consecutive trades on same market
+        const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
+        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
+            return;
+        }
+
+        // if not the start of new hour (start = first 5minutes)
+        const lastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 0);
+        if (new Date(lastCandle[0]).getMinutes() > 5) {
+            return;
+        }
+
+        const marketConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.ONE_HOUR)!
+            .marketConfig.get("DEFAULT")!;
+        const beforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations
+            .get(CandlestickInterval.ONE_HOUR)!, 1);
+
+        // if before last candle percent change is below minimal threshold
+        if (beforeLastCandlestickPercentVariation < marketConfig.minCandlePercentChange!) {
+            return;
+        }
+
+        // if before last candle percent change is above maximal threshold
+        if (beforeLastCandlestickPercentVariation > marketConfig.maxCandlePercentChange!) {
+            return;
+        }
+
+        // if 1 of 20 variations except the 2 latest are > 2.5%
+        const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_HOUR)!;
+        const selectedTwenty = allVariations.slice(allVariations.length - 22, -2);
+        if (selectedTwenty.some(variation => variation > 2.4)) {
+            return;
+        }
+
+        // if the line is not +/- horizontal
+        const twentienthCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 21);
+        const beforeBeforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 2);
+        if (StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) > 5 ||
+            StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -2) {
+            return;
+        }
+
+        const beforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 1);
+
+        // if close below previous close
+        if (beforeLastCandle[4] > lastCandle[4]) {
+            return;
+        }
+
+        // if variation between close and high is too big
+        if (StrategyUtils.getPercentVariation(beforeLastCandle[4], beforeLastCandle[4]) > 2) {
+            return;
+        }
+
+        const macdResult = this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!);
+        if (!macdResult.shouldBuy) {
+            return;
+        }
+
+        const ATR = this.atrIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!,
+            { period: marketConfig.atrPeriod }).result.reverse()[1];
+        const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
+        const takeProfitATR = marketConfig.takeProfitATRMultiplier * ATR;
+        const beforeLastCandlestick = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 1);
+        const close = beforeLastCandlestick[4];
+
+        const takeProfitPrice = close + takeProfitATR;
+        const minTakeProfit = close * (1 + (marketConfig.minTakeProfit / 100));
+        if (takeProfitPrice < minTakeProfit) {
+            return;
+        }
+
+        const stopLossPrice = close - stopLossATR;
+        const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
+            .get(CandlestickInterval.ONE_HOUR)!.stopTradingMaxPercentLoss) / 100));
+        if (stopLossPrice < maxStopLoss) {
+            return;
+        }
+
+        log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.ONE_HOUR);
+        potentialMarkets.push({ market, interval: CandlestickInterval.ONE_HOUR, takeProfitATR, stopLossATR });
     }
 
     /**
@@ -600,7 +726,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private getFilteredMarkets(): Array<Market> {
         this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.config.authorizedCurrencies);
         this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.config.ignoredMarkets);
-        this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.config.authorizedMarkets);
+        this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 100000);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
         return this.markets;
     }

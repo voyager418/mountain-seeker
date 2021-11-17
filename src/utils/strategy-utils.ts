@@ -218,28 +218,30 @@ export class StrategyUtils {
         assert(from === CandlestickInterval.DEFAULT, `Unhandled interval ${from}.
          Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
+        case CandlestickInterval.FIFTEEN_MINUTES:
+            return this.constructCandleSticks(inputCandleSticks, 3);
         case CandlestickInterval.THIRTY_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 2);
+            return this.constructCandleSticks(inputCandleSticks, 6);
         case CandlestickInterval.ONE_HOUR:
-            return this.constructCandleSticks(inputCandleSticks, 4);
+            return this.constructCandleSticks(inputCandleSticks, 12);
         default: throw new Error(`Unhandled candlestick interval: ${to}`);
         }
     }
 
     /**
      * @param inputCandleSticks
-     * @param numberOf30mCandlesInDesiredPeriod For example to convert 30m to 4h candle sticks then this value must be
+     * @param numberOfDefaultCandlesInDesiredPeriod For example to convert 30m to 4h candle sticks then this value must be
      * 8 because there are 8 30m candle sticks in 4h
      */
-    private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOf30mCandlesInDesiredPeriod: number): Array<TOHLCV> {
+    private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOfDefaultCandlesInDesiredPeriod: number): Array<TOHLCV> {
         const res: Array<TOHLCV> = [];
-        res.push(inputCandleSticks[inputCandleSticks.length - 1]); // putting latest 30min candle as the last candle in desired period
+        res.push(inputCandleSticks[inputCandleSticks.length - 1]); // putting latest candle as the last candle in desired period
 
-        for (let i = inputCandleSticks.length - 2; i > 0; i -= numberOf30mCandlesInDesiredPeriod) {
-            if (i - numberOf30mCandlesInDesiredPeriod > 0) {
-                const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOf30mCandlesInDesiredPeriod + 1, i + 1);
+        for (let i = inputCandleSticks.length - 2; i > 0; i -= numberOfDefaultCandlesInDesiredPeriod) {
+            if (i - numberOfDefaultCandlesInDesiredPeriod > 0) {
+                const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOfDefaultCandlesInDesiredPeriod + 1, i + 1);
                 const first30MinCandle = candleSticksInDesiredPeriod[0];
-                const last30MinCandle = candleSticksInDesiredPeriod[numberOf30mCandlesInDesiredPeriod - 1];
+                const last30MinCandle = candleSticksInDesiredPeriod[numberOfDefaultCandlesInDesiredPeriod - 1];
 
                 const highestPrice = candleSticksInDesiredPeriod.map(candle => candle[2])
                     .reduce((prev, current) => (prev > current ? prev : current));
