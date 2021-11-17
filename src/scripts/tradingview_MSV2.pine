@@ -7,10 +7,10 @@ strategy(shorttitle="Squeeze", title="Squeeze", overlay=false,
      default_qty_value=1000, currency=currency.EUR, initial_capital=1000,
      commission_type=strategy.commission.percent, commission_value=0.1, max_bars_back=500)
 
-length = input(20, title="BB Length")
-mult = input(2.0,title="BB MultFactor")
-lengthKC=input(10, title="KC Length")
-multKC = input(1.5, title="KC MultFactor")
+length = 20//input(20, title="BB Length")
+mult = 2.0//input(2.0,title="BB MultFactor")
+lengthKC=10//input(10, title="KC Length")
+multKC = 1.5//input(1.5, title="KC MultFactor")
 
 useTrueRange = true//input(true, title="Use TrueRange (KC)")
 
@@ -140,9 +140,9 @@ ichimoku_condition = conversion_above_base and conversion_is_rising and price_ab
 ////////////////////////////// ICHIMOKU END //////////////////////////////
 
 ////////////////////////////// ATR START //////////////////////////////
-nATRPeriod = input(7)
+nATRPeriod = input(7, title = "ATR period")
 stopLossATRMultiplier = input(1.0)
-takeProfitATRMultiplier = input(2.0)
+takeProfitATRMultiplier = input(3.0)
 xATR = atr(nATRPeriod)
 stopLossATR = stopLossATRMultiplier * xATR
 takeProfitATR = takeProfitATRMultiplier * xATR
@@ -183,8 +183,8 @@ RSI_condition = RSI >= 60
 
 
 ////////////////////////////// PIVOT POINT SUPERTREND START //////////////////////////////
-prd = input(defval = 2, title="Pivot Point Period", minval = 1, maxval = 50)
-Factor=input(defval = 3, title = "ATR Factor", minval = 1, step = 0.1)
+prd = 2//input(defval = 2, title="Pivot Point Period", minval = 1, maxval = 50)
+Factor=3//input(defval = 3, title = "ATR Factor", minval = 1, step = 0.1)
 Pd=nATRPeriod//input(defval = 7, title = "ATR Period", minval=1)
 showpivot = false//input(defval = false, title="Show Pivot Points")
 showlabel = true//input(defval = true, title="Show Buy/Sell Labels")
@@ -434,17 +434,23 @@ strat25 = supertrend_condition
 strat26 = isRedCandle(4) and isRedCandle(3) and isRedCandle(2) and isRedCandle(1) and isGreenCandle(0) and close > high[1] and close < open[2]
 
 min_percent = input(defval = 3.0, title = "Min candle % increase", step = 0.1)
-strat27 = getPercentVariation(open, close) >= min_percent and getPercentVariation(open, close) <= min_percent + 1 and getPercentVariation(close, high) <= 1
-  and barssince(crossover(source3, outA)) <= 5 and getPercentVariation(open[1], close[1]) < min_percent + 1
+max_percent = input(defval = 4.0, title = "Max candle % increase", step = 0.1)
+max_bars_since_crossover = input(defval = 5, title = "Max bars since crossover", step = 1)
+//max_percent := min_percent + 1
+
+strat27 = getPercentVariation(open, close) >= min_percent
+  and getPercentVariation(open, close) <= max_percent
+  and getPercentVariation(close, high) <= 1
+  and barssince(crossover(source3, outA)) <= max_bars_since_crossover
+  and getPercentVariation(open[1], close[1]) < max_percent
 longCondition = strat27
+
 
 
 // Risk Management
 max_stop_loss = input(defval = 2.5, title = "Max loss", minval = 0)
 max_stop_loss := close * (1 - (max_stop_loss / 100))
 stop_loss_should_trail = input(defval = true, title = "Stop loss should trail")
-
-
 min_take_profit = input(defval = 0.3, title = "Min take profit", step = 0.1)
 min_take_profit := close * (1 + (min_take_profit / 100))
 
@@ -483,12 +489,14 @@ if stop_loss_should_trail == true
     stop_loss_price := valuewhen(bought or increased, stop_loss, 0)
 else
     stop_loss_price := valuewhen(bought, stop_loss, 0)
+    //stop_loss_price := max(valuewhen(bought, stop_loss, 0), valuewhen(bought, close*0.975, 0))
 if longCondition and strategy.opentrades == 0
     stop_loss_price := stop_loss
 if strategy.opentrades == 0 and not longCondition
     stop_loss_price := 0.0
 if stop_loss_price < max_stop_loss and strategy.opentrades == 0
     longCondition := false
+    //stop_loss_price := close*0.975
 
 //stop_loss_price := max(stop_loss_price, max_stop_loss)
 
