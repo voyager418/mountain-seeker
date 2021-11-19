@@ -31,7 +31,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     /* eslint-disable  @typescript-eslint/no-explicit-any */
     private strategyDetails: any;
     private markets: Array<Market> = [];
-    private account: Account = {};
+    private account: any;
     private initialWalletBalance?: Map<string, number>;
     private state: MountainSeekerV2State;
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
@@ -365,6 +365,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, this.state.stopLossPrice, this.state.stopLossPrice, 5).catch(e => Promise.reject(e));
         this.latestSellStopLimitOrder = firstSellStopLimitOrder;
+        this.state.stopLossPrice = firstSellStopLimitOrder.stopPrice;
 
         // 5. Start price monitor loop
         const lastSellStopLimitOrder = await this.runTradingLoop(buyOrder, firstSellStopLimitOrder, buyOrder.filled)
@@ -419,7 +420,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
             const close = StrategyUtils.getCandleStick(updatedCandleSticks, 1)[4];
 
-            if(GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!) > tempStopLossPrice) {
+            if (this.eligibleToIncreaseStopPrice(close, stopLossATR, tempStopLossPrice, this.state.selectedCandleStickInterval!)) {
                 tempStopLossPrice = GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!);
                 log.debug(`Updating stop loss price to : ${tempStopLossPrice}`);
                 // cancel the previous sell limit order
@@ -442,6 +443,24 @@ export class MountainSeekerV2 implements BaseStrategy {
                 StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${worstCaseProfit.toFixed(3)}%`);
         }
         return Promise.resolve(lastOrder);
+    }
+
+    /**
+     * @return `true` if stop price can be increased
+     */
+    private eligibleToIncreaseStopPrice(close: number, stopLossATR: number, tempStopLossPrice: number, candlestickInterval: CandlestickInterval): boolean {
+        if (!(GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!) > tempStopLossPrice)) {
+            return false;
+        }
+        // this is to avoid to increase immediately the price when default candlestick interval is 5min
+        // and for example the first buy order was done at 12h10
+        if (candlestickInterval === CandlestickInterval.FIFTEEN_MINUTES) {
+            const currentTime = new Date();
+            const currentMinute = currentTime.getMinutes();
+            return currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
+                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50);
+        }
+        return true;
     }
 
     private async handleTradeEnd(firstBuyOrder: Order, lastOrder: Order): Promise<void> {
@@ -467,7 +486,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         await this.emailService.sendFinalMail(this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfUsdt!,
             this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
-        log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | Final state : ${JSON.stringify(this.state)}`);
+        // TODO print full account object when api key/secret are moved to DB
+        log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON.stringify(this.state)}
+         | Account : ${JSON.stringify(this.account.email)} | Strategy : ${this.strategyDetails}`);
         return Promise.resolve();
     }
 

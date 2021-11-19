@@ -28,12 +28,8 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 400;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = -1000;
+    private readonly minimumPercentFor24hVariation = -25;
     private readonly authorizedCurrencies = [Currency.USDT];
-    // private readonly authorizedMarkets = ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT",
-    //     "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT", "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT",
-    //     "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT", "DOTCUP/USDT", "DOTDOWN/USDT", "YFIUP/USDT",
-    //     "YFIDOWN/USDT", "SHIB/USDT"];
 
     constructor(private configService: ConfigService,
         private repository: DynamodbRepository,
@@ -45,7 +41,6 @@ export class BinanceDataService implements Subject {
         try {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
-            // this.markets = StrategyUtils.filterByAuthorizedMarkets(this.markets, this.authorizedMarkets);
             this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
             this.binanceConnector.setMarketAdditionalParameters(this.markets);
 
@@ -58,9 +53,6 @@ export class BinanceDataService implements Subject {
             if (this.allObserversAreRunning() || this.observers.length === 0) {
                 await GlobalUtils.sleep(840); // 14 min
             }
-            // else {
-            //     await GlobalUtils.sleep(15);
-            // }
 
             // to add markets to a DB
             // this.markets.forEach(market => this.repository.putMarket(market));

@@ -3,6 +3,7 @@
  * Represents user's trading account
  */
 export type Account = {
+    email: string;
     /** API key to authenticate with the trading platform */
     apiKey?: string;
     /** API secret to authenticate with the trading platform */

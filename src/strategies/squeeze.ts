@@ -31,7 +31,7 @@ export class Squeeze implements BaseStrategy {
     /* eslint-disable  @typescript-eslint/no-explicit-any */
     private strategyDetails: any;
     private markets: Array<Market> = [];
-    private account: Account = {};
+    private account: any;
     private initialWalletBalance?: Map<string, number>;
     private state: SqueezeState;
     private config: SqueezeConfig & BaseStrategyConfig = { maxMoneyToTrade: -1 };

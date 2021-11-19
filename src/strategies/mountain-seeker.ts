@@ -34,7 +34,7 @@ export class MountainSeeker implements BaseStrategy {
     /* eslint-disable  @typescript-eslint/no-explicit-any */
     private strategyDetails: any;
     private markets: Array<Market> = [];
-    private account: Account = {};
+    private account: any;
     private marketUnitPriceOfOriginAssetInEur = -1;
     private initialWalletBalance?: Map<string, number>;
     private refilledWalletBalance?: Map<string, number>;

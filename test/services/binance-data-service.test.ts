@@ -32,7 +32,6 @@ describe("Binance data service", () => {
 
         test("Should correctly fetch, construct candlesticks and filter markets", async() => {
             // arrange
-            // jest.spyOn(StrategyUtils, 'filterByAuthorizedMarkets').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByAuthorizedCurrencies').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumTradingVolume').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
             jest.spyOn(StrategyUtils, 'filterByMinimumAmountOfCandleSticks').mockImplementation(() => TestHelper.getMarketsWith30mCandleSticks());
@@ -44,12 +43,7 @@ describe("Binance data service", () => {
             await binanceDataService.getMarketsFromBinance();
 
             // assert
-            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-1000);
-            // expect(StrategyUtils.filterByAuthorizedMarkets).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-            //     ["BTC/USDT", "BTCUP/USDT", "BTCDOWN/USDT", "BNB/USDT", "BNBUP/USDT", "BNBDOWN/USDT", "ETH/USDT", "ETHUP/USDT", "ETHDOWN/USDT",
-            //         "ADA/USDT", "ADAUP/USDT", "ADADOWN/USDT", "XRP/USDT", "XRPUP/USDT", "XRPDOWN/USDT", "SOL/USDT", "LTC/USDT", "LTCUP/USDT", "LTCDOWN/USDT",
-            //         "DOTCUP/USDT", "DOTDOWN/USDT", "YFIUP/USDT", "YFIDOWN/USDT", "SHIB/USDT"]);
-
+            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-25);
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.DEFAULT, 400);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),

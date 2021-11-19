@@ -12,6 +12,7 @@ export class BinanceUtils {
     /**
      * Constructs a URL from a base path and query arguments that includes a signature and a timestamp
      * needed to call private Binance endpoints (like buy order)
+     * @param secret Binance API secret
      */
     static generateURL(urlBasePath: string, query: string, secret: string): string {
         const queryString = `${query}&timestamp=${Date.now()}`;
