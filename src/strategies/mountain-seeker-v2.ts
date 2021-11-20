@@ -28,6 +28,9 @@ import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
  */
 @injectable()
 export class MountainSeekerV2 implements BaseStrategy {
+    /** If a loss of -7% or less is reached it means that something went wrong and we abort everything */
+    private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
+
     /* eslint-disable  @typescript-eslint/no-explicit-any */
     private strategyDetails: any;
     private markets: Array<Market> = [];
@@ -35,8 +38,6 @@ export class MountainSeekerV2 implements BaseStrategy {
     private initialWalletBalance?: Map<string, number>;
     private state: MountainSeekerV2State;
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
-    /** If a loss of -7% or less is reached it means that something went wrong and we abort everything */
-    private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
     private market?: Market;
     private latestSellStopLimitOrder?: Order;
     private amountOfTargetAssetThatWasBought?: number;
@@ -622,7 +623,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const macdResult = this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!);
         const barsSinceCrossover = StrategyUtils.barsSince(StrategyUtils.crossover,
             macdResult.result.map(res => res.MACD!), macdResult.result.map(res => res.signal!));
-        if (barsSinceCrossover === 0 || barsSinceCrossover > marketConfig.maxBarsSinceMacdCrossover) {
+        if (barsSinceCrossover === -1 || barsSinceCrossover > marketConfig.maxBarsSinceMacdCrossover) {
             return;
         }
 

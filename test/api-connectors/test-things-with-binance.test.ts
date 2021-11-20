@@ -13,6 +13,8 @@ import { CandlestickInterval } from "../../src/enums/candlestick-interval.enum";
 import { OrderType } from "../../src/enums/order-type.enum";
 import { GlobalUtils } from "../../src/utils/global-utils";
 import { ATR } from "technicalindicators";
+import { StrategyUtils } from "../../src/utils/strategy-utils";
+import { MACDIndicator } from "../../src/indicators/macd-indicator";
 
 
 describe("Test things with Binance", () => {
@@ -33,8 +35,8 @@ describe("Test things with Binance", () => {
 
     test("To test things with binance", async () => {
         // get candle sticks
-        // const candleSticks = await binanceConnector.getCandlesticks("BNBUP/USDT", CandlestickInterval.FIFTEEN_MINUTES,
-        //     100, 2);
+        // const candleSticks = await binanceConnector.getCandlesticks("DREP/USDT",
+        //     CandlestickInterval.FIFTEEN_MINUTES, 100, 2);
 
         // print market details
         // await binanceConnector.getMarketsBy24hrVariation(-15);
@@ -80,6 +82,12 @@ describe("Test things with Binance", () => {
         //     close: candleSticks.map(candle => candle[4]),
         //     period: 7
         // }).reverse());
+
+        // barssince crossover
+        // const macdResult = new MACDIndicator().compute(candleSticks);
+        // const barsSinceCrossover = StrategyUtils.barsSince(StrategyUtils.crossover,
+        //     macdResult.result.map(res => res.MACD!), macdResult.result.map(res => res.signal!));
+        // console.log(barsSinceCrossover);
     });
 
 

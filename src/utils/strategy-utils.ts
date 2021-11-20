@@ -164,17 +164,17 @@ export class StrategyUtils {
     }
 
     /**
-     * @return 0 if the condition was never true or the number of bars since the last time the condition was true
+     * @return -1 if the condition was never true or the number of bars since the last time the condition was true
      */
     static barsSince(condition: (x: Array<number>, y: Array<number>) => boolean, x: Array<number>, y: Array<number>): number {
         let res = 0;
-        for (let i = 0; i < x.length - 1; i++) {
+        for (let i = 1; i < x.length - 1; i++) {
             if (condition(x.slice(0, x.length - i), y.slice(0, y.length - i))) {
                 return res;
             }
             res++;
         }
-        return 0;
+        return -1;
     }
 
     /**
