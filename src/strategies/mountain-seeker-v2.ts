@@ -114,35 +114,35 @@ export class MountainSeekerV2 implements BaseStrategy {
         const marketConfigMapFor15min = new Map<string, MarketConfig>();
         const marketConfigMapFor1h = new Map<string, MarketConfig>();
         if (!strategyDetails.config.activeCandleStickIntervals) {
-            // 1/4/2021 -> 3/11/2021 / Profit : 39.16% / Total trades : 17 / Profitable 76.47% / Drawdown : 2.13%
+            // 1/9/2021 -> 20/11/2021 / Profit : 14.48% / Total trades : 10 / Profitable 60% / Drawdown : 3.56%
             marketConfigMapFor15min.set("BNBUP/USDT", {
-                atrPeriod: 7,
-                minCandlePercentChange: 3,
-                maxCandlePercentChange: 4,
-                maxBarsSinceMacdCrossover: 5,
+                atrPeriod: 14,
+                minCandlePercentChange: 2.4,
+                maxCandlePercentChange: 4.2,
+                maxBarsSinceMacdCrossover: 0,
                 stopLossATRMultiplier: 1,
                 takeProfitATRMultiplier: 3,
-                minTakeProfit: 5.4
+                minTakeProfit: 3
             });
-            // 14/4/2021 -> 3/11/2021 / Profit : 23.96% / Total trades : 12 / Profitable 58.33% / Drawdown : 2.31%
+            // 1/9/2021 -> 19/11/2021 / Profit : 8.53% / Total trades : 8 / Profitable 75% / Drawdown : 2.98%
             marketConfigMapFor15min.set("BNBDOWN/USDT", {
-                atrPeriod: 7,
-                minCandlePercentChange: 3.3,
-                maxCandlePercentChange: 5.3,
-                maxBarsSinceMacdCrossover: 1,
+                atrPeriod: 6,
+                minCandlePercentChange: 2.5,
+                maxCandlePercentChange: 5.5,
+                maxBarsSinceMacdCrossover: 2,
                 stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 5.4
+                takeProfitATRMultiplier: 2,
+                minTakeProfit: 3.2
             });
-            // 1/4/2021 -> 3/11/2021 / Profit : 32.92% / Total trades : 10 / Profitable 90% / Drawdown : 1.65%
+            // 1/9/2021 -> 19/11/2021 / Profit : 13.42% / Total trades : 11 / Profitable 63.64% / Drawdown : 2.68%
             marketConfigMapFor15min.set("ETHUP/USDT", {
                 atrPeriod: 7,
-                minCandlePercentChange: 2.2,
+                minCandlePercentChange: 1.9,
                 maxCandlePercentChange: 2.4,
-                maxBarsSinceMacdCrossover: 3,
+                maxBarsSinceMacdCrossover: 0,
                 stopLossATRMultiplier: 1,
                 takeProfitATRMultiplier: 3,
-                minTakeProfit: 5.2
+                minTakeProfit: 2.5
             });
             // 9/7/2021 -> 3/11/2021 / Profit : 38.79% / Total trades : 39 / Profitable 51.28% / Drawdown : 5%
             // 9/7/2021 -> 15/11/2021 / Profit : 41.78% / Total trades : 41 / Profitable 48.78% / Drawdown : 5%
@@ -696,7 +696,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const twentienthCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 21);
         const beforeBeforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 2);
         if (StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) > 5 ||
-            StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -2) {
+            StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -4) {
             return;
         }
 
