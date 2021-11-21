@@ -207,16 +207,15 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 6.4
             });
-            // 24/5/2021 -> 4/11/2021 / Profit : 19.83% / Total trades : 16 / Profitable 68.75% / Drawdown : 2.69%
-            // 24/5/2021 -> 13/11/2021 / Profit : 18.06% / Total trades : 17 / Profitable 64.71% / Drawdown : 2.69%
+            // 1/9/2021 -> 20/11/2021 / Profit : 16.4% / Total trades : 6 / Profitable 83.33% / Drawdown : 2.12%
             marketConfigMapFor15min.set("LTCUP/USDT", {
                 atrPeriod: 10,
-                minCandlePercentChange: 2.7,
-                maxCandlePercentChange: 3.2,
-                maxBarsSinceMacdCrossover: 2,
+                minCandlePercentChange: 3.7,
+                maxCandlePercentChange: 5.5,
+                maxBarsSinceMacdCrossover: 0,
                 stopLossATRMultiplier: 1,
                 takeProfitATRMultiplier: 3,
-                minTakeProfit: 3
+                minTakeProfit: 4.2
             });
             // 1/4/2021 -> 4/11/2021 / Profit : 16.93 / Total trades : 8 / Profitable 87.5% / Drawdown : 1.69%
             marketConfigMapFor15min.set("BTC/USDT", {
@@ -392,7 +391,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             .marketConfig.get(this.state.selectedCandleStickInterval! === CandlestickInterval.FIFTEEN_MINUTES ? this.market!.symbol : "DEFAULT")!;
 
         while (this.state.stopLossPrice! < marketUnitPrice &&
-            StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) > tradingLoopConfig.stopTradingMaxPercentLoss) {
+            StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) > tradingLoopConfig.stopTradingMaxPercentLoss &&
+            (marketUnitPrice === Infinity || (marketUnitPrice !== Infinity && marketUnitPrice < this.state.takeProfitPrice!))) {
             await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
 
             if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
@@ -402,18 +402,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
-            // if take profit target is reached or if max loss is reached
-            if (marketUnitPrice >= this.state.takeProfitPrice!) {
-                // cancel the previous sell limit order
-                await this.cryptoExchangePlatform.cancelOrder(lastOrder.externalId, sellStopLimitOrder.id,
-                    this.market!.originAsset, this.market!.targetAsset, 5).catch(e => Promise.reject(e));
-
-                // sell everything
-                lastOrder = await this.cryptoExchangePlatform.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
-                    targetAssetAmount, true, 5).catch(e => Promise.reject(e));
-                break;
-            }
-
             // computing ATR and a new trailing stop loss based on the before last candlestick
             const updatedCandleSticks = await this.cryptoExchangePlatform.getCandlesticks(this.market!.symbol, this.state.selectedCandleStickInterval!,
                 50, 5).catch(e => Promise.reject(e));
@@ -421,7 +409,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
             const close = StrategyUtils.getCandleStick(updatedCandleSticks, 1)[4];
 
-            if (this.eligibleToIncreaseStopPrice(close, stopLossATR, tempStopLossPrice, this.state.selectedCandleStickInterval!)) {
+            if (this.eligibleToIncreaseStopPrice(close, stopLossATR, tempStopLossPrice, this.state.selectedCandleStickInterval!, new Date(buyOrder.datetime))) {
                 tempStopLossPrice = GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!);
                 log.debug(`Updating stop loss price to : ${tempStopLossPrice}`);
                 // cancel the previous sell limit order
@@ -449,7 +437,8 @@ export class MountainSeekerV2 implements BaseStrategy {
     /**
      * @return `true` if stop price can be increased
      */
-    private eligibleToIncreaseStopPrice(close: number, stopLossATR: number, tempStopLossPrice: number, candlestickInterval: CandlestickInterval): boolean {
+    private eligibleToIncreaseStopPrice(close: number, stopLossATR: number, tempStopLossPrice: number,
+        candlestickInterval: CandlestickInterval, buyOrderDate: Date): boolean {
         if (!(GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!) > tempStopLossPrice)) {
             return false;
         }
@@ -458,8 +447,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (candlestickInterval === CandlestickInterval.FIFTEEN_MINUTES) {
             const currentTime = new Date();
             const currentMinute = currentTime.getMinutes();
-            return currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
-                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50);
+            // can only update stop loss on specific time intervals and if at least 1 minute passed with
+            // the initial buy order
+            return (currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
+                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50)) &&
+                (currentTime.getTime() - buyOrderDate.getTime()) / 1000 > 60;
         }
         return true;
     }
@@ -523,12 +515,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         let buyOrder;
         const retries = 5;
         if (this.market!.quoteOrderQtyMarketAllowed) {
-            log.debug("Preparing to execute the first buy order on %O market to invest %OUSDT", this.market!.symbol, usdtAmountToInvest);
             buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
                 usdtAmountToInvest, true, retries).catch(e => Promise.reject(e));
         } else {
-            const amountToBuy = usdtAmountToInvest / currentMarketPrice;
-            log.debug("Preparing to execute the first buy order on %O market to buy %O%O", this.market!.symbol, amountToBuy, this.market!.targetAsset);
             buyOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset, this.market!.targetAsset,
                 "buy", usdtAmountToInvest / currentMarketPrice, true, retries, usdtAmountToInvest, this.market!.amountPrecision)
                 .catch(e => Promise.reject(e));
@@ -686,10 +675,15 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        // if 1 of 20 variations except the 2 latest are > 2.5%
         const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_HOUR)!;
-        const selectedTwenty = allVariations.slice(allVariations.length - 22, -2);
-        if (selectedTwenty.some(variation => variation > 2.4)) {
+        // if 1 of 20 variations except the 2 latest are > 2.5%
+        const selectedTwentyVariations = allVariations.slice(allVariations.length - 22, -2);
+        if (selectedTwentyVariations.some(variation => variation > 2.4)) {
+            return;
+        }
+
+        // if before before last candle is red
+        if (StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_HOUR)!, 2) < 0) {
             return;
         }
 
@@ -699,6 +693,17 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) > 5 ||
             StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -4) {
             return;
+        }
+
+        // in the twenty candles there is no a pair of close prices with a difference of more than 3.3%
+        let selectedTwentyCandlesticks = market.candleSticks.get(CandlestickInterval.ONE_HOUR)!;
+        selectedTwentyCandlesticks = selectedTwentyCandlesticks.slice(selectedTwentyCandlesticks.length - 22, -2);
+        for (let i = 0; i < selectedTwentyCandlesticks.length; i++) {
+            for (let j = selectedTwentyCandlesticks.length - 1; j !== i; j--) {
+                if (Math.abs(StrategyUtils.getPercentVariation(selectedTwentyCandlesticks[i][4], selectedTwentyCandlesticks[j][4])) > 3.3) {
+                    return;
+                }
+            }
         }
 
         const beforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 1);
