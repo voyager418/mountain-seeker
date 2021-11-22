@@ -113,7 +113,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.config.authorizedCurrencies = [Currency.USDT];
         }
         const marketConfigMapFor15min = new Map<string, MarketConfig>();
-        const marketConfigMapFor1h = new Map<string, MarketConfig>();
+        const marketConfigMapFor5min = new Map<string, MarketConfig>();
         if (!strategyDetails.config.activeCandleStickIntervals) {
             // 1/9/2021 -> 20/11/2021 / Profit : 14.48% / Total trades : 10 / Profitable 60% / Drawdown : 3.56%
             marketConfigMapFor15min.set("BNBUP/USDT", {
@@ -293,23 +293,23 @@ export class MountainSeekerV2 implements BaseStrategy {
                 stopTradingMaxPercentLoss: -2.5
             };
 
-            marketConfigMapFor1h.set("DEFAULT", {
+            marketConfigMapFor5min.set("DEFAULT", {
                 atrPeriod: 7,
-                minCandlePercentChange: 6,
-                maxCandlePercentChange: 14.5,
+                minCandlePercentChange: 9,
+                maxCandlePercentChange: Infinity,
                 maxBarsSinceMacdCrossover: Infinity,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 2,
+                stopLossATRMultiplier: 2,
+                takeProfitATRMultiplier: Infinity,
                 minTakeProfit: -Infinity
             });
-            const configFor1h: TradingLoopConfig = {
+            const configFor5min: TradingLoopConfig = {
                 secondsToSleepInTheTradingLoop: 5,
-                marketConfig: marketConfigMapFor1h,
+                marketConfig: marketConfigMapFor5min,
                 stopTradingMaxPercentLoss: -2.5
             };
             this.config.activeCandleStickIntervals = new Map([
                 [CandlestickInterval.FIFTEEN_MINUTES, configFor15min],
-                [CandlestickInterval.ONE_HOUR, configFor1h]
+                [CandlestickInterval.FIVE_MINUTES, configFor5min]
             ]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
@@ -337,12 +337,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
+        log.debug(`${this.state.selectedCandleStickInterval!} percent variations ${JSON.stringify(this.market.candleSticksPercentageVariations.get(this.state.selectedCandleStickInterval!))}`);
+        log.debug(`${this.state.selectedCandleStickInterval!} candlesticks ${JSON.stringify(this.market.candleSticks.get(this.state.selectedCandleStickInterval!))}`);
         this.state.marketSymbol = this.market.symbol;
         this.cryptoExchangePlatform.printMarketDetails(this.market);
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market,
             this.state.selectedCandleStickInterval!).slice(-5);
-        log.info("Found market %O", this.market.symbol);
+        log.info("Selected market %O", this.market.symbol);
 
         // 2. Fetch wallet balance and compute amount of USDT to invest
         await this.getInitialBalance([Currency.USDT.toString(), this.market.targetAsset]);
@@ -397,6 +399,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
             if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
                 lastOrder.id, lastOrder.type!, 300).catch(e => Promise.reject(e)))) {
+                log.debug(`Order ${lastOrder.id} is already closed`);
                 break;
             }
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
@@ -539,8 +542,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 case CandlestickInterval.FIFTEEN_MINUTES:
                     this.selectMarketByFifteenMinutesCandleSticks(market, potentialMarkets);
                     break;
-                case CandlestickInterval.ONE_HOUR:
-                    this.selectMarketByOneHourCandleSticks(market, potentialMarkets);
+                case CandlestickInterval.FIVE_MINUTES:
+                    this.selectMarketByFiveMinutesCandleSticks(market, potentialMarkets);
                     break;
                 default:
                     return Promise.reject(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
@@ -645,7 +648,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES, takeProfitATR, stopLossATR });
     }
 
-    private selectMarketByOneHourCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
+    private selectMarketByFiveMinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
         takeProfitATR: number, stopLossATR: number}>) {
 
         // should wait at least 1 hour for consecutive trades on same market
@@ -654,16 +657,10 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        // if not the start of new hour (start = first 5minutes)
-        const lastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 0);
-        if (new Date(lastCandle[0]).getMinutes() > 5) {
-            return;
-        }
-
-        const marketConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.ONE_HOUR)!
+        const marketConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.FIVE_MINUTES)!
             .marketConfig.get("DEFAULT")!;
         const beforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations
-            .get(CandlestickInterval.ONE_HOUR)!, 1);
+            .get(CandlestickInterval.FIVE_MINUTES)!, 1);
 
         // if before last candle percent change is below minimal threshold
         if (beforeLastCandlestickPercentVariation < marketConfig.minCandlePercentChange!) {
@@ -675,76 +672,68 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_HOUR)!;
-        // if 1 of 20 variations except the 2 latest are > 2.5%
-        const selectedTwentyVariations = allVariations.slice(allVariations.length - 22, -2);
-        if (selectedTwentyVariations.some(variation => variation > 2.4)) {
+        const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!;
+        // if 1 of 13 variations except the 2 latest are > than x% of before last variation
+        const threshold = GlobalUtils.decreaseNumberByPercent(beforeLastCandlestickPercentVariation, -50);
+        const selectedVariations = allVariations.slice(allVariations.length - (13 + 2), -2);
+        if (selectedVariations.some(variation => Math.abs(variation) > threshold)) {
             return;
         }
 
-        // if before before last candle is red
-        if (StrategyUtils.getCandleStickPercentageVariation(market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_HOUR)!, 2) < 0) {
-            return;
-        }
+        // // if the line is not +/- horizontal
+        // const twentienthCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 21);
+        // const beforeBeforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 2);
+        // if (StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) > 5 ||
+        //     StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -4) {
+        //     return;
+        // }
+        //
+        // // in the twenty candles there is no a pair of close prices with a difference of more than 3.3%
+        // let selectedTwentyCandlesticks = market.candleSticks.get(CandlestickInterval.ONE_HOUR)!;
+        // selectedTwentyCandlesticks = selectedTwentyCandlesticks.slice(selectedTwentyCandlesticks.length - 22, -2);
+        // for (let i = 0; i < selectedTwentyCandlesticks.length; i++) {
+        //     for (let j = selectedTwentyCandlesticks.length - 1; j !== i; j--) {
+        //         if (Math.abs(StrategyUtils.getPercentVariation(selectedTwentyCandlesticks[i][4], selectedTwentyCandlesticks[j][4])) > 3.3) {
+        //             return;
+        //         }
+        //     }
+        // }
 
-        // if the line is not +/- horizontal
-        const twentienthCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 21);
-        const beforeBeforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 2);
-        if (StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) > 5 ||
-            StrategyUtils.getPercentVariation(twentienthCandle[4], beforeBeforeLastCandle[4]) < -4) {
-            return;
-        }
-
-        // in the twenty candles there is no a pair of close prices with a difference of more than 3.3%
-        let selectedTwentyCandlesticks = market.candleSticks.get(CandlestickInterval.ONE_HOUR)!;
-        selectedTwentyCandlesticks = selectedTwentyCandlesticks.slice(selectedTwentyCandlesticks.length - 22, -2);
-        for (let i = 0; i < selectedTwentyCandlesticks.length; i++) {
-            for (let j = selectedTwentyCandlesticks.length - 1; j !== i; j--) {
-                if (Math.abs(StrategyUtils.getPercentVariation(selectedTwentyCandlesticks[i][4], selectedTwentyCandlesticks[j][4])) > 3.3) {
-                    return;
-                }
-            }
-        }
-
-        const beforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 1);
+        const lastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 0);
+        const beforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 1);
 
         // if close below previous close
         if (beforeLastCandle[4] > lastCandle[4]) {
             return;
         }
 
-        // if variation between close and high is too big
-        if (StrategyUtils.getPercentVariation(beforeLastCandle[4], beforeLastCandle[4]) > 2) {
-            return;
-        }
+        // // if variation between close and high is too big
+        // if (StrategyUtils.getPercentVariation(beforeLastCandle[4], beforeLastCandle[4]) > 2) {
+        //     return;
+        // }
 
-        const macdResult = this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!);
+        const macdResult = this.macdIndicator.compute(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!);
         if (!macdResult.shouldBuy) {
             return;
         }
 
-        const ATR = this.atrIndicator.compute(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!,
+        const ATR = this.atrIndicator.compute(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
             { period: marketConfig.atrPeriod }).result.reverse()[1];
-        const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
+        let stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
         const takeProfitATR = marketConfig.takeProfitATRMultiplier * ATR;
-        const beforeLastCandlestick = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.ONE_HOUR)!, 1);
+        const beforeLastCandlestick = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 1);
         const close = beforeLastCandlestick[4];
-
-        const takeProfitPrice = close + takeProfitATR;
-        const minTakeProfit = close * (1 + (marketConfig.minTakeProfit / 100));
-        if (takeProfitPrice < minTakeProfit) {
-            return;
-        }
 
         const stopLossPrice = close - stopLossATR;
         const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
-            .get(CandlestickInterval.ONE_HOUR)!.stopTradingMaxPercentLoss) / 100));
+            .get(CandlestickInterval.FIVE_MINUTES)!.stopTradingMaxPercentLoss) / 100));
         if (stopLossPrice < maxStopLoss) {
-            return;
+            // TODO: or return?
+            stopLossATR = close - maxStopLoss;
         }
 
-        log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.ONE_HOUR);
-        potentialMarkets.push({ market, interval: CandlestickInterval.ONE_HOUR, takeProfitATR, stopLossATR });
+        log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIVE_MINUTES);
+        potentialMarkets.push({ market, interval: CandlestickInterval.FIVE_MINUTES, takeProfitATR, stopLossATR });
     }
 
     /**

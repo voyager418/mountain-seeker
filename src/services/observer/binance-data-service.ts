@@ -62,7 +62,10 @@ export class BinanceDataService implements Subject {
     }
 
     registerObserver(observer: BaseStrategy): void {
-        this.observers.push(observer);
+        // TODO remove if
+        if (this.observers.length === 0) {
+            this.observers.push(observer);
+        }
     }
 
     removeObserver(observer: BaseStrategy): void {
