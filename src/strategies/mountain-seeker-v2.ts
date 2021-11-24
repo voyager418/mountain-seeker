@@ -737,17 +737,18 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         const ATR = this.atrIndicator.compute(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
             { period: marketConfig.atrPeriod }).result.reverse()[1];
-        let stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
+        const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
         const takeProfitATR = marketConfig.takeProfitATRMultiplier * ATR;
         const beforeLastCandlestick = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 1);
         const close = beforeLastCandlestick[4];
 
-        const stopLossPrice = close - stopLossATR;
+        let stopLossPrice = close - stopLossATR;
         const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
             .get(CandlestickInterval.FIVE_MINUTES)!.stopTradingMaxPercentLoss) / 100));
         if (stopLossPrice < maxStopLoss) {
             // TODO: or return?
-            stopLossATR = close - maxStopLoss;
+            // stopLossATR = close - maxStopLoss;
+            stopLossPrice = maxStopLoss;
         }
 
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIVE_MINUTES);
