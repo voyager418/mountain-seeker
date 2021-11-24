@@ -360,7 +360,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.takeProfitPrice = buyOrder.average + this.takeProfitATR!;
 
         // 4. First SELL STOP LIMIT order
-        this.state.stopLossPrice = buyOrder.average - this.stopLossATR!;
+        // this.state.stopLossPrice = buyOrder.average - this.stopLossATR!;
         this.state.stopLossPrice = GlobalUtils.truncateNumber(this.state.stopLossPrice!, this.market.pricePrecision!);
         this.emailService.sendInitialEmail(this.market, buyOrder.amountOfOriginAsset!, this.state.stopLossPrice,
             this.state.takeProfitPrice, buyOrder.average, this.initialWalletBalance!).then().catch(e => log.error(e));
@@ -484,7 +484,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON.stringify(this.state)}
-         | Account : ${JSON.stringify(this.account.email)} | Strategy : ${this.strategyDetails}`);
+         | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)}`);
         return Promise.resolve();
     }
 
@@ -534,7 +534,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
-        const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossATR: number}> = [];
+        const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossPrice: number}> = [];
         for (const market of markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
@@ -563,7 +563,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 if (selectedMarket.interval === CandlestickInterval.FIFTEEN_MINUTES) {
                     this.state.selectedCandleStickInterval = selectedMarket.interval;
                     this.takeProfitATR = selectedMarket.takeProfitATR;
-                    this.stopLossATR = selectedMarket.stopLossATR;
+                    // this.stopLossATR = selectedMarket.stopLossATR;
+                    this.state.stopLossPrice = selectedMarket.stopLossPrice;
                     return Promise.resolve(selectedMarket.market);
                 }
             }
@@ -571,13 +572,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (potentialMarkets.length > 0) {
             this.state.selectedCandleStickInterval = potentialMarkets[0].interval;
             this.takeProfitATR = potentialMarkets[0].takeProfitATR;
-            this.stopLossATR = potentialMarkets[0].stopLossATR;
+            // this.stopLossATR = potentialMarkets[0].stopLossATR;
+            this.state.stopLossPrice = potentialMarkets[0].stopLossPrice;
             return Promise.resolve(potentialMarkets[0].market);
         }
     }
 
     private selectMarketByFifteenMinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
-        takeProfitATR: number, stopLossATR: number}>) {
+        takeProfitATR: number, stopLossPrice: number}>) {
 
         // TODO instead of privileged use markets defined for 15min config
         if (!this.config.privilegedMarkets!.includes(market.symbol)) {
@@ -587,6 +589,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
+            return;
+        }
+
+        // TODO remove when atr is fixed
+        const currentTime = new Date();
+        const currentMinute = currentTime.getMinutes();
+        if (!(currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
+                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50))) {
             return;
         }
 
@@ -638,6 +648,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         const stopLossPrice = close - stopLossATR;
+        log.debug("close = %O, stopLossATR = %O, ATR = %O, stopLossPrice = %O", close, stopLossATR, ATR, stopLossPrice);
         const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
             .get(CandlestickInterval.FIFTEEN_MINUTES)!.stopTradingMaxPercentLoss) / 100));
         if (stopLossPrice < maxStopLoss) {
@@ -645,11 +656,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIFTEEN_MINUTES);
-        potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES, takeProfitATR, stopLossATR });
+        potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES, takeProfitATR, stopLossPrice });
     }
 
     private selectMarketByFiveMinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
-        takeProfitATR: number, stopLossATR: number}>) {
+        takeProfitATR: number, stopLossPrice: number}>) {
 
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
@@ -677,6 +688,13 @@ export class MountainSeekerV2 implements BaseStrategy {
         const threshold = GlobalUtils.decreaseNumberByPercent(beforeLastCandlestickPercentVariation, -50);
         const selectedVariations = allVariations.slice(allVariations.length - (13 + 2), -2);
         if (selectedVariations.some(variation => Math.abs(variation) > threshold)) {
+            return;
+        }
+
+        // if 1 of 3 variations except the 2 latest are > than 20% of before last variation
+        const threshold2 = GlobalUtils.decreaseNumberByPercent(beforeLastCandlestickPercentVariation, -80);
+        const selectedVariations2 = allVariations.slice(allVariations.length - (3 + 2), -2);
+        if (selectedVariations2.some(variation => Math.abs(variation) > threshold2)) {
             return;
         }
 
@@ -733,7 +751,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIVE_MINUTES);
-        potentialMarkets.push({ market, interval: CandlestickInterval.FIVE_MINUTES, takeProfitATR, stopLossATR });
+        potentialMarkets.push({ market, interval: CandlestickInterval.FIVE_MINUTES, takeProfitATR, stopLossPrice });
     }
 
     /**
