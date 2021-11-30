@@ -38,7 +38,8 @@ export class EmailService {
     }
 
     public async sendInitialEmail(market: Market, investedAmount: number,
-        stopLossPrice: number, takeProfitPrice: number, averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
+        stopLossPrice: number, takeProfitPrice: number, averageFilledPrice: number, initialWalletBalance: Map<string, number>,
+        stopTradingMaxPercentLoss: number): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
@@ -48,7 +49,8 @@ export class EmailService {
             text += "Prix stop loss : " + stopLossPrice + "\n";
             text += "Prix take profit : " + GlobalUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
             text += "Prix moyen d'achat : " + GlobalUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
-            text += `Perte maximum ≈ ${StrategyUtils.getPercentVariation(averageFilledPrice, GlobalUtils.decreaseNumberByPercent(stopLossPrice, 0.1)).toFixed(2)}%\n`;
+            text += `Perte maximum ≈ ${Math.max(Number(StrategyUtils.getPercentVariation(averageFilledPrice, 
+                GlobalUtils.decreaseNumberByPercent(stopLossPrice, 0.1)).toFixed(2)), stopTradingMaxPercentLoss)}%\n`;
             text += `Gain maximum ≈ +${StrategyUtils.getPercentVariation(averageFilledPrice, GlobalUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             try {
@@ -67,7 +69,7 @@ export class EmailService {
 
     public async sendFinalMail(market: Market, investedAmount: number,
         retrievedAmount: number, profit: number, profitPercent: number, initialWalletBalance: Map<string, number>,
-        endWalletBalance: Map<string, number>): Promise<void> {
+        endWalletBalance: Map<string, number>, runUp: number, drawDown: number): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
@@ -81,6 +83,8 @@ export class EmailService {
             text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
             text += "Somme récupérée : " + retrievedAmount + " " + market.originAsset + "\n";
             text += `Changement : ${plusPrefix}${profitPercent.toFixed(2)}%\n`;
+            text += `Run-up : ${runUp}%\n`;
+            text += `Drawdown : ${drawDown}%\n`;
 
             try {
                 await this.transporter.sendMail({
