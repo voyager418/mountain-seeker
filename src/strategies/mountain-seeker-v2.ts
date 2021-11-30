@@ -148,14 +148,15 @@ export class MountainSeekerV2 implements BaseStrategy {
             // 9/7/2021 -> 3/11/2021 / Profit : 38.79% / Total trades : 39 / Profitable 51.28% / Drawdown : 5%
             // 9/7/2021 -> 15/11/2021 / Profit : 41.78% / Total trades : 41 / Profitable 48.78% / Drawdown : 5%
             // 9/7/2021 -> 16/11/2021 / Profit : 41.94% / Total trades : 42 / Profitable 50% / Drawdown : 5%
+            // 1/10/2021 -> 27/11/2021 / Profit : 16.56% / Total trades : 11 / Profitable 54.55% / Drawdown : 2.5%
             marketConfigMapFor15min.set("ETHDOWN/USDT", {
                 atrPeriod: 7,
-                minCandlePercentChange: 2,
+                minCandlePercentChange: 1.8,
                 maxCandlePercentChange: 3,
-                maxBarsSinceMacdCrossover: 4,
+                maxBarsSinceMacdCrossover: 3,
                 stopLossATRMultiplier: 1,
                 takeProfitATRMultiplier: 3,
-                minTakeProfit: 3
+                minTakeProfit: 4
             });
             // 1/4/2021 -> 9/11/2021 / Profit : 34.56% / Total trades : 20 / Profitable 60% / Drawdown : 5.24%
             marketConfigMapFor15min.set("ADAUP/USDT", {
@@ -362,8 +363,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         // 4. First SELL STOP LIMIT order
         // this.state.stopLossPrice = buyOrder.average - this.stopLossATR!;
         this.state.stopLossPrice = GlobalUtils.truncateNumber(this.state.stopLossPrice!, this.market.pricePrecision!);
+        // 4.1 first mail
         this.emailService.sendInitialEmail(this.market, buyOrder.amountOfOriginAsset!, this.state.stopLossPrice,
-            this.state.takeProfitPrice, buyOrder.average, this.initialWalletBalance!).then().catch(e => log.error(e));
+            this.state.takeProfitPrice, buyOrder.average, this.initialWalletBalance!,
+            this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss).then().catch(e => log.error(e));
+        // 4.2 first stop limit order
         const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, this.state.stopLossPrice, this.state.stopLossPrice, 5).catch(e => Promise.reject(e));
         this.latestSellStopLimitOrder = firstSellStopLimitOrder;
@@ -423,7 +427,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 lastOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market!.originAsset, this.market!.targetAsset,
                     "sell", targetAssetAmount, tempStopLossPrice, tempStopLossPrice, 3).catch(e => Promise.reject(e));
                 this.latestSellStopLimitOrder = lastOrder;
-                this.state.stopLossPrice = lastOrder.limitPrice!;
+                this.state.stopLossPrice = lastOrder.stopPrice!;
             }
             priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
             this.state.runUp = Math.max(this.state.runUp, priceChange);
@@ -444,17 +448,24 @@ export class MountainSeekerV2 implements BaseStrategy {
         candlestickInterval: CandlestickInterval, buyOrderDate: Date): boolean {
         if (!(GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!) > tempStopLossPrice)) {
             return false;
+        } else {
+            log.debug("New potential stop loss %O is higher than %O", GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!), tempStopLossPrice);
         }
         // this is to avoid to increase immediately the price when default candlestick interval is 5min
         // and for example the first buy order was done at 12h10
         if (candlestickInterval === CandlestickInterval.FIFTEEN_MINUTES) {
             const currentTime = new Date();
+            let belgianHours = currentTime.toLocaleTimeString("fr-BE");
+            belgianHours = belgianHours.substr(0, belgianHours.indexOf(':'));
+            currentTime.setHours(Number(belgianHours)); // to convert amazon time to belgian
             const currentMinute = currentTime.getMinutes();
             // can only update stop loss on specific time intervals and if at least 1 minute passed with
             // the initial buy order
-            return (currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
-                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50)) &&
-                (currentTime.getTime() - buyOrderDate.getTime()) / 1000 > 60;
+            const res = (currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
+                    (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50)) &&
+                (Math.abs((currentTime.getTime() - buyOrderDate.getTime())) / 1000) > 60;
+            log.debug("eligibleToIncreaseStopPrice will return %O", res);
+            return res;
         }
         return true;
     }
@@ -480,11 +491,12 @@ export class MountainSeekerV2 implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfUsdt!,
-            this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
+            this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
+            this.state.runUp!, this.state.drawDown!).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
-        log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON.stringify(this.state)}
-         | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)}`);
+        log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
+            .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)}`);
         return Promise.resolve();
     }
 
@@ -592,13 +604,13 @@ export class MountainSeekerV2 implements BaseStrategy {
             return;
         }
 
-        // TODO remove when atr is fixed
-        const currentTime = new Date();
-        const currentMinute = currentTime.getMinutes();
-        if (!(currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
-                (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50))) {
-            return;
-        }
+        // // TODO remove when atr is fixed
+        // const currentTime = new Date();
+        // const currentMinute = currentTime.getMinutes();
+        // if (!(currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
+        //         (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50))) {
+        //     return;
+        // }
 
         const marketConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.FIFTEEN_MINUTES)!
             .marketConfig.get(market.symbol)!;
@@ -648,7 +660,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         const stopLossPrice = close - stopLossATR;
-        log.debug("close = %O, stopLossATR = %O, ATR = %O, stopLossPrice = %O", close, stopLossATR, ATR, stopLossPrice);
+        log.debug("market = %O, close = %O, stopLossATR = %O, ATR = %O, stopLossPrice = %O", market.symbol,
+            close, stopLossATR, ATR, stopLossPrice);
         const maxStopLoss = close * (1 - (Math.abs(this.config.activeCandleStickIntervals!
             .get(CandlestickInterval.FIFTEEN_MINUTES)!.stopTradingMaxPercentLoss) / 100));
         if (stopLossPrice < maxStopLoss) {
@@ -748,8 +761,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (stopLossPrice < maxStopLoss) {
             // TODO: or return?
             // stopLossATR = close - maxStopLoss;
+            log.debug("Using max stop loss %O", maxStopLoss);
             stopLossPrice = maxStopLoss;
         }
+        log.debug("Using stop loss %O", stopLossPrice);
 
         log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIVE_MINUTES);
         potentialMarkets.push({ market, interval: CandlestickInterval.FIVE_MINUTES, takeProfitATR, stopLossPrice });
