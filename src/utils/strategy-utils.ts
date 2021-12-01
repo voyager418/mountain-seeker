@@ -240,8 +240,8 @@ export class StrategyUtils {
         for (let i = inputCandleSticks.length - 2; i > 0; i -= numberOfDefaultCandlesInDesiredPeriod) {
             if (i - numberOfDefaultCandlesInDesiredPeriod > 0) {
                 const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOfDefaultCandlesInDesiredPeriod + 1, i + 1);
-                const first30MinCandle = candleSticksInDesiredPeriod[0];
-                const last30MinCandle = candleSticksInDesiredPeriod[numberOfDefaultCandlesInDesiredPeriod - 1];
+                const firstCandle = candleSticksInDesiredPeriod[0];
+                const lastCandle = candleSticksInDesiredPeriod[numberOfDefaultCandlesInDesiredPeriod - 1];
 
                 const highestPrice = candleSticksInDesiredPeriod.map(candle => candle[2])
                     .reduce((prev, current) => (prev > current ? prev : current));
@@ -252,8 +252,8 @@ export class StrategyUtils {
                 const totalVolume = candleSticksInDesiredPeriod.map(candle => candle[5])
                     .reduce((prev, current) => prev + current);
 
-                const tempCandle: TOHLCV = [first30MinCandle[0], first30MinCandle[1], highestPrice,
-                    lowestPrice, last30MinCandle[4], totalVolume];
+                const tempCandle: TOHLCV = [firstCandle[0], firstCandle[1], highestPrice,
+                    lowestPrice, lastCandle[4], totalVolume];
                 res.push(tempCandle);
             }
         }

@@ -116,24 +116,25 @@ export class MountainSeekerV2 implements BaseStrategy {
         const marketConfigMapFor5min = new Map<string, MarketConfig>();
         if (!strategyDetails.config.activeCandleStickIntervals) {
             // 1/9/2021 -> 20/11/2021 / Profit : 14.48% / Total trades : 10 / Profitable 60% / Drawdown : 3.56%
+            // 1/10/2021 -> 1/12/2021 / Profit : 9.45% / Total trades : 8 / Profitable 75% / Drawdown : 2.87%
             marketConfigMapFor15min.set("BNBUP/USDT", {
                 atrPeriod: 14,
-                minCandlePercentChange: 2.4,
-                maxCandlePercentChange: 4.2,
+                minCandlePercentChange: 2.2,
+                maxCandlePercentChange: 4,
+                maxBarsSinceMacdCrossover: 1, // or 0 is better?
+                stopLossATRMultiplier: 1,
+                takeProfitATRMultiplier: 3,
+                minTakeProfit: 2.4 // or 3 is better
+            });
+            // 1/10/2021 -> 1/12/2021 / Profit : 8.46% / Total trades : 8 / Profitable 62.5% / Drawdown : 1.8%
+            marketConfigMapFor15min.set("BNBDOWN/USDT", {
+                atrPeriod: 10,
+                minCandlePercentChange: 1.1,
+                maxCandlePercentChange: 1.3,
                 maxBarsSinceMacdCrossover: 0,
                 stopLossATRMultiplier: 1,
                 takeProfitATRMultiplier: 3,
-                minTakeProfit: 3
-            });
-            // 1/9/2021 -> 19/11/2021 / Profit : 8.53% / Total trades : 8 / Profitable 75% / Drawdown : 2.98%
-            marketConfigMapFor15min.set("BNBDOWN/USDT", {
-                atrPeriod: 6,
-                minCandlePercentChange: 2.5,
-                maxCandlePercentChange: 5.5,
-                maxBarsSinceMacdCrossover: 2,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 2,
-                minTakeProfit: 3.2
+                minTakeProfit: 2
             });
             // 1/9/2021 -> 19/11/2021 / Profit : 13.42% / Total trades : 11 / Profitable 63.64% / Drawdown : 2.68%
             marketConfigMapFor15min.set("ETHUP/USDT", {
@@ -158,36 +159,36 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 4
             });
-            // 1/4/2021 -> 9/11/2021 / Profit : 34.56% / Total trades : 20 / Profitable 60% / Drawdown : 5.24%
-            marketConfigMapFor15min.set("ADAUP/USDT", {
-                atrPeriod: 7,
-                minCandlePercentChange: 3.3,
-                maxCandlePercentChange: 4.8,
-                maxBarsSinceMacdCrossover: 3,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 4.1
-            });
-            // 8/4/2021 -> 3/11/2021 / Profit : 33.94% / Total trades : 13 / Profitable 69.23% / Drawdown : 2.99%
-            marketConfigMapFor15min.set("ADADOWN/USDT", {
-                atrPeriod: 12,
-                minCandlePercentChange: 2.6,
-                maxCandlePercentChange: 3.4,
-                maxBarsSinceMacdCrossover: 4,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 6.2
-            });
-            // 1/4/2021 -> 3/11/2021 / Profit : 22.1% / Total trades : 10 / Profitable 70% / Drawdown : 2.43%
-            marketConfigMapFor15min.set("BTCUP/USDT", {
-                atrPeriod: 7,
-                minCandlePercentChange: 1.7,
-                maxCandlePercentChange: 2.5,
-                maxBarsSinceMacdCrossover: 1,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 5.3
-            });
+            // // 1/4/2021 -> 9/11/2021 / Profit : 34.56% / Total trades : 20 / Profitable 60% / Drawdown : 5.24%
+            // marketConfigMapFor15min.set("ADAUP/USDT", {
+            //     atrPeriod: 7,
+            //     minCandlePercentChange: 3.3,
+            //     maxCandlePercentChange: 4.8,
+            //     maxBarsSinceMacdCrossover: 3,
+            //     stopLossATRMultiplier: 1,
+            //     takeProfitATRMultiplier: 3,
+            //     minTakeProfit: 4.1
+            // });
+            // // 8/4/2021 -> 3/11/2021 / Profit : 33.94% / Total trades : 13 / Profitable 69.23% / Drawdown : 2.99%
+            // marketConfigMapFor15min.set("ADADOWN/USDT", {
+            //     atrPeriod: 12,
+            //     minCandlePercentChange: 2.6,
+            //     maxCandlePercentChange: 3.4,
+            //     maxBarsSinceMacdCrossover: 4,
+            //     stopLossATRMultiplier: 1,
+            //     takeProfitATRMultiplier: 3,
+            //     minTakeProfit: 6.2
+            // });
+            // // 1/4/2021 -> 3/11/2021 / Profit : 22.1% / Total trades : 10 / Profitable 70% / Drawdown : 2.43%
+            // marketConfigMapFor15min.set("BTCUP/USDT", {
+            //     atrPeriod: 7,
+            //     minCandlePercentChange: 1.7,
+            //     maxCandlePercentChange: 2.5,
+            //     maxBarsSinceMacdCrossover: 1,
+            //     stopLossATRMultiplier: 1,
+            //     takeProfitATRMultiplier: 3,
+            //     minTakeProfit: 5.3
+            // });
             // 1/4/2021 -> 3/11/2021 / Profit : 35.6% / Total trades : 16 / Profitable 68.75% / Drawdown : 2.9%
             marketConfigMapFor15min.set("BTCDOWN/USDT", {
                 atrPeriod: 10,
@@ -374,17 +375,20 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.stopLossPrice = firstSellStopLimitOrder.stopPrice;
 
         // 5. Start price monitor loop
-        const lastSellStopLimitOrder = await this.runTradingLoop(buyOrder, firstSellStopLimitOrder, buyOrder.filled)
+        const tradingResult = await this.runTradingLoop(buyOrder, firstSellStopLimitOrder, buyOrder.filled)
             .catch(e => Promise.reject(e));
 
         // 6. Finishing
-        return await this.handleTradeEnd(buyOrder, lastSellStopLimitOrder).catch(e => Promise.reject(e));
+        return await this.handleTradeEnd(buyOrder, tradingResult.lastOrder, tradingResult.shouldCancelStopLimitOrder).catch(e => Promise.reject(e));
     }
 
     /**
      * Monitors the current market price and creates new stop limit orders if price increases.
      */
-    private async runTradingLoop(buyOrder: Order, sellStopLimitOrder: Order, targetAssetAmount: number): Promise<Order> {
+    private async runTradingLoop(buyOrder: Order, sellStopLimitOrder: Order, targetAssetAmount: number): Promise<{
+        lastOrder: Order,
+        shouldCancelStopLimitOrder: boolean
+    }> {
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
         let tempStopLossPrice = this.state.stopLossPrice!;
         let lastOrder = sellStopLimitOrder;
@@ -393,6 +397,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.runUp = -Infinity;
         this.state.drawDown = Infinity;
         let priceChange;
+        let shouldCancelStopLimitOrder = true;
         const marketConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!
             .marketConfig.get(this.state.selectedCandleStickInterval! === CandlestickInterval.FIFTEEN_MINUTES ? this.market!.symbol : "DEFAULT")!;
 
@@ -404,6 +409,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
                 lastOrder.id, lastOrder.type!, 300).catch(e => Promise.reject(e)))) {
                 log.debug(`Order ${lastOrder.id} is already closed`);
+                shouldCancelStopLimitOrder = false;
                 break;
             }
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
@@ -438,7 +444,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)} | Wanted profit : ${
                 StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${worstCaseProfit.toFixed(3)}%`);
         }
-        return Promise.resolve(lastOrder);
+        return Promise.resolve({ lastOrder, shouldCancelStopLimitOrder });
     }
 
     /**
@@ -470,11 +476,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         return true;
     }
 
-    private async handleTradeEnd(firstBuyOrder: Order, lastOrder: Order): Promise<void> {
+    private async handleTradeEnd(firstBuyOrder: Order, lastOrder: Order, shouldCancelStopLimitOrder: boolean): Promise<void> {
         log.debug("Finishing trading...");
-        let completedOrder = await this.cryptoExchangePlatform.waitForOrderCompletion(lastOrder, this.market!.originAsset,
-            this.market!.targetAsset, 3).catch(e => Promise.reject(e));
-        if (!completedOrder) { // LIMIT order took too long => use a MARKET order
+        let completedOrder = lastOrder;
+        if (shouldCancelStopLimitOrder) { // LIMIT order took too long => use a MARKET order
             await this.cryptoExchangePlatform.cancelOrder(lastOrder.externalId, lastOrder.id,
                 lastOrder.originAsset, lastOrder.targetAsset, 5).catch(e => Promise.reject(e));
             completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
@@ -733,8 +738,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         const lastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 0);
         const beforeLastCandle = StrategyUtils.getCandleStick(market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!, 1);
 
-        // if close below previous close
-        if (beforeLastCandle[4] > lastCandle[4]) {
+        // if current price is much lover than previous close
+        if (StrategyUtils.getPercentVariation(beforeLastCandle[4], lastCandle[4]) < -0.5) {
             return;
         }
 
