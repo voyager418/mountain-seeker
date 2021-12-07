@@ -69,7 +69,7 @@ export class EmailService {
 
     public async sendFinalMail(market: Market, investedAmount: number,
         retrievedAmount: number, profit: number, profitPercent: number, initialWalletBalance: Map<string, number>,
-        endWalletBalance: Map<string, number>, runUp: number, drawDown: number): Promise<void> {
+        endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
@@ -85,6 +85,7 @@ export class EmailService {
             text += `Changement : ${plusPrefix}${profitPercent.toFixed(2)}%\n`;
             text += `Run-up : ${runUp}%\n`;
             text += `Drawdown : ${drawDown}%\n`;
+            text += `Strategie : ${strategyName}%\n`;
 
             try {
                 await this.transporter.sendMail({

@@ -10,6 +10,7 @@ import { Subject } from "./subject.interface";
 import { BaseStrategy } from "../../strategies/base-strategy.interface";
 import { GlobalUtils } from "../../utils/global-utils";
 import { Currency } from "../../enums/trading-currencies.enum";
+import { Observer } from "./observer.interface";
 
 /**
  * This service continually fetches data from Binance platform.
@@ -47,7 +48,7 @@ export class BinanceDataService implements Subject {
             await this.fetchAndSetCandleSticks();
 
             // notify strategies
-            this.notifyObservers();
+            this.notifyObservers(this.observers);
 
             // sleep
             if (this.allObserversAreRunning() || this.observers.length === 0) {
@@ -94,8 +95,8 @@ export class BinanceDataService implements Subject {
         }
     }
 
-    notifyObservers(): void {
-        this.observers.forEach(observer => observer.update(this.markets));
+    notifyObservers(observers: Array<Observer>): void {
+        observers.forEach(observer => observer.update(this.markets));
     }
 
     async getDataFromBinance(): Promise<void> {

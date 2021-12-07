@@ -3,9 +3,10 @@ import { TradingStrategy } from "../enums/trading-strategy.enum";
 import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
-import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
 import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-config";
 import { BinanceDataService } from "./observer/binance-data-service";
+import { MountainSeekerV3 } from "../strategies/mountain-seeker-v3";
+import { TwitterDataService } from "./observer/twitter-data-service";
 
 
 /**
@@ -18,7 +19,16 @@ export class TradingService {
         platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         config: {
-            maxMoneyToTrade: 35,
+            maxMoneyToTrade: 25,
+            autoRestartOnProfit: true
+        }
+    }
+
+    private strategy2: StrategyDetails<MountainSeekerV2Config> = {
+        platform: TradingPlatform.BINANCE,
+        type: TradingStrategy.MSV3,
+        config: {
+            maxMoneyToTrade: 25,
             autoRestartOnProfit: true
         }
     }
@@ -30,16 +40,19 @@ export class TradingService {
     }
 
     public beginTrading(): void {
-        container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
+        // container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
+        container.resolve(MountainSeekerV3).setup(this.account, this.strategy2);
     }
 
     public stopTrading(): string {
         const removeResult = container.resolve(BinanceDataService).removeAllObservers();
-        return `${removeResult.removed} strategies cancelled <br> ${removeResult.running} strategies still running`
+        const removeResult2 = container.resolve(TwitterDataService).removeAllObservers();
+        return `${removeResult.removed + removeResult2.removed} strategies cancelled <br> ${removeResult.running + removeResult2.running} strategies still running`
     }
 
     public getStatus(): string {
         const status = container.resolve(BinanceDataService).getObserversStatus();
-        return `${status.total} strategies are active <br> ${status.running} strategies currently running`
+        const status2 = container.resolve(TwitterDataService).getObserversStatus();
+        return `${status.total + status2.total} strategies are active <br> ${status.running + status2.running} strategies currently running`
     }
 }

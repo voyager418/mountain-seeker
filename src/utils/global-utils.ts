@@ -62,4 +62,15 @@ export class GlobalUtils {
             return value;
         }
     }
+
+    /**
+     * Converts Binance timestamps into Belgian time
+     */
+    static getCurrentBelgianDate(): Date {
+        const currentDate = new Date();
+        let belgianHours = currentDate.toLocaleTimeString("fr-BE");
+        belgianHours = belgianHours.substr(0, belgianHours.indexOf(':'));
+        currentDate.setHours(Number(belgianHours)); // to convert amazon time to belgian
+        return currentDate;
+    }
 }

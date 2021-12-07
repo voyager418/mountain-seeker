@@ -23,7 +23,7 @@
   ],
   "dependencies": {
     "aws-sdk": "2.959.0",
-    "axios": "0.21.1",
+    "axios": "0.24.0",
     "ccxt": "1.56.64",
     "cli-progress": "3.9.0",
     "config": "3.3.3",
@@ -34,6 +34,7 @@
     "reflect-metadata": "0.1.13",
     "technicalindicators": "^3.1.0",
     "tsyringe": "4.5.0",
+    "twitter-api-v2": "1.7.0",
     "uuid": "8.3.2",
     "winston": "3.3.3"
   },

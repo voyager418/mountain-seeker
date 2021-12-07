@@ -19,6 +19,7 @@ import { MarketConfig, MountainSeekerV2Config, TradingLoopConfig } from "./confi
 import { ATRIndicator } from "../indicators/atr-indicator";
 import { MACDIndicator } from "../indicators/macd-indicator";
 import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
+import { OrderType } from "../enums/order-type.enum";
 
 
 /**
@@ -229,16 +230,16 @@ export class MountainSeekerV2 implements BaseStrategy {
                 takeProfitATRMultiplier: 3,
                 minTakeProfit: 3
             });
-            // 1/4/2021 -> 4/11/2021 / Profit : 35.24 / Total trades : 12 / Profitable 75% / Drawdown : 2.23%
-            marketConfigMapFor15min.set("SOL/USDT", {
-                atrPeriod: 14,
-                minCandlePercentChange: 2.5,
-                maxCandlePercentChange: 5,
-                maxBarsSinceMacdCrossover: 2,
-                stopLossATRMultiplier: 1,
-                takeProfitATRMultiplier: 3,
-                minTakeProfit: 6.2
-            });
+            // // 1/4/2021 -> 4/11/2021 / Profit : 35.24 / Total trades : 12 / Profitable 75% / Drawdown : 2.23%
+            // marketConfigMapFor15min.set("SOL/USDT", {
+            //     atrPeriod: 14,
+            //     minCandlePercentChange: 2.5,
+            //     maxCandlePercentChange: 5,
+            //     maxBarsSinceMacdCrossover: 2,
+            //     stopLossATRMultiplier: 1,
+            //     takeProfitATRMultiplier: 3,
+            //     minTakeProfit: 6.2
+            // });
             // 24/5/2021 -> 4/11/2021 / Profit : 30.2% / Total trades : 14 / Profitable 71.43% / Drawdown : 1.72%
             marketConfigMapFor15min.set("DOTUP/USDT", {
                 atrPeriod: 7,
@@ -310,8 +311,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 stopTradingMaxPercentLoss: -2.5
             };
             this.config.activeCandleStickIntervals = new Map([
-                [CandlestickInterval.FIFTEEN_MINUTES, configFor15min],
-                [CandlestickInterval.FIVE_MINUTES, configFor5min]
+                [CandlestickInterval.FIFTEEN_MINUTES, configFor15min]
             ]);
         }
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
@@ -410,6 +410,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 lastOrder.id, lastOrder.type!, 300).catch(e => Promise.reject(e)))) {
                 log.debug(`Order ${lastOrder.id} is already closed`);
                 shouldCancelStopLimitOrder = false;
+                lastOrder = await this.cryptoExchangePlatform.getOrder(lastOrder.externalId, this.market!.originAsset, this.market!.targetAsset,
+                    lastOrder.id, OrderType.STOP_LIMIT, 5).catch(e => Promise.reject(e));
                 break;
             }
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
@@ -442,7 +444,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             worstCaseProfit = StrategyUtils.getPercentVariation(buyOrder.average, GlobalUtils.decreaseNumberByPercent(this.state.stopLossPrice!, 0.1));
             log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
                 .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)} | Wanted profit : ${
-                StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${worstCaseProfit.toFixed(3)}%`);
+                StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${Math
+                .max(Number(worstCaseProfit.toFixed(3)), tradingLoopConfig.stopTradingMaxPercentLoss)}%`);
         }
         return Promise.resolve({ lastOrder, shouldCancelStopLimitOrder });
     }
@@ -460,16 +463,13 @@ export class MountainSeekerV2 implements BaseStrategy {
         // this is to avoid to increase immediately the price when default candlestick interval is 5min
         // and for example the first buy order was done at 12h10
         if (candlestickInterval === CandlestickInterval.FIFTEEN_MINUTES) {
-            const currentTime = new Date();
-            let belgianHours = currentTime.toLocaleTimeString("fr-BE");
-            belgianHours = belgianHours.substr(0, belgianHours.indexOf(':'));
-            currentTime.setHours(Number(belgianHours)); // to convert amazon time to belgian
-            const currentMinute = currentTime.getMinutes();
+            const currentDate = GlobalUtils.getCurrentBelgianDate();
+            const currentMinute = currentDate.getMinutes();
             // can only update stop loss on specific time intervals and if at least 1 minute passed with
             // the initial buy order
             const res = (currentMinute < 5 || (currentMinute >= 15 && currentMinute < 20) ||
                     (currentMinute >= 30 && currentMinute < 35) || (currentMinute >= 45 && currentMinute < 50)) &&
-                (Math.abs((currentTime.getTime() - buyOrderDate.getTime())) / 1000) > 60;
+                (Math.abs((currentDate.getTime() - buyOrderDate.getTime())) / 1000) > 60;
             log.debug("eligibleToIncreaseStopPrice will return %O", res);
             return res;
         }
@@ -497,7 +497,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfUsdt!,
             this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
-            this.state.runUp!, this.state.drawDown!).catch(e => log.error(e));
+            this.state.runUp!, this.state.drawDown!, this.strategyDetails.type).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
@@ -515,7 +515,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(this.market!.targetAsset, 3);
                 if (amountNotSold && amountNotSold > 0) {
                     const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
-                    if (this.state.retrievedAmountOfUsdt) {
+                    log.debug(`Local redeem order object : ${redeemOrder} , retrievedAmountOfUsdt : ${this.state.retrievedAmountOfUsdt}`);
+                    if (this.state.retrievedAmountOfUsdt !== undefined && this.state.retrievedAmountOfUsdt !== 0) {
                         this.state.retrievedAmountOfUsdt += redeemOrder.amount;
                     } else {
                         this.state.retrievedAmountOfUsdt = redeemOrder.amount;
@@ -559,9 +560,9 @@ export class MountainSeekerV2 implements BaseStrategy {
                 case CandlestickInterval.FIFTEEN_MINUTES:
                     this.selectMarketByFifteenMinutesCandleSticks(market, potentialMarkets);
                     break;
-                case CandlestickInterval.FIVE_MINUTES:
-                    this.selectMarketByFiveMinutesCandleSticks(market, potentialMarkets);
-                    break;
+                // case CandlestickInterval.FIVE_MINUTES:
+                //     this.selectMarketByFiveMinutesCandleSticks(market, potentialMarkets);
+                //     break;
                 default:
                     return Promise.reject(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
                 }
@@ -820,7 +821,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             }
         }
 
-        if (this.amountOfTargetAssetThatWasBought) {
+        if (this.amountOfTargetAssetThatWasBought !== undefined && this.amountOfTargetAssetThatWasBought !== 0) {
             log.debug(`Aborting - selling ${this.amountOfTargetAssetThatWasBought} ${this.market?.targetAsset}`);
             let sellMarketOrder;
             try {

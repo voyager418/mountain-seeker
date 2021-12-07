@@ -307,7 +307,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -423,7 +423,7 @@ export class BinanceConnector {
                 side: "buy",
                 type: OrderType.MARKET,
                 info: binanceOrder.data,
-                datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.data.transactTime),
+                datetime: BinanceUtils.toBelgianDateTime(binanceOrder.data.transactTime),
                 average: BinanceUtils.computeAveragePrice(binanceOrder.data.fills)
             }
             return Promise.resolve(order);
@@ -487,7 +487,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side: "sell",
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
@@ -563,7 +563,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side,
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
             type: OrderType.STOP_LIMIT,
             info: binanceOrder.info
         }
@@ -619,7 +619,7 @@ export class BinanceConnector {
             originAsset,
             targetAsset,
             side: "sell",
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
             type: OrderType.LIMIT,
             info: binanceOrder.info
         }
@@ -704,7 +704,7 @@ export class BinanceConnector {
             average: binanceOrder.average!,
             amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, orderType, binanceOrder.side),
             status: binanceOrder.status,
-            datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+            datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
             info: binanceOrder.info,
             originAsset,
             targetAsset
@@ -725,7 +725,7 @@ export class BinanceConnector {
     /**
      * @return The cancelled order
      */
-    public async cancelOrder(orderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string, retries: number) : Promise<Order> {
+    public async cancelOrder(externalOrderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string, retries: number) : Promise<Order> {
         if (this.configService.isSimulation()) {
             const o = SimulationUtils.getSimulatedCancelOrder();
             log.info(`Executing simulated cancel order %O`, o);
@@ -735,7 +735,7 @@ export class BinanceConnector {
         let canceledOrder: Order | undefined;
         while (!canceledOrder && retries-- > -1) {
             try {
-                const binanceOrder = await this.binance.cancelOrder(orderId, `${targetAsset}/${originAsset}`);
+                const binanceOrder = await this.binance.cancelOrder(externalOrderId, `${targetAsset}/${originAsset}`);
                 canceledOrder = {
                     externalId: binanceOrder.id,
                     id: internalOrderId,
@@ -745,17 +745,22 @@ export class BinanceConnector {
                     remaining: binanceOrder.remaining,
                     average: binanceOrder.average!,
                     status: binanceOrder.status,
-                    datetime: BinanceUtils.getBelgiumDateTime(binanceOrder.datetime),
+                    datetime: BinanceUtils.toBelgianDateTime(binanceOrder.datetime),
                     info: binanceOrder.info,
                     originAsset,
                     targetAsset
                 };
             } catch (e) {
-                log.error(`Failed to cancel order : ${e}`);
+                log.warn(`Failed to cancel order : ${e}`);
+                const closedOrder = await this.getOrder(externalOrderId, originAsset, targetAsset, internalOrderId, OrderType.STOP_LIMIT, retries); // the OrderType has no importance
+                if (closedOrder.status === "closed") {
+                    log.info(`Can't cancel order ${externalOrderId} as it's already closed`);
+                    return Promise.resolve(closedOrder);
+                }
             }
         }
         if (!canceledOrder) {
-            return Promise.reject(`Failed to cancel order ${orderId}`);
+            return Promise.reject(`Failed to cancel order ${externalOrderId}`);
         }
         if (canceledOrder.status === "canceled") {
             return Promise.resolve(canceledOrder);
@@ -843,8 +848,12 @@ export class BinanceConnector {
      * Used for debug purposes
      */
     public printMarketDetails(market: Market): void {
-        log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
-        log.debug(`Market details from local object : ${JSON.stringify(market)}`);
+        try {
+            log.debug(`Market details from local object : ${JSON.stringify(market)}`);
+            log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
+        } catch (e) {
+            log.warn(`Failed to get market details ${e}`);
+        }
     }
 
     /**

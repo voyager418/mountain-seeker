@@ -531,7 +531,7 @@ describe("Binance connector", () => {
                 // assert
                 expect(binanceInstance.cancelOrder).toHaveBeenCalledWith("1217145293", "BTC/EUR");
                 expect(binanceInstance.cancelOrder).toHaveBeenCalledTimes(4);
-                expect(binanceConnector.getOrder).not.toHaveBeenCalled();
+                expect(binanceConnector.getOrder).toHaveBeenCalledTimes(4);
                 expect(e).toEqual(`Failed to cancel order 1217145293`);
             }
         });

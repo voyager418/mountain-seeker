@@ -91,7 +91,7 @@ export class BinanceUtils {
     /**
      * Converts Binance timestamps into Belgian time
      */
-    static getBelgiumDateTime(date: string): string {
+    static toBelgianDateTime(date: string): string {
         try {
             const res = new Date(date);
             res.setHours(res.getHours() + 2);
