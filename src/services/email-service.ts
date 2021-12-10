@@ -2,8 +2,8 @@ import log from "../logging/log.instance";
 import { ConfigService } from "./config-service";
 import { singleton } from "tsyringe";
 import { Market } from "../models/market";
-import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
+
 const nodemailer = require('nodemailer');
 
 
@@ -38,7 +38,7 @@ export class EmailService {
     }
 
     public async sendInitialEmail(market: Market, investedAmount: number,
-        stopLossPrice: number, takeProfitPrice: number, averageFilledPrice: number, initialWalletBalance: Map<string, number>,
+        averageFilledPrice: number, initialWalletBalance: Map<string, number>,
         stopTradingMaxPercentLoss: number): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
@@ -46,12 +46,12 @@ export class EmailService {
                 text += "    " + key + " : " + value + "\n";
             }
             text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            text += "Prix stop loss : " + stopLossPrice + "\n";
-            text += "Prix take profit : " + GlobalUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
+            // text += "Prix stop loss : " + stopLossPrice + "\n";
+            // text += "Prix take profit : " + GlobalUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
             text += "Prix moyen d'achat : " + GlobalUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
-            text += `Perte maximum ≈ ${Math.max(Number(StrategyUtils.getPercentVariation(averageFilledPrice, 
-                GlobalUtils.decreaseNumberByPercent(stopLossPrice, 0.1)).toFixed(2)), stopTradingMaxPercentLoss)}%\n`;
-            text += `Gain maximum ≈ +${StrategyUtils.getPercentVariation(averageFilledPrice, GlobalUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
+            // text += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
+            text += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
+            // text += `Gain maximum ≈ +${StrategyUtils.getPercentVariation(averageFilledPrice, GlobalUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             try {
                 await this.transporter.sendMail({
@@ -85,7 +85,7 @@ export class EmailService {
             text += `Changement : ${plusPrefix}${profitPercent.toFixed(2)}%\n`;
             text += `Run-up : ${runUp}%\n`;
             text += `Drawdown : ${drawDown}%\n`;
-            text += `Strategie : ${strategyName}%\n`;
+            text += `Strategie : ${strategyName}\n`;
 
             try {
                 await this.transporter.sendMail({

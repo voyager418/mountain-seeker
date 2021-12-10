@@ -10,11 +10,11 @@ export type MountainSeekerV2State = TradingState & {
     /** Indicates the made profit in %, can be negative */
     profitPercent?: number;
     /** Indicates the made profit in €, can be negative */
-    profitUsdt?: number;
-    /** The amount in USDT that was put in the market */
-    investedAmountOfUsdt?: number;
-    /** The amount in USDT that was retrieved at the end of the trade */
-    retrievedAmountOfUsdt?: number;
+    profitBusd?: number;
+    /** The amount in BUSD that was put in the market */
+    investedAmountOfBusd?: number;
+    /** The amount in BUSD that was retrieved at the end of the trade */
+    retrievedAmountOfBusd?: number;
     /** The number of open positions */
     openOrders?: number;
     /** The market price percent change last 24h */

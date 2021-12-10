@@ -33,7 +33,7 @@ export class TwitterDataService implements Subject {
             this.lastTweet = tweets.data.data[0].text;
 
             // this.lastTweet = (await this.roClient.v2.tweets("1466256809400758274")).data[0].text;
-            // console.log(JSON.stringify(this.lastTweet));
+            // this.lastTweet = (await this.roClient.v2.tweets("1468844920882417664")).data[0].text;
 
             // notify strategies
             this.notifyObservers(this.observers);

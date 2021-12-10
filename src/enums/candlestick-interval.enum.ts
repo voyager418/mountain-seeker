@@ -1,6 +1,7 @@
 
 export enum CandlestickInterval {
   ONE_MINUTE = "1m",
+  THREE_MINUTES = "3m",
   FIVE_MINUTES = "5m",
   FIFTEEN_MINUTES = "15m",
   THIRTY_MINUTES = "30m",
@@ -11,5 +12,5 @@ export enum CandlestickInterval {
   EIGHT_HOURS = "8h",
   TWELVE_HOURS = "12h",
   ONE_DAY = "1d",
-  DEFAULT = FIVE_MINUTES
+  DEFAULT = ONE_MINUTE
 }

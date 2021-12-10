@@ -30,7 +30,7 @@ export class BinanceDataService implements Subject {
     private readonly defaultNumberOfCandlesticks = 400;
     private readonly minimumNumberOfCandlesticks = 400;
     private readonly minimumPercentFor24hVariation = -25;
-    private readonly authorizedCurrencies = [Currency.USDT];
+    private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,
         private repository: DynamodbRepository,
@@ -43,6 +43,7 @@ export class BinanceDataService implements Subject {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
+            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 500000);
             this.binanceConnector.setMarketAdditionalParameters(this.markets);
 
             await this.fetchAndSetCandleSticks();
@@ -113,13 +114,13 @@ export class BinanceDataService implements Subject {
         // default candlesticks are added by default
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
-        for (const interval of [
-            CandlestickInterval.FIFTEEN_MINUTES,
-            CandlestickInterval.THIRTY_MINUTES,
-            CandlestickInterval.ONE_HOUR]) {
-            StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
-            StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
-        }
+        // for (const interval of [
+        //     CandlestickInterval.FIFTEEN_MINUTES,
+        //     CandlestickInterval.THIRTY_MINUTES,
+        //     CandlestickInterval.ONE_HOUR]) {
+        //     StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
+        //     StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
+        // }
     }
 
     private allObserversAreRunning(): boolean {

@@ -7,5 +7,6 @@ export enum Currency {
   BTC = "BTC",
   BNB = "BNB",
   ETH = "ETH",
-  USDT = "USDT"
+  USDT = "USDT",
+  BUSD = "BUSD"
 }

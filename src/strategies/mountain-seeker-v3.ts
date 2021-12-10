@@ -101,7 +101,7 @@ export class MountainSeekerV3 implements BaseStrategy {
     private initDefaultConfig(strategyDetails: StrategyDetails<MountainSeekerV2Config>) {
         this.config.marketLastTradeDate = new Map<string, Date>();
         if (!strategyDetails.config.authorizedCurrencies) {
-            this.config.authorizedCurrencies = [Currency.USDT];
+            this.config.authorizedCurrencies = [Currency.BUSD];
         }
     }
 
@@ -122,15 +122,15 @@ export class MountainSeekerV3 implements BaseStrategy {
         this.state.marketSymbol = this.market.symbol;
         this.cryptoExchangePlatform.printMarketDetails(this.market);
 
-        // 2. Fetch wallet balance and compute amount of USDT to invest
-        await this.getInitialBalance([Currency.USDT.toString(), this.market.targetAsset]);
-        const availableUsdtAmount = this.initialWalletBalance?.get(Currency.USDT.toString());
-        const currentMarketPrice = await this.cryptoExchangePlatform.getUnitPrice(Currency.USDT, this.market.targetAsset, false, 5)
-            .catch(e => Promise.reject(e));
-        const usdtAmountToInvest = Math.min(availableUsdtAmount!, this.config.maxMoneyToTrade);
+        // 2. Fetch wallet balance and compute amount of BUSD to invest
+        await this.getInitialBalance([Currency.BUSD.toString(), this.market.targetAsset]); // TODO add reject
+        const availableBusdAmount = this.initialWalletBalance?.get(Currency.BUSD.toString());
+        // const currentMarketPrice = await this.cryptoExchangePlatform.getUnitPrice(Currency.BUSD, this.market.targetAsset, false, 5)
+        //     .catch(e => Promise.reject(e));
+        const usdtAmountToInvest = Math.min(availableBusdAmount!, this.config.maxMoneyToTrade);
 
         // 3. First BUY MARKET order to buy market.targetAsset
-        const buyOrder = await this.createFirstMarketBuyOrder(usdtAmountToInvest, currentMarketPrice).catch(e => Promise.reject(e));
+        const buyOrder = await this.createFirstMarketBuyOrder(usdtAmountToInvest).catch(e => Promise.reject(e));
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         await GlobalUtils.sleep(50);
 
@@ -144,17 +144,17 @@ export class MountainSeekerV3 implements BaseStrategy {
         const completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
             buyOrder.filled, true, 5).catch(e => Promise.reject(e));
 
-        this.state.retrievedAmountOfUsdt = completedOrder!.amountOfOriginAsset!;
+        this.state.retrievedAmountOfBusd = completedOrder!.amountOfOriginAsset!;
         await this.handleRedeem();
 
-        this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
+        this.state.profitBusd = this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!;
+        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!);
 
-        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), this.market!.targetAsset], 3, true)
+        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendFinalMail(this.market!, buyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfUsdt!,
-            this.state.profitUsdt, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
+        await this.emailService.sendFinalMail(this.market!, buyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
+            this.state.profitBusd, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
             this.state.runUp!, this.state.drawDown!, this.strategyDetails.type).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
@@ -173,11 +173,11 @@ export class MountainSeekerV3 implements BaseStrategy {
                 const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(this.market!.targetAsset, 3);
                 if (amountNotSold && amountNotSold > 0) {
                     const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
-                    log.debug(`Local redeem order object : ${redeemOrder} , retrievedAmountOfUsdt : ${this.state.retrievedAmountOfUsdt}`);
-                    if (this.state.retrievedAmountOfUsdt !== undefined && this.state.retrievedAmountOfUsdt !== 0) {
-                        this.state.retrievedAmountOfUsdt += redeemOrder.amount;
+                    log.debug(`Local redeem order object : ${redeemOrder} , retrievedAmountOfBusd : ${this.state.retrievedAmountOfBusd}`);
+                    if (this.state.retrievedAmountOfBusd !== undefined && this.state.retrievedAmountOfBusd !== 0) {
+                        this.state.retrievedAmountOfBusd += redeemOrder.amount;
                     } else {
-                        this.state.retrievedAmountOfUsdt = redeemOrder.amount;
+                        this.state.retrievedAmountOfBusd = redeemOrder.amount;
                     }
                 }
             } catch (e) {
@@ -190,18 +190,17 @@ export class MountainSeekerV3 implements BaseStrategy {
      * If the market accepts quote price then it will create a BUY MARKET order by specifying how much we want to spend.
      * Otherwise it will compute the equivalent amount of target asset and make a different buy order.
      */
-    private async createFirstMarketBuyOrder(usdtAmountToInvest: number, currentMarketPrice: number): Promise<Order> {
-        let buyOrder;
+    private async createFirstMarketBuyOrder(usdtAmountToInvest: number, currentMarketPrice?: number): Promise<Order> {
         const retries = 5;
-        if (this.market!.quoteOrderQtyMarketAllowed) {
-            buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
-                usdtAmountToInvest, true, retries).catch(e => Promise.reject(e));
-        } else {
-            buyOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset, this.market!.targetAsset,
-                "buy", usdtAmountToInvest / currentMarketPrice, true, retries, usdtAmountToInvest, this.market!.amountPrecision)
-                .catch(e => Promise.reject(e));
-        }
-        this.state.investedAmountOfUsdt = buyOrder.amountOfOriginAsset;
+        // if (this.market!.quoteOrderQtyMarketAllowed) {
+        const buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
+            usdtAmountToInvest, true, retries).catch(e => Promise.reject(e));
+        // } else {
+        //     buyOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset, this.market!.targetAsset,
+        //         "buy", usdtAmountToInvest / currentMarketPrice, true, retries, usdtAmountToInvest, this.market!.amountPrecision)
+        //         .catch(e => Promise.reject(e));
+        // }
+        this.state.investedAmountOfBusd = buyOrder.amountOfOriginAsset;
         return buyOrder;
     }
 
@@ -213,13 +212,14 @@ export class MountainSeekerV3 implements BaseStrategy {
             candleStickIntervals: [CandlestickInterval.ONE_MINUTE],
             candleSticks: new Map<CandlestickInterval, Array<TOHLCV>>(),
             candleSticksPercentageVariations: new Map<CandlestickInterval, Array<number>>(),
-            originAsset: Currency.USDT,
+            originAsset: Currency.BUSD,
             symbol: "",
             targetAsset: "",
             targetAssetPrice: 0
         };
         for (const word of tokenText.split(" ")) {
-            if (word.endsWith("/" + Currency.USDT)) {
+            if (word.endsWith("/" + Currency.BUSD) && !word.substr(0, market.symbol.indexOf("/")).endsWith("UP") &&
+                !word.substr(0, market.symbol.indexOf("/")).endsWith("DOWN")) {
                 market.symbol = word;
                 break;
             }
@@ -227,7 +227,7 @@ export class MountainSeekerV3 implements BaseStrategy {
 
         let candlesticks = [];
         try {
-            candlesticks = await this.cryptoExchangePlatform.getCandlesticks(market.symbol, CandlestickInterval.ONE_MINUTE, 10, 5);
+            candlesticks = await this.cryptoExchangePlatform.getCandlesticks(market.symbol, CandlestickInterval.ONE_MINUTE, 10, 3);
         } catch (e) {
             log.warn(e);
         }
@@ -235,7 +235,10 @@ export class MountainSeekerV3 implements BaseStrategy {
             log.warn(`Market ${market.symbol} already exists`);
             return Promise.resolve(undefined);
         }
+        market.targetAsset = market.symbol.substr(0, market.symbol.indexOf("/"));
         this.market = market;
+        this.state.marketSymbol = market.symbol;
+        log.info(`Selected market ${JSON.stringify(market)}`);
         return Promise.resolve();
     }
 
@@ -252,11 +255,11 @@ export class MountainSeekerV3 implements BaseStrategy {
     }
 
     /**
-     * @return The amount of {@link Currency.USDT} that will be invested (the minimum between the available
+     * @return The amount of {@link Currency.BUSD} that will be invested (the minimum between the available
      * and the max money to trade)
      */
-    private computeAmountToInvest(availableAmountOfUsdt: number, maxAmountToBuy: number): number {
-        return Math.min(availableAmountOfUsdt, this.config.maxMoneyToTrade, maxAmountToBuy);
+    private computeAmountToInvest(availableAmountOfBusd: number, maxAmountToBuy: number): number {
+        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, maxAmountToBuy);
     }
 
     /**
@@ -297,8 +300,9 @@ export class MountainSeekerV3 implements BaseStrategy {
      * @return `true` if the tweet is about addition of a new token
      */
     private static tweetAboutNewToken(latestTweet: string): boolean {
-        return latestTweet.indexOf(" will list ") > -1 && latestTweet.indexOf(" $") > -1 &&
-            latestTweet.indexOf("https://t.co") > -1 && latestTweet.startsWith("#Binance");
+        return latestTweet.indexOf("https://t.co") > -1 && latestTweet.startsWith("#Binance") &&
+            ((latestTweet.indexOf(" will list ") > -1 && latestTweet.indexOf(" $") > -1) ||
+                (latestTweet.indexOf(" adds ") > -1 && latestTweet.indexOf(" new trading pairs.") > -1));
     }
 
     private async getNewTokenInfo(): Promise<string> {

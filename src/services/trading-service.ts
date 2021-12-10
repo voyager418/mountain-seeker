@@ -7,6 +7,7 @@ import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-
 import { BinanceDataService } from "./observer/binance-data-service";
 import { MountainSeekerV3 } from "../strategies/mountain-seeker-v3";
 import { TwitterDataService } from "./observer/twitter-data-service";
+import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
 
 
 /**
@@ -40,8 +41,8 @@ export class TradingService {
     }
 
     public beginTrading(): void {
-        // container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
         container.resolve(MountainSeekerV3).setup(this.account, this.strategy2);
+        container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
     }
 
     public stopTrading(): string {
