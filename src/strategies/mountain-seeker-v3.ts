@@ -301,8 +301,7 @@ export class MountainSeekerV3 implements BaseStrategy {
      */
     private static tweetAboutNewToken(latestTweet: string): boolean {
         return latestTweet.indexOf("https://t.co") > -1 && latestTweet.startsWith("#Binance") &&
-            ((latestTweet.indexOf(" will list ") > -1 && latestTweet.indexOf(" $") > -1) ||
-                (latestTweet.indexOf(" adds ") > -1 && latestTweet.indexOf(" new trading pairs.") > -1));
+            (latestTweet.indexOf(" will list ") > -1 && latestTweet.indexOf(" $") > -1);
     }
 
     private async getNewTokenInfo(): Promise<string> {

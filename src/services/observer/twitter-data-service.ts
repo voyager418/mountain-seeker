@@ -33,14 +33,14 @@ export class TwitterDataService implements Subject {
             this.lastTweet = tweets.data.data[0].text;
 
             // this.lastTweet = (await this.roClient.v2.tweets("1466256809400758274")).data[0].text;
-            // this.lastTweet = (await this.roClient.v2.tweets("1468844920882417664")).data[0].text;
-
+            // this.lastTweet = (await this.roClient.v2.tweets("1471670975246659589")).data[0].text;
+            log.debug(`Last tweet : ${JSON.stringify(this.lastTweet)}`);
             // notify strategies
             this.notifyObservers(this.observers);
 
             // sleep
             if (this.allObserversAreRunning() || this.observers.length === 0) {
-                await GlobalUtils.sleep(1800); // 30 min
+                await GlobalUtils.sleep(1200); // 20 min
             } else {
                 this.shouldRun = false;
             }

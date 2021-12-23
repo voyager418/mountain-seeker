@@ -117,7 +117,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.activeCandleStickIntervals) {
             marketConfigMapFor1min.set("DEFAULT", {
                 atrPeriod: 7,
-                minCandlePercentChange: 4,
+                minCandlePercentChange: 3.5,
                 maxCandlePercentChange: 10,
                 maxBarsSinceMacdCrossover: Infinity,
                 stopLossATRMultiplier: 2,
@@ -408,10 +408,16 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.ONE_MINUTE)!;
-        // if 1 of 60 variations except the 2 latest are > than threshold
-        const threshold = 2;
-        const selectedVariations = allVariations.slice(allVariations.length - (60 + 2), -2);
+        // if 1 of 30 variations except the 2 latest are > than threshold
+        const threshold = 3;
+        let selectedVariations = allVariations.slice(allVariations.length - (30 + 2), -2);
         if (selectedVariations.some(variation => Math.abs(variation) > threshold)) {
+            return;
+        }
+
+        // if 1 of 50 variations except the 2 latest are == 0
+        selectedVariations = allVariations.slice(allVariations.length - (50 + 2), -2);
+        if (selectedVariations.some(variation => variation == 0)) {
             return;
         }
 
