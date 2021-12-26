@@ -17,7 +17,6 @@ import TwitterApi from 'twitter-api-v2';
 export class TwitterDataService implements Subject {
 
     private readonly observers: Array<BaseStrategy> = [];
-    private shouldRun = true;
     private twitterClient = new TwitterApi(process.env.TWITTER_BEARER_TOKEN!);
     private roClient = this.twitterClient.readOnly;
     private lastTweet = "";
@@ -39,11 +38,7 @@ export class TwitterDataService implements Subject {
             this.notifyObservers(this.observers);
 
             // sleep
-            if (this.allObserversAreRunning() || this.observers.length === 0) {
-                await GlobalUtils.sleep(1200); // 20 min
-            } else {
-                this.shouldRun = false;
-            }
+            await GlobalUtils.sleep(1200); // 20 min
         } catch (e) {
             log.error(`Error occurred while fetching data from Twitter : ${e}`)
         }
@@ -87,7 +82,7 @@ export class TwitterDataService implements Subject {
     }
 
     async getTweets(): Promise<void> {
-        while (!this.configService.isTestEnvironment() && this.shouldRun) { // should be "false" when we are running the tests
+        while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
             await this.getLastTweet();
         }
     }

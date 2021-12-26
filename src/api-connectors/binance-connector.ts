@@ -68,15 +68,16 @@ export class BinanceConnector {
      */
     public async getMarketsBy24hrVariation(minimumPercent: number): Promise<Array<Market>> {
         let tickers;
-        let retries = 3;
+        let retries = 30;
         while (!tickers && retries-- > -1) {
             try {
                 tickers = await this.binance.fetchTickers();
             } catch (e) {
                 if (retries > -1) {
                     log.warn("Failed to fetch 24h tickers. Retrying...");
-                    await GlobalUtils.sleep(30);
+                    await GlobalUtils.sleep(180);
                 } else {
+                    log.error("Could not fetch tickers");
                     return Promise.reject(`Failed to fetch tickers. ${e}`);
                 }
             }

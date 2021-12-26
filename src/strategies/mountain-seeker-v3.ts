@@ -116,10 +116,10 @@ export class MountainSeekerV3 implements BaseStrategy {
             return Promise.resolve();
         }
 
+        this.state.marketSymbol = this.market.symbol;
         await this.waitForTokenToGoLive(infoAboutTokenFromBinanceHTMLPage).catch(e => Promise.reject(e));
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
-        this.state.marketSymbol = this.market.symbol;
         this.cryptoExchangePlatform.printMarketDetails(this.market);
 
         // 2. Fetch wallet balance and compute amount of BUSD to invest

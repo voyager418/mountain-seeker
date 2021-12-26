@@ -69,7 +69,7 @@ describe("Binance connector", () => {
             } catch (e) {
                 // assert
                 expect(e).toBe("Failed to fetch tickers. Test error msg");
-                expect(binanceInstance.fetchTickers).toHaveBeenCalledTimes(4);
+                expect(binanceInstance.fetchTickers).toHaveBeenCalledTimes(31);
             }
         });
     });

@@ -219,7 +219,7 @@ export class StrategyUtils {
          Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
         case CandlestickInterval.FIFTEEN_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 3);
+            return this.constructCandleSticks(inputCandleSticks, 15);
         case CandlestickInterval.THIRTY_MINUTES:
             return this.constructCandleSticks(inputCandleSticks, 6);
         case CandlestickInterval.ONE_HOUR:

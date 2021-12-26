@@ -27,9 +27,9 @@ export class BinanceDataService implements Subject {
     /** This interval is used to construct other intervals (e.g. for 1h, 4h ...) */
     private readonly defaultCandleStickInterval = CandlestickInterval.DEFAULT;
     /** Number of candlesticks that will be fetched */
-    private readonly defaultNumberOfCandlesticks = 400;
+    private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = -25;
+    private readonly minimumPercentFor24hVariation = -5;
     private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,
@@ -114,13 +114,11 @@ export class BinanceDataService implements Subject {
         // default candlesticks are added by default
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
-        // for (const interval of [
-        //     CandlestickInterval.FIFTEEN_MINUTES,
-        //     CandlestickInterval.THIRTY_MINUTES,
-        //     CandlestickInterval.ONE_HOUR]) {
-        //     StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
-        //     StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
-        // }
+        for (const interval of [
+            CandlestickInterval.FIFTEEN_MINUTES]) {
+            StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
+            StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
+        }
     }
 
     private allObserversAreRunning(): boolean {
