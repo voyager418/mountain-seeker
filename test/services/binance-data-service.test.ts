@@ -4,7 +4,7 @@ import { GlobalUtils } from "../../src/utils/global-utils";
 import { ConfigService } from "../../src/services/config-service";
 import createMockInstance from "jest-create-mock-instance";
 import { BinanceDataService } from "../../src/services/observer/binance-data-service";
-import { DynamodbRepository } from "../../src/repository/dynamodb-repository";
+// import { DynamodbRepository } from "../../src/repository/dynamodb-repository";
 import { TestHelper } from "../test-helper";
 import { CandlestickInterval } from "../../src/enums/candlestick-interval.enum";
 import { StrategyUtils } from "../../src/utils/strategy-utils";
@@ -14,14 +14,14 @@ describe("Binance data service", () => {
     let binanceDataService: BinanceDataService;
     let binanceConnector: BinanceConnector;
     let configService: ConfigService;
-    let repository: DynamodbRepository;
+    // let repository: DynamodbRepository;
 
     beforeAll(() => {
         jest.spyOn(GlobalUtils, 'sleep').mockImplementation(() => Promise.resolve());
         binanceConnector = createMockInstance(BinanceConnector);
         configService = TestHelper.getMockedConfigService();
-        repository = createMockInstance(DynamodbRepository);
-        binanceDataService = new BinanceDataService(configService, repository, binanceConnector);
+        // repository = createMockInstance(DynamodbRepository);
+        binanceDataService = new BinanceDataService(configService, binanceConnector);
     });
 
     describe("getMarketsFromBinance", () => {

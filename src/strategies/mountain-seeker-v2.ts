@@ -4,7 +4,7 @@ import log from '../logging/log.instance';
 import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
 import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
-import { getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
+import { getCandleSticksByInterval, getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
 import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
@@ -41,7 +41,6 @@ export class MountainSeekerV2 implements BaseStrategy {
     private latestSellStopLimitOrder?: Order;
     private amountOfTargetAssetThatWasBought?: number;
     private takeProfitATR?: number;
-    private stopLossATR?: number;
 
     constructor(private configService: ConfigService,
         private cryptoExchangePlatform: BinanceConnector,
@@ -111,8 +110,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.authorizedCurrencies) {
             this.config.authorizedCurrencies = [Currency.BUSD];
         }
-        const marketConfigMapFor1min = new Map<string, MarketConfig>();
         if (!strategyDetails.config.activeCandleStickIntervals) {
+            const marketConfigMapFor1min = new Map<string, MarketConfig>();
             marketConfigMapFor1min.set("DEFAULT", {
                 atrPeriod: 7,
                 minCandlePercentChange: 3.5,
@@ -162,6 +161,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market,
             this.state.selectedCandleStickInterval!).slice(-5);
+        this.state.last5CandleSticks = getCandleSticksByInterval(this.market, this.state.selectedCandleStickInterval!).slice(-5);
         log.info("Selected market %O", this.market.symbol);
 
         // 2. Fetch wallet balance and compute amount of BUSD to invest
@@ -283,7 +283,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
-            .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)}`);
+            .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)} | Market : ${JSON
+            .stringify(this.market)}`);
         return Promise.resolve();
     }
 
@@ -526,7 +527,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         // if before last candle percent change is above maximal threshold
-        if (beforeLastCandlestickPercentVariation > 10) {
+        if (beforeLastCandlestickPercentVariation > 13) {
             return;
         }
 

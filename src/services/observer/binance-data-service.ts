@@ -1,7 +1,7 @@
 import log from "../../logging/log.instance";
 import { ConfigService } from "../config-service";
 import { singleton } from "tsyringe";
-import { DynamodbRepository } from "../../repository/dynamodb-repository";
+// import { DynamodbRepository } from "../../repository/dynamodb-repository";
 import { BinanceConnector } from "../../api-connectors/binance-connector";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { Market } from "../../models/market";
@@ -33,7 +33,6 @@ export class BinanceDataService implements Subject {
     private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,
-        private repository: DynamodbRepository,
         private binanceConnector: BinanceConnector) {
         this.getDataFromBinance().then();
     }
@@ -43,7 +42,7 @@ export class BinanceDataService implements Subject {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
-            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 500000);
+            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 300000);
             this.binanceConnector.setMarketAdditionalParameters(this.markets);
 
             await this.fetchAndSetCandleSticks();

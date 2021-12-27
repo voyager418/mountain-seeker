@@ -1,5 +1,6 @@
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { TradingState } from "./trading-state";
+import { TOHLCV } from "../../models/market";
 
 
 export type MountainSeekerV2State = TradingState & {
@@ -21,6 +22,8 @@ export type MountainSeekerV2State = TradingState & {
     marketPercentChangeLast24h?: number;
     /** Last 5 candlesticks percentage variations */
     last5CandleSticksPercentageVariations?: Array<number>;
+    /** Last 5 candlesticks */
+    last5CandleSticks?: Array<TOHLCV>;
     /** Indicates whether the trading ended without problems */
     endedWithoutErrors?: boolean;
     /** The maximum possible percentage gain */
