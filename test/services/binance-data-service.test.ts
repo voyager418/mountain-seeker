@@ -43,7 +43,7 @@ describe("Binance data service", () => {
             await binanceDataService.getMarketsFromBinance();
 
             // assert
-            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-5);
+            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(0);
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.DEFAULT, 500);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
@@ -52,6 +52,8 @@ describe("Binance data service", () => {
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(1,
                 expect.anything(), CandlestickInterval.DEFAULT);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(2,
+                expect.anything(), CandlestickInterval.FIVE_MINUTES);
+            expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
                 expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             // expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
             //     expect.anything(), CandlestickInterval.THIRTY_MINUTES);
@@ -59,6 +61,8 @@ describe("Binance data service", () => {
             //     expect.anything(), CandlestickInterval.ONE_HOUR);
 
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(1,
+                expect.anything(), CandlestickInterval.FIVE_MINUTES);
+            expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
                 expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             // expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
             //     expect.anything(), CandlestickInterval.THIRTY_MINUTES);

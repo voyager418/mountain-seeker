@@ -3,6 +3,7 @@ import { ConfigService } from "./config-service";
 import { singleton } from "tsyringe";
 import { Market } from "../models/market";
 import { GlobalUtils } from "../utils/global-utils";
+import { StrategyDetails } from "../models/strategy-details";
 
 const nodemailer = require('nodemailer');
 
@@ -37,7 +38,7 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendInitialEmail(market: Market, investedAmount: number,
+    public async sendInitialEmail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
         averageFilledPrice: number, initialWalletBalance: Map<string, number>,
         stopTradingMaxPercentLoss: number): Promise<void> {
         if (!this.configService.isSimulation()) {
@@ -57,7 +58,7 @@ export class EmailService {
                 await this.transporter.sendMail({
                     from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                     to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject: `Trading started on ${market.symbol}`,
+                    subject: `Trading started on ${market.symbol} (${strategy.customName})`,
                     text: text
                 });
             } catch (e) {
@@ -67,7 +68,7 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendFinalMail(market: Market, investedAmount: number,
+    public async sendFinalMail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
         retrievedAmount: number, profit: number, profitPercent: number, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string): Promise<void> {
         if (!this.configService.isSimulation()) {
@@ -91,7 +92,7 @@ export class EmailService {
                 await this.transporter.sendMail({
                     from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                     to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject:`Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent.toFixed(2)}%, ${plusPrefix}${profit.toFixed(2)} ${market.originAsset})`,
+                    subject:`Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent.toFixed(2)}%, ${plusPrefix}${profit.toFixed(2)} ${market.originAsset}) (${strategy.customName})`,
                     text: text
                 });
             } catch (e) {

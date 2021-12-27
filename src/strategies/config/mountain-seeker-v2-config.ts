@@ -39,26 +39,13 @@ export type MountainSeekerV2Config = BaseStrategyConfig & {
 
 /** This configuration can be different for each candlestick interval */
 export type TradingLoopConfig = {
-    /** Seconds to sleep during trading loop while monitoring the price */
-    secondsToSleepInTheTradingLoop: number;
+    /** Seconds to sleep after buying */
+    secondsToSleepAfterTheBuy: number;
 
-    /** Specific market config */
-    marketConfig: Map<string, MarketConfig>;
+    /** Minutes of the hour when the strategy is allowed to be executed */
+    decisionMinutes: Array<number>;
 
     /** Loss in percentage after which the trading will stop.
      * Example: -10 stands for a loss of -10% */
     stopTradingMaxPercentLoss: number;
-}
-
-export type MarketConfig = {
-    atrPeriod: number;
-    minCandlePercentChange: number;
-    maxCandlePercentChange: number;
-    maxBarsSinceMacdCrossover: number;
-    /** Minimum profit in percent that we want to gain.
-     * Computed as close * (1 + (min_take_profit / 100))
-     * If take_profit_price < min_take_profit then then the trade is skipped */
-    minTakeProfit: number;
-    stopLossATRMultiplier: number;
-    takeProfitATRMultiplier: number;
 }

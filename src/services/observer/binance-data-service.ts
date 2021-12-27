@@ -29,7 +29,7 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 500;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = -5;
+    private readonly minimumPercentFor24hVariation = 0;
     private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,
@@ -64,7 +64,7 @@ export class BinanceDataService implements Subject {
 
     registerObserver(observer: BaseStrategy): void {
         // TODO remove if
-        if (this.observers.length === 0) {
+        if (this.observers.length < 4) {
             this.observers.push(observer);
         }
     }
@@ -114,7 +114,7 @@ export class BinanceDataService implements Subject {
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
         for (const interval of [
-            CandlestickInterval.FIFTEEN_MINUTES]) {
+            CandlestickInterval.FIVE_MINUTES, CandlestickInterval.FIFTEEN_MINUTES]) {
             StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
             StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
         }

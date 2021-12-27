@@ -7,6 +7,7 @@ import { TradingPlatform } from "../enums/trading-platform.enum";
 export type StrategyDetails<T> = {
     type: TradingStrategy;
     platform: TradingPlatform;
+    customName?: string;
     /** Strategy config which is a union of a custom config T and a base config */
     config: T & BaseStrategyConfig;
 }
