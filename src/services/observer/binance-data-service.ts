@@ -27,9 +27,9 @@ export class BinanceDataService implements Subject {
     /** This interval is used to construct other intervals (e.g. for 1h, 4h ...) */
     private readonly defaultCandleStickInterval = CandlestickInterval.DEFAULT;
     /** Number of candlesticks that will be fetched */
-    private readonly defaultNumberOfCandlesticks = 500;
+    private readonly defaultNumberOfCandlesticks = 400;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = 0;
+    private readonly minimumPercentFor24hVariation = -3;
     private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,
@@ -42,7 +42,7 @@ export class BinanceDataService implements Subject {
             // fetch markets with candlesticks
             this.markets = await this.binanceConnector.getMarketsBy24hrVariation(this.minimumPercentFor24hVariation);
             this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.authorizedCurrencies);
-            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 300000);
+            this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 400000);
             this.binanceConnector.setMarketAdditionalParameters(this.markets);
 
             await this.fetchAndSetCandleSticks();
@@ -114,7 +114,7 @@ export class BinanceDataService implements Subject {
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
         for (const interval of [
-            CandlestickInterval.FIVE_MINUTES, CandlestickInterval.FIFTEEN_MINUTES]) {
+            CandlestickInterval.FIFTEEN_MINUTES]) {
             StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
             StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
         }

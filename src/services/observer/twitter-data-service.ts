@@ -19,21 +19,24 @@ export class TwitterDataService implements Subject {
     private readonly observers: Array<BaseStrategy> = [];
     private twitterClient = new TwitterApi(process.env.TWITTER_BEARER_TOKEN!);
     private roClient = this.twitterClient.readOnly;
-    private lastTweet = "";
+    private lastTweetText = "";
 
     constructor(private configService: ConfigService) {
         this.getTweets().then();
     }
 
     async getLastTweet(): Promise<void> {
+        let tweet;
         try {
             // get Binance last tweets
             const tweets = await this.roClient.v2.userTimeline("877807935493033984");
-            this.lastTweet = tweets.data.data[0].text;
+            tweet = tweets.data.data[0];
+            // this.lastTweetText = (await this.roClient.v2.tweets("1466256809400758274")).data[0];
+            // this.lastTweetText = (await this.roClient.v2.tweets("1471670975246659589")).data[0];
+            tweet = (await this.roClient.v2.tweets("1475692661822705666")).data[0];
+            this.lastTweetText = tweet.text;
 
-            // this.lastTweet = (await this.roClient.v2.tweets("1466256809400758274")).data[0].text;
-            // this.lastTweet = (await this.roClient.v2.tweets("1471670975246659589")).data[0].text;
-            log.debug(`Last tweet : ${JSON.stringify(this.lastTweet)}`);
+            log.debug(`Last tweet : ${JSON.stringify(this.lastTweetText)} (id ${tweet.id}`);
             // notify strategies
             this.notifyObservers(this.observers);
 
@@ -78,13 +81,13 @@ export class TwitterDataService implements Subject {
     }
 
     notifyObservers(observers: Array<Observer>): void {
-        observers.forEach(observer => observer.update(this.lastTweet));
+        observers.forEach(observer => observer.update(this.lastTweetText));
     }
 
     async getTweets(): Promise<void> {
-        while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
-            await this.getLastTweet();
-        }
+        // while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
+        //     await this.getLastTweet();
+        // }
     }
 
     private allObserversAreRunning(): boolean {

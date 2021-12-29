@@ -218,10 +218,8 @@ export class StrategyUtils {
         assert(from === CandlestickInterval.DEFAULT, `Unhandled interval ${from}.
          Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
-        case CandlestickInterval.FIVE_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 5);
         case CandlestickInterval.FIFTEEN_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 15);
+            return this.constructCandleSticks(inputCandleSticks, 3);
         case CandlestickInterval.THIRTY_MINUTES:
             return this.constructCandleSticks(inputCandleSticks, 6);
         case CandlestickInterval.ONE_HOUR:

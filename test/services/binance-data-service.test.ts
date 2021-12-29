@@ -43,26 +43,26 @@ describe("Binance data service", () => {
             await binanceDataService.getMarketsFromBinance();
 
             // assert
-            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(0);
+            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-3);
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
-                CandlestickInterval.DEFAULT, 500);
+                CandlestickInterval.DEFAULT, 400);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 400, CandlestickInterval.DEFAULT);
 
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(1,
                 expect.anything(), CandlestickInterval.DEFAULT);
+            // expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(2,
+            //     expect.anything(), CandlestickInterval.FIVE_MINUTES);
             expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(2,
-                expect.anything(), CandlestickInterval.FIVE_MINUTES);
-            expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
                 expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             // expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(3,
             //     expect.anything(), CandlestickInterval.THIRTY_MINUTES);
             // expect(StrategyUtils.setCandlestickPercentVariations).toHaveBeenNthCalledWith(4,
             //     expect.anything(), CandlestickInterval.ONE_HOUR);
 
+            // expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(1,
+            //     expect.anything(), CandlestickInterval.FIVE_MINUTES);
             expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(1,
-                expect.anything(), CandlestickInterval.FIVE_MINUTES);
-            expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
                 expect.anything(), CandlestickInterval.FIFTEEN_MINUTES);
             // expect(StrategyUtils.addCandleSticksWithInterval).toHaveBeenNthCalledWith(2,
             //     expect.anything(), CandlestickInterval.THIRTY_MINUTES);

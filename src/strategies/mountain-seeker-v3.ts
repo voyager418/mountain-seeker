@@ -311,7 +311,7 @@ export class MountainSeekerV3 implements BaseStrategy {
             const htmlPage: string = (await axios.get(urlToTokenHTMLPage)).data;
             // log.debug(`Received HTML token page : ${htmlPage}`);
             const startTextIndex = htmlPage.indexOf("Binance will list ") > -1 ?
-                htmlPage.indexOf("Binance will list ") : htmlPage.indexOf("Binance will open trading for ");
+                htmlPage.lastIndexOf("Binance will list ") : htmlPage.lastIndexOf("Binance will open trading for ");
             if (startTextIndex === -1) {
                 return Promise.reject(`Text about token not found`);
             }
