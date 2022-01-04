@@ -175,79 +175,47 @@ export class MountainSeekerV2 implements BaseStrategy {
             "sell", buyOrder.filled, this.state.stopLossPrice, this.state.stopLossPrice, 5).catch(e => Promise.reject(e));
 
         // 5. Sleep
-        await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepAfterTheBuy);
+        await this.runTradingLoop(buyOrder, stopLossOrder, tradingLoopConfig);
 
         // 6. Finishing
         return await this.handleTradeEnd(buyOrder, stopLossOrder).catch(e => Promise.reject(e));
     }
 
-    // /**
-    //  * Monitors the current market price and creates new stop limit orders if price increases.
-    //  */
-    // private async runTradingLoop(buyOrder: Order, sellStopLimitOrder: Order, targetAssetAmount: number): Promise<{
-    //     lastOrder: Order,
-    //     shouldCancelStopLimitOrder: boolean
-    // }> {
-    //     const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-    //     let tempStopLossPrice = this.state.stopLossPrice!;
-    //     let lastOrder = sellStopLimitOrder;
-    //     let worstCaseProfit;
-    //     let marketUnitPrice = Infinity;
-    //     this.state.runUp = -Infinity;
-    //     this.state.drawDown = Infinity;
-    //     let priceChange;
-    //     let shouldCancelStopLimitOrder = true;
-    //     const marketConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!
-    //         .marketConfig.get(this.state.selectedCandleStickInterval! === CandlestickInterval.FIFTEEN_MINUTES ? this.market!.symbol : "DEFAULT")!;
-    //
-    //     while (this.state.stopLossPrice! < marketUnitPrice &&
-    //         StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice) > tradingLoopConfig.stopTradingMaxPercentLoss &&
-    //         (marketUnitPrice === Infinity || (marketUnitPrice !== Infinity && marketUnitPrice < this.state.takeProfitPrice!))) {
-    //         await GlobalUtils.sleep(tradingLoopConfig.secondsToSleepInTheTradingLoop);
-    //
-    //         if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
-    //             lastOrder.id, lastOrder.type!, 300).catch(e => Promise.reject(e)))) {
-    //             log.debug(`Order ${lastOrder.id} is already closed`);
-    //             shouldCancelStopLimitOrder = false;
-    //             lastOrder = await this.cryptoExchangePlatform.getOrder(lastOrder.externalId, this.market!.originAsset, this.market!.targetAsset,
-    //                 lastOrder.id, OrderType.STOP_LIMIT, 5).catch(e => Promise.reject(e));
-    //             break;
-    //         }
-    //         marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
-    //             .catch(e => Promise.reject(e));
-    //
-    //         // computing ATR and a new trailing stop loss based on the before last candlestick
-    //         const updatedCandleSticks = await this.cryptoExchangePlatform.getCandlesticks(this.market!.symbol, this.state.selectedCandleStickInterval!,
-    //             50, 5).catch(e => Promise.reject(e));
-    //         const ATR = this.atrIndicator.compute(updatedCandleSticks, { period: marketConfig.atrPeriod }).result.reverse()[1];
-    //         const stopLossATR = marketConfig.stopLossATRMultiplier * ATR;
-    //         const close = StrategyUtils.getCandleStick(updatedCandleSticks, 1)[4];
-    //
-    //         if (this.eligibleToIncreaseStopPrice(close, stopLossATR, tempStopLossPrice, this.state.selectedCandleStickInterval!, new Date(buyOrder.datetime))) {
-    //             tempStopLossPrice = GlobalUtils.truncateNumber(close - stopLossATR, this.market!.pricePrecision!);
-    //             log.debug(`Updating stop loss price to : ${tempStopLossPrice}`);
-    //             // cancel the previous sell limit order
-    //             await this.cryptoExchangePlatform.cancelOrder(lastOrder.externalId, sellStopLimitOrder.id,
-    //                 this.market!.originAsset, this.market!.targetAsset, 5).catch(e => Promise.reject(e));
-    //
-    //             // create new sell stop limit order
-    //             lastOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market!.originAsset, this.market!.targetAsset,
-    //                 "sell", targetAssetAmount, tempStopLossPrice, tempStopLossPrice, 3).catch(e => Promise.reject(e));
-    //             this.latestSellStopLimitOrder = lastOrder;
-    //             this.state.stopLossPrice = lastOrder.stopPrice!;
-    //         }
-    //         priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
-    //         this.state.runUp = Math.max(this.state.runUp, priceChange);
-    //         this.state.drawDown = Math.min(this.state.drawDown, priceChange);
-    //
-    //         worstCaseProfit = StrategyUtils.getPercentVariation(buyOrder.average, GlobalUtils.decreaseNumberByPercent(this.state.stopLossPrice!, 0.1));
-    //         log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
-    //             .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(this.state.stopLossPrice!).toFixed(this.market?.pricePrecision)} | Wanted profit : ${
-    //             StrategyUtils.getPercentVariation(buyOrder.average, this.state.takeProfitPrice!).toFixed(3)}% | Worst case profit ≈ ${Math
-    //             .max(Number(worstCaseProfit.toFixed(3)), tradingLoopConfig.stopTradingMaxPercentLoss)}%`);
-    //     }
-    //     return Promise.resolve({ lastOrder, shouldCancelStopLimitOrder });
-    // }
+    /**
+     * Monitors the current market price and creates new stop limit orders if price increases.
+     */
+    private async runTradingLoop(buyOrder: Order, lastOrder: Order, tradingLoopConfig: TradingLoopConfig): Promise<void> {
+        let marketUnitPrice = Infinity;
+        this.state.runUp = -Infinity;
+        this.state.drawDown = Infinity;
+        let priceChange;
+        const priceWatchInterval = 5; // every 5 sec
+        let timesToCheckPrice = tradingLoopConfig.secondsToSleepAfterTheBuy / priceWatchInterval;
+
+        while (timesToCheckPrice-- > 0) {
+            await GlobalUtils.sleep(priceWatchInterval);
+
+            if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
+                lastOrder.id, lastOrder.type!, 5).catch(e => Promise.reject(e)))) {
+                log.debug(`Order ${lastOrder.id} is already closed`);
+                break;
+            }
+
+            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
+                .catch(e => Promise.reject(e));
+
+            priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            this.state.runUp = Math.max(this.state.runUp, priceChange);
+            this.state.drawDown = Math.min(this.state.drawDown, priceChange);
+
+            if (priceChange < (tradingLoopConfig.stopTradingMaxPercentLoss - 0.5)) {
+                // if price dropped below stop loss order price and the stop loss order is still open
+                log.debug(`Price change is too low ${priceChange}%`);
+                break;
+            }
+        }
+        return Promise.resolve();
+    }
 
 
     private async handleTradeEnd(firstBuyOrder: Order, stopLossOrder: Order): Promise<void> {
@@ -280,7 +248,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
             .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)} | Market : ${JSON
             .stringify(this.market)} | ATR : ${this.ATR.toFixed(4)} | maxVariation : ${this.maxVariation
-            ?.toFixed(2)} | edgeVariation : ${this.edgeVariation?.toFixed(2)} | volumeRatio : ${this.volumeRatio}`);
+            ?.toFixed(2)} | edgeVariation : ${this.edgeVariation?.toFixed(2)} | volumeRatio : ${this.volumeRatio} |`);
         return Promise.resolve();
     }
 
@@ -562,31 +530,23 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         const allCandlesticks = candleSticks;
-        const thirtyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 30 - 3, -3);
+        let twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 3, -3);
 
-        // if c2 close > c3..30 high
+        // if c2 close > c3..20 high
         const beforeBeforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 2);
-        if (thirtyCandlesticks.some(candle => candle[2] > beforeBeforeLastCandle[4])) {
+        if (twentyCandlesticks.some(candle => candle[2] > beforeBeforeLastCandle[4])) {
             return { shouldAdd: false };
         }
 
-        // v1 must be >= 1.7 * v2..30
+        // v1 must be >= 1.7 * v2..20
         const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
         if (beforeLastCandle[5] < 1.7 * beforeBeforeLastCandle[5] ||
-            thirtyCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
+            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
             return { shouldAdd: false };
         }
 
-        // const allVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!;
-        // // if 1 of 30 variations except the 3 latest are > than threshold
-        // const threshold = 3;
-        // const thirtyVariations = allVariations.slice(allVariations.length - 30 + 3, -3);
-        // if (thirtyVariations.some(variation => Math.abs(variation) > threshold)) {
-        //     return;
-        // }
-
         // if the line is not +/- horizontal
-        const twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 6, -6); // except the last 6
+        twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 6, -6); // except the last 6
         const highestOpen = twentyCandlesticks.map(candle => candle[1])
             .reduce((prev, current) => (prev > current ? prev : current));
         const highestClose = twentyCandlesticks.map(candle => candle[4])
