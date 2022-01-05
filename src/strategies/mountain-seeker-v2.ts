@@ -248,7 +248,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
             .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)} | Market : ${JSON
             .stringify(this.market)} | ATR : ${this.ATR.toFixed(4)} | maxVariation : ${this.maxVariation
-            ?.toFixed(2)} | edgeVariation : ${this.edgeVariation?.toFixed(2)} | volumeRatio : ${this.volumeRatio} |`);
+            ?.toFixed(2)} | edgeVariation : ${this.edgeVariation?.toFixed(2)} | volumeRatio : ${this.volumeRatio?.toFixed(2)} |`);
         return Promise.resolve();
     }
 
