@@ -29,7 +29,7 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 400;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = -3;
+    private readonly minimumPercentFor24hVariation = this.configService.isSimulation() ? 10 : -3; // so that local testing is faster
     private readonly authorizedCurrencies = [Currency.BUSD];
 
     constructor(private configService: ConfigService,

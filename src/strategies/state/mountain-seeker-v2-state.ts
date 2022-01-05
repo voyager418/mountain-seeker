@@ -10,8 +10,8 @@ export type MountainSeekerV2State = TradingState & {
     endWalletBalance?: string;
     /** Indicates the made profit in %, can be negative */
     profitPercent?: number;
-    /** Indicates the made profit in €, can be negative */
-    profitBusd?: number;
+    /** Indicates the money profit, can be negative */
+    profitMoney?: number;
     /** The amount in BUSD that was put in the market */
     investedAmountOfBusd?: number;
     /** The amount in BUSD that was retrieved at the end of the trade */

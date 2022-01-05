@@ -147,14 +147,14 @@ export class MountainSeekerV3 implements BaseStrategy {
         this.state.retrievedAmountOfBusd = completedOrder!.amountOfOriginAsset!;
         await this.handleRedeem();
 
-        this.state.profitBusd = this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!;
+        this.state.profitMoney = this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!;
         this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails, this.market!, buyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
-            this.state.profitBusd, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
+            this.state.profitMoney, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
             this.state.runUp!, this.state.drawDown!, this.strategyDetails.type).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB

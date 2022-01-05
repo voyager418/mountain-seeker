@@ -134,9 +134,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
         this.market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
-        // this.market = this.markets[0];
-        // this.state.selectedCandleStickInterval = CandlestickInterval.FIFTEEN_MINUTES;
-        // this.state.stopLossPrice = 100;
 
         if (!this.market) {
             if (this.configService.isSimulation()) {
@@ -231,24 +228,31 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.retrievedAmountOfBusd = completedOrder!.amountOfOriginAsset!;
         await this.handleRedeem();
 
-        this.state.profitBusd = this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!);
+        this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
+        this.state.profitPercent = Number(StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails!, this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
-            this.state.profitBusd, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
+            this.state.profitMoney, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
             this.state.runUp!, this.state.drawDown!, this.strategyDetails!.type).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,
             { period: 14 }).result.reverse()[1];
         // TODO print full account object when api key/secret are moved to DB
-        log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON
-            .stringify(this.state)} | Account : ${JSON.stringify(this.account.email)} | Strategy : ${JSON.stringify(this.strategyDetails)} | Market : ${JSON
-            .stringify(this.market)} | ATR : ${this.ATR.toFixed(4)} | maxVariation : ${this.maxVariation
-            ?.toFixed(2)} | edgeVariation : ${this.edgeVariation?.toFixed(2)} | volumeRatio : ${this.volumeRatio?.toFixed(2)} |`);
+        const finalLog = `Final percent change : ${this.state.profitPercent}
+            | State : ${JSON.stringify(this.state)}
+            | Account : ${JSON.stringify(this.account.email)} 
+            | Strategy : ${JSON.stringify(this.strategyDetails)}
+            | Market : ${JSON.stringify(this.market)}
+            | ATR : ${this.ATR.toFixed(4)}
+            | maxVariation : ${this.maxVariation?.toFixed(2)}
+            | edgeVariation : ${this.edgeVariation?.toFixed(2)} 
+            | volumeRatio : ${this.volumeRatio?.toFixed(2)}
+            |`;
+        log.info(finalLog.replace(/(\r\n|\n|\r)/gm, ""));
         return Promise.resolve();
     }
 
@@ -326,6 +330,10 @@ export class MountainSeekerV2 implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
+        if (this.configService.isSimulation()) {
+            this.state.selectedCandleStickInterval = CandlestickInterval.FIFTEEN_MINUTES;
+            return Promise.resolve(this.markets[0]);
+        }
         const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossPrice: number,
             maxVariation: number, edgeVariation: number, volumeRatio: number}> = [];
         for (const market of markets) {

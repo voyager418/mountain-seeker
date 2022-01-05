@@ -33,7 +33,7 @@ export class TwitterDataService implements Subject {
             tweet = tweets.data.data[0];
             // this.lastTweetText = (await this.roClient.v2.tweets("1466256809400758274")).data[0];
             // this.lastTweetText = (await this.roClient.v2.tweets("1471670975246659589")).data[0];
-            tweet = (await this.roClient.v2.tweets("1475692661822705666")).data[0];
+            // tweet = (await this.roClient.v2.tweets("1475692661822705666")).data[0];
             this.lastTweetText = tweet.text;
 
             log.debug(`Last tweet : ${JSON.stringify(this.lastTweetText)} (id ${tweet.id}`);
@@ -85,9 +85,9 @@ export class TwitterDataService implements Subject {
     }
 
     async getTweets(): Promise<void> {
-        // while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
-        //     await this.getLastTweet();
-        // }
+        while (!this.configService.isTestEnvironment()) { // should be "false" when we are running the tests
+            await this.getLastTweet();
+        }
     }
 
     private allObserversAreRunning(): boolean {

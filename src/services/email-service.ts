@@ -69,7 +69,7 @@ export class EmailService {
     }
 
     public async sendFinalMail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
-        retrievedAmount: number, profit: number, profitPercent: number, initialWalletBalance: Map<string, number>,
+        retrievedAmount: number, profitMoney: number, profitPercent: number, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
@@ -83,7 +83,7 @@ export class EmailService {
             const plusPrefix = profitPercent > 0 ? '+' : '';
             text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
             text += "Somme récupérée : " + retrievedAmount + " " + market.originAsset + "\n";
-            text += `Changement : ${plusPrefix}${profitPercent.toFixed(2)}%\n`;
+            text += `Changement : ${plusPrefix}${profitPercent}%\n`;
             text += `Run-up : ${runUp}%\n`;
             text += `Drawdown : ${drawDown}%\n`;
             text += `Strategie : ${strategyName}\n`;
@@ -92,7 +92,7 @@ export class EmailService {
                 await this.transporter.sendMail({
                     from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                     to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject:`Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent.toFixed(2)}%, ${plusPrefix}${profit.toFixed(2)} ${market.originAsset}) (${strategy.customName})`,
+                    subject:`Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent}%, ${plusPrefix}${profitMoney} ${market.originAsset}) (${strategy.customName})`,
                     text: text
                 });
             } catch (e) {
