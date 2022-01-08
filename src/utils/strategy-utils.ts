@@ -259,4 +259,22 @@ export class StrategyUtils {
         }
         return res.reverse();
     }
+
+    /**
+     * @return the maximum % variation between the open/close in a set of candles sticks
+     * i.e. the maximum change between 2 extremities of a series
+     */
+    static getMaxVariation(candleSticks : Array<TOHLCV>): number {
+        const highestOpen = candleSticks.map(candle => candle[1])
+            .reduce((prev, current) => (prev > current ? prev : current));
+        const highestClose = candleSticks.map(candle => candle[4])
+            .reduce((prev, current) => (prev > current ? prev : current));
+        const highest = Math.max(highestOpen, highestClose);
+        const lowestOpen = candleSticks.map(candle => candle[1])
+            .reduce((prev, current) => (prev < current ? prev : current));
+        const lowestClose = candleSticks.map(candle => candle[4])
+            .reduce((prev, current) => (prev < current ? prev : current));
+        const lowest = Math.min(lowestOpen, lowestClose);
+        return Math.abs(StrategyUtils.getPercentVariation(highest, lowest));
+    }
 }
