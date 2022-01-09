@@ -47,6 +47,22 @@ export class TradingService {
         }
     }
 
+    private strategy5: StrategyDetails<MountainSeekerV2Config> = {
+        platform: TradingPlatform.BINANCE,
+        type: TradingStrategy.MSV2,
+        customName: "strat5-15-30", // based on 15min candlesticks and takes a decision every 15min
+        config: {
+            maxMoneyToTrade: 25,
+            autoRestartOnProfit: true,
+            activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
+                secondsToSleepAfterTheBuy: 1800, // 30min
+                decisionMinutes: [0, 15, 30, 45],
+                stopTradingMaxPercentLoss: -5
+            }
+            ]])
+        }
+    }
+
     private account: Account = {
         email: process.env.RECEIVER_EMAIL_ADDRESS!,
         apiKey: process.env.BINANCE_API_KEY,
@@ -56,6 +72,7 @@ export class TradingService {
     public beginTrading(): void {
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy4);
+        container.resolve(MountainSeekerV2).setup(this.account, this.strategy5);
     }
 
     public stopTrading(): string {

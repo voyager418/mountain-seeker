@@ -18,6 +18,7 @@ import { BinanceDataService } from "../services/observer/binance-data-service";
 import { MountainSeekerV2Config, TradingLoopConfig } from "./config/mountain-seeker-v2-config";
 import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
 import { ATRIndicator } from "../indicators/atr-indicator";
+import { NumberUtils } from "../utils/number-utils";
 
 
 /**
@@ -113,7 +114,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor15min: TradingLoopConfig = {
-                secondsToSleepAfterTheBuy: 900,
+                secondsToSleepAfterTheBuy: 900, // 15min
                 decisionMinutes: [15, 30, 45, 0], // [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 0]
                 stopTradingMaxPercentLoss: -5
             };
@@ -124,10 +125,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.minimumPercentFor24hVariation) {
             this.config.minimumPercentFor24hVariation = -1000;
         }
-        // if (!strategyDetails.config.privilegedMarkets) {
-        //     // sorted by order of preference
-        //     this.config.privilegedMarkets = Array.from(marketConfigMapFor1min!.keys());
-        // }
     }
 
     public async run(): Promise<void> {
@@ -167,15 +164,15 @@ export class MountainSeekerV2 implements BaseStrategy {
             tradingLoopConfig.stopTradingMaxPercentLoss).then().catch(e => log.error(e));
 
         // 4. Stop loss
-        this.state.stopLossPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
-        const stopLossOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
-            "sell", buyOrder.filled, this.state.stopLossPrice, this.state.stopLossPrice, 5).catch(e => Promise.reject(e));
+        const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
+        this.latestSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
+            "sell", buyOrder.filled, stopLossPrice, stopLossPrice, 5).catch(e => Promise.reject(e));
 
         // 5. Sleep
-        await this.runTradingLoop(buyOrder, stopLossOrder, tradingLoopConfig);
+        await this.runTradingLoop(buyOrder, this.latestSellStopLimitOrder!, tradingLoopConfig);
 
         // 6. Finishing
-        return await this.handleTradeEnd(buyOrder, stopLossOrder).catch(e => Promise.reject(e));
+        return await this.handleTradeEnd(buyOrder, this.latestSellStopLimitOrder!).catch(e => Promise.reject(e));
     }
 
     /**
@@ -186,7 +183,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.runUp = -Infinity;
         this.state.drawDown = Infinity;
         let priceChange;
-        const priceWatchInterval = 5; // every 5 sec
+        const priceWatchInterval = 5; // in seconds
         const endTradingDate = GlobalUtils.getCurrentBelgianDate();
         endTradingDate.setSeconds(endTradingDate.getSeconds() + tradingLoopConfig.secondsToSleepAfterTheBuy)
 
@@ -202,13 +199,13 @@ export class MountainSeekerV2 implements BaseStrategy {
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
-            priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            priceChange = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
             this.state.runUp = Math.max(this.state.runUp, priceChange);
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
-            if (priceChange < (tradingLoopConfig.stopTradingMaxPercentLoss - 0.5)) {
+            if (marketUnitPrice < lastOrder.stopPrice!) {
                 // if price dropped below stop loss order price and the stop loss order is still open
-                log.debug(`Price change is too low ${priceChange}%`);
+                log.debug(`Price change is too low ${priceChange}% ! Stop price is ${lastOrder.stopPrice!} while the current is ${marketUnitPrice}`);
                 break;
             }
         }
@@ -230,7 +227,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         await this.handleRedeem(); // TODO shouldn't we filter BLVT?
 
         this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
-        this.state.profitPercent = Number(StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
+        this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
@@ -282,7 +279,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     /**
      * If the market accepts quote price then it will create a BUY MARKET order by specifying how much we want to spend.
-     * Otherwise it will compute the equivalent amount of target asset and make a different buy order.
+     * Otherwise, it will compute the equivalent amount of target asset and make a different buy order.
      */
     private async createFirstMarketBuyOrder(usdtAmountToInvest: number, currentMarketPrice: number): Promise<Order> {
         let buyOrder;
@@ -335,7 +332,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.maxVariation = potentialMarkets[0].maxVariation;
             this.edgeVariation = potentialMarkets[0].edgeVariation;
             this.volumeRatio = potentialMarkets[0].volumeRatio;
-            // this.state.stopLossPrice = potentialMarkets[0].stopLossPrice;
             return Promise.resolve(potentialMarkets[0].market);
         }
     }
@@ -431,7 +427,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         //     return;
         // }
         // the variation of the first and last in the 20 candlesticks should not be bigger than 5% // TODO 5 or 3?
-        const edgeVariation = Math.abs(StrategyUtils.getPercentVariation(twentyCandlesticks[0][4],
+        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticks[0][4],
             twentyCandlesticks[twentyCandlesticks.length - 1][4]));
         // if (edgeVariation > 5) {
         //     return;
@@ -530,7 +526,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             return { shouldAdd: false };
         }
         // the variation of the first and last in the 20 candlesticks should not be bigger than 5% // TODO 5 or 3?
-        const edgeVariation = Math.abs(StrategyUtils.getPercentVariation(twentyCandlesticks[0][4],
+        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticks[0][4],
             twentyCandlesticks[twentyCandlesticks.length - 1][4]));
         if (edgeVariation > 5) {
             return { shouldAdd: false };
@@ -596,7 +592,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
             if (!sellMarketOrder) {
                 for (const percent of [0.05, 0.5, 1, 2]) {
-                    this.amountOfTargetAssetThatWasBought = GlobalUtils.decreaseNumberByPercent(
+                    this.amountOfTargetAssetThatWasBought = NumberUtils.decreaseNumberByPercent(
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
                         sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,

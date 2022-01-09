@@ -14,6 +14,7 @@ import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
 import { RedeemOrder } from "../models/redeem-order";
 import { BinanceUtils } from "../utils/binance-utils";
+import { NumberUtils } from "../utils/number-utils";
 
 const axios = require('axios').default;
 
@@ -258,7 +259,7 @@ export class BinanceConnector {
             log.info(`Executing simulated order %O`, o);
             return Promise.resolve(o);
         }
-        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+        amount = NumberUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
         const orderCompletionRetries = 3;
 
         log.debug("Creating new %O market order on %O/%O of %O %O", side, targetAsset, originAsset, amount, targetAsset);
@@ -283,7 +284,7 @@ export class BinanceConnector {
                             .catch(error => Promise.reject(error));
                         amount = amountToInvest/unitPrice;
                         amount -= amount * (percentDecreaseMultiplier * 0.004);
-                        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+                        amount = NumberUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
                     }
                     binanceOrder = await this.binance.createOrder(`${targetAsset}/${originAsset}`, "market", side, amount);
                 } catch (e) {
@@ -456,7 +457,7 @@ export class BinanceConnector {
         log.debug("Creating new sell market order on %O/%O of %O %O", targetAsset, originAsset, amount, targetAsset);
         let binanceOrder;
         const orderCompletionRetries = 3;
-        amount = GlobalUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
+        amount = NumberUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
 
         try {
             binanceOrder = await this.binance.createMarketSellOrder(`${targetAsset}/${originAsset}`, amount);
@@ -870,7 +871,7 @@ export class BinanceConnector {
         if (orderType !== OrderType.MARKET) {
             // 0.1% is the default binance transaction fee, see https://www.binance.com/en/fee/schedule or in the account settings
             // If BNB is available then Binance pays the fee from BNB wallet, so the below number is an approximation
-            return binanceOrder.cost - GlobalUtils.truncateNumber(binanceOrder.cost * 0.001, 8);
+            return binanceOrder.cost - NumberUtils.truncateNumber(binanceOrder.cost * 0.001, 8);
         }
 
         const fills: [MarketOrderFill] | undefined = binanceOrder.info?.fills;
@@ -888,7 +889,7 @@ export class BinanceConnector {
                 amountOfOriginAsset += Number(fill.price) * Number(fill.qty) - Number(fill.commission);
             }
         }
-        amountOfOriginAsset = GlobalUtils.truncateNumber(amountOfOriginAsset, 8);
+        amountOfOriginAsset = NumberUtils.truncateNumber(amountOfOriginAsset, 8);
         return amountOfOriginAsset;
     }
 
@@ -912,7 +913,7 @@ export class BinanceConnector {
                 amountOfTargetAsset += Number(fill.qty) - Number(fill.commission);
             }
         }
-        return GlobalUtils.truncateNumber(amountOfTargetAsset, 8);
+        return NumberUtils.truncateNumber(amountOfTargetAsset, 8);
     }
 }
 

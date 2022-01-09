@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
 import { Market, TOHLCV } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
-import { StrategyUtils } from "../utils/strategy-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
@@ -16,6 +15,7 @@ import { MountainSeekerV2Config } from "./config/mountain-seeker-v2-config";
 import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
 import { TwitterDataService } from "../services/observer/twitter-data-service";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import { NumberUtils } from "../utils/number-utils";
 
 const axios = require('axios').default;
 
@@ -148,7 +148,7 @@ export class MountainSeekerV3 implements BaseStrategy {
         await this.handleRedeem();
 
         this.state.profitMoney = this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!);
+        this.state.profitPercent = NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
@@ -278,7 +278,7 @@ export class MountainSeekerV3 implements BaseStrategy {
 
             if (!sellMarketOrder) {
                 for (const percent of [0.05, 0.5, 1, 2]) {
-                    this.amountOfTargetAssetThatWasBought = GlobalUtils.decreaseNumberByPercent(
+                    this.amountOfTargetAssetThatWasBought = NumberUtils.decreaseNumberByPercent(
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
                         sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,

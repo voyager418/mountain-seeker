@@ -1,8 +1,8 @@
-import { GlobalUtils } from "./global-utils";
 import { MarketOrderFill } from "../api-connectors/binance-connector";
 import hmacSHA256 from 'crypto-js/hmac-sha256';
 import { Market } from "../models/market";
 import ccxt from "ccxt";
+import { NumberUtils } from "./number-utils";
 
 /**
  * Helper class for Binance API connector
@@ -85,7 +85,7 @@ export class BinanceUtils {
             num += Number(fill.price) * Number(fill.qty);
             denom += Number(fill.qty);
         }
-        return GlobalUtils.truncateNumber(num/denom, 8);
+        return NumberUtils.truncateNumber(num/denom, 8);
     }
 
     /**

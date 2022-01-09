@@ -22,6 +22,7 @@ import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
 import { MountainSeekerConfig, TradingLoopConfig } from "./config/mountain-seeker-config";
 import { MACDIndicator } from "../indicators/macd-indicator";
+import { NumberUtils } from "../utils/number-utils";
 
 
 /**
@@ -189,7 +190,7 @@ export class MountainSeeker implements BaseStrategy {
         this.state.amountOfYSpentOnZ = buyOrder.amountOfOriginAsset;
 
         // 5. First STOP-LIMIT order
-        const stopLimitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
+        const stopLimitPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average,
             this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss);
         const firstStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(market.originAsset, market.targetAsset,
             "sell", buyOrder.filled, stopLimitPrice, stopLimitPrice, 3)
@@ -227,13 +228,13 @@ export class MountainSeeker implements BaseStrategy {
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
-            if (StrategyUtils.getPercentVariation(newStopLimitPrice, marketUnitPrice) >= stopLimitPriceTriggerPercent) {
+            if (NumberUtils.getPercentVariation(newStopLimitPrice, marketUnitPrice) >= stopLimitPriceTriggerPercent) {
                 // cancel the previous stop limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastStopLimitOrder.externalId, stopLimitOrder.id,
                     market.originAsset, market.targetAsset, 5).catch(e => Promise.reject(e));
 
                 // compute new stop limit price
-                newStopLimitPrice = GlobalUtils.increaseNumberByPercent(newStopLimitPrice, stopLimitPriceIncreaseInTheTradingLoop);
+                newStopLimitPrice = NumberUtils.increaseNumberByPercent(newStopLimitPrice, stopLimitPriceIncreaseInTheTradingLoop);
                 stopLimitPrice = newStopLimitPrice;
 
                 // create new stop limit order
@@ -246,8 +247,8 @@ export class MountainSeeker implements BaseStrategy {
                 stopLimitPriceTriggerPercent = tradingLoopConfig.stopLimitPriceTriggerPercent;
                 stopLimitPriceIncreaseInTheTradingLoop = tradingLoopConfig.stopLimitPriceIncreaseInTheTradingLoop;
             }
-            this.state.pricePercentChangeOnZY = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
-            potentialProfitOnZY = StrategyUtils.getPercentVariation(buyOrder.average, newStopLimitPrice);
+            this.state.pricePercentChangeOnZY = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            potentialProfitOnZY = NumberUtils.getPercentVariation(buyOrder.average, newStopLimitPrice);
             log.info(`Buy : ${buyOrder.average}, current : ${(marketUnitPrice)
                 .toFixed(8)}, change % : ${this.state.pricePercentChangeOnZY}% | Sell price : ${stopLimitPrice
                 .toFixed(8)} | Potential profit : ${potentialProfitOnZY.toFixed(3)}%`);
@@ -284,14 +285,14 @@ export class MountainSeeker implements BaseStrategy {
         if (market.originAsset === Currency.EUR) {
             this.state.retrievedAmountOfEuro = completedOrder!.amountOfOriginAsset!;
         } else {
-            this.state.profitOnZY = StrategyUtils.getPercentVariation(buyOrder.filled * buyOrder.average, completedOrder!.filled * completedOrder!.average);
+            this.state.profitOnZY = NumberUtils.getPercentVariation(buyOrder.filled * buyOrder.average, completedOrder!.filled * completedOrder!.average);
             const amountOfYToSell = await this.cryptoExchangePlatform.getBalanceForAsset(market.originAsset.toString(), 3).catch(e => Promise.reject(e));
             await this.handleSellOriginAsset(market, amountOfYToSell);
         }
 
         await this.convertRemainingTargetAssetToBNB(market);
         this.state.profitEuro = this.state.retrievedAmountOfEuro! - this.state.investedAmountOfEuro!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
+        this.state.profitPercent = NumberUtils.getPercentVariation(this.state.investedAmountOfEuro!, this.state.retrievedAmountOfEuro!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance(this.config.authorizedCurrencies!, 3)
             .catch(e => Promise.reject(e));
@@ -382,7 +383,7 @@ export class MountainSeeker implements BaseStrategy {
         // close price of the 3rd candlestick is bigger than x%
         const startPrice = market.candleSticks.get(CandlestickInterval.FOUR_HOURS)![candleStickPercentVariations.length - 15][1];
         const endPrice = market.candleSticks.get(CandlestickInterval.FOUR_HOURS)![candleStickPercentVariations.length - 3][4];
-        if (Math.abs(StrategyUtils.getPercentVariation(startPrice, endPrice)) > 5) {
+        if (Math.abs(NumberUtils.getPercentVariation(startPrice, endPrice)) > 5) {
             return;
         }
 
@@ -430,7 +431,7 @@ export class MountainSeeker implements BaseStrategy {
         // close price of the 3rd candlestick is bigger than x%
         const startPrice = market.candleSticks.get(CandlestickInterval.SIX_HOURS)![candleStickPercentVariations.length - 10][1];
         const endPrice = market.candleSticks.get(CandlestickInterval.SIX_HOURS)![candleStickPercentVariations.length - 3][4];
-        if (Math.abs(StrategyUtils.getPercentVariation(startPrice, endPrice)) > 5) {
+        if (Math.abs(NumberUtils.getPercentVariation(startPrice, endPrice)) > 5) {
             return;
         }
 
@@ -560,7 +561,7 @@ export class MountainSeeker implements BaseStrategy {
             "sell", amountToSell, true, 5).catch(e => Promise.reject(e));
         this.state.retrievedAmountOfEuro = order.amountOfOriginAsset;
         this.state.endUnitPriceOnYXMarket = order.average;
-        this.state.pricePercentChangeOnYX = StrategyUtils.getPercentVariation(this.state.initialUnitPriceOnYXMarket!,
+        this.state.pricePercentChangeOnYX = NumberUtils.getPercentVariation(this.state.initialUnitPriceOnYXMarket!,
             this.state.endUnitPriceOnYXMarket);
     }
 

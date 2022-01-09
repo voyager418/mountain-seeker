@@ -3,25 +3,12 @@ import { Currency } from "../enums/trading-currencies.enum";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
 import log from '../logging/log.instance';
+import { NumberUtils } from "./number-utils";
 
 /**
  * Utility class for strategies package
  */
 export class StrategyUtils {
-
-    /**
-     * @return A variation in % between two numbers `start` and `end`. Can be negative.
-     */
-    static getPercentVariation(start: number, end: number): number {
-        if (start === 0) {
-            start = 0.00000001;
-        }
-        if (start <= end) {
-            return Math.abs(((end - start) / start) * 100);
-        } else {
-            return -((start - end) / start) * 100;
-        }
-    }
 
     /**
      * Computes and sets percentage variations of each candlestick in each market for the provided interval.
@@ -31,11 +18,11 @@ export class StrategyUtils {
             const candleSticks = getCandleSticksByInterval(market, interval); // a candlestick has a format [ timestamp, open, high, low, close, volume ]
             const candleStickVariations = [];
             for (let i = 0; i < candleSticks.length - 1; i++) {
-                candleStickVariations.push(StrategyUtils.getPercentVariation(candleSticks[i][1], candleSticks[i][4]));
+                candleStickVariations.push(NumberUtils.getPercentVariation(candleSticks[i][1], candleSticks[i][4]));
             }
             // the last candlestick percentage variation is calculated by taking the close price of previous
             // candle stick and the current market price
-            candleStickVariations.push((StrategyUtils.getPercentVariation(
+            candleStickVariations.push((NumberUtils.getPercentVariation(
                 candleSticks[candleSticks.length - 2][4], market.targetAssetPrice)));
             if (!market.candleSticksPercentageVariations) {
                 market.candleSticksPercentageVariations = new Map();
@@ -275,6 +262,6 @@ export class StrategyUtils {
         const lowestClose = candleSticks.map(candle => candle[4])
             .reduce((prev, current) => (prev < current ? prev : current));
         const lowest = Math.min(lowestOpen, lowestClose);
-        return Math.abs(StrategyUtils.getPercentVariation(highest, lowest));
+        return Math.abs(NumberUtils.getPercentVariation(highest, lowest));
     }
 }

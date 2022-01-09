@@ -37,6 +37,4 @@ export type MountainSeekerV2State = TradingState & {
     /** Binance allows to convert small amounts to BNB. This value represents the amount
      * of BNB retrieved after converting the small amounts. */
     profitBNB?: number;
-    takeProfitPrice?: number;
-    stopLossPrice?: number;
 }

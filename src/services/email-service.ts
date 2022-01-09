@@ -2,8 +2,8 @@ import log from "../logging/log.instance";
 import { ConfigService } from "./config-service";
 import { singleton } from "tsyringe";
 import { Market } from "../models/market";
-import { GlobalUtils } from "../utils/global-utils";
 import { StrategyDetails } from "../models/strategy-details";
+import { NumberUtils } from "../utils/number-utils";
 
 const nodemailer = require('nodemailer');
 
@@ -48,11 +48,11 @@ export class EmailService {
             }
             text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
             // text += "Prix stop loss : " + stopLossPrice + "\n";
-            // text += "Prix take profit : " + GlobalUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
-            text += "Prix moyen d'achat : " + GlobalUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
+            // text += "Prix take profit : " + NumberUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
+            text += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
             // text += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
             text += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
-            // text += `Gain maximum ≈ +${StrategyUtils.getPercentVariation(averageFilledPrice, GlobalUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
+            // text += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             try {
                 await this.transporter.sendMail({

@@ -19,6 +19,7 @@ import { BinanceDataService } from "../services/observer/binance-data-service";
 import { SqueezeConfig, TradingLoopConfig } from "./config/squeeze-config";
 import { SqueezeIndicator } from "../indicators/squeeze-indicator";
 import assert from "assert";
+import { NumberUtils } from "../utils/number-utils";
 
 
 /**
@@ -172,9 +173,9 @@ export class Squeeze implements BaseStrategy {
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
 
         // 4. First SELL STOP LIMIT order (default: -5%)
-        let stopLimitPrice = GlobalUtils.decreaseNumberByPercent(buyOrder.average,
+        let stopLimitPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average,
             this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!.stopTradingMaxPercentLoss);
-        stopLimitPrice = GlobalUtils.truncateNumber(stopLimitPrice, this.market.pricePrecision!);
+        stopLimitPrice = NumberUtils.truncateNumber(stopLimitPrice, this.market.pricePrecision!);
 
         const firstSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, stopLimitPrice, stopLimitPrice, 5).catch(e => Promise.reject(e));
@@ -219,9 +220,9 @@ export class Squeeze implements BaseStrategy {
             marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(market.originAsset, market.targetAsset, false, 10)
                 .catch(e => Promise.reject(e));
 
-            tempTrailPrice = GlobalUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent.get(market.symbol)!);
+            tempTrailPrice = NumberUtils.decreaseNumberByPercent(marketUnitPrice, tradingLoopConfig.trailPricePercent.get(market.symbol)!);
             tempTrailPrice = Number(tempTrailPrice.toFixed(this.market?.pricePrecision));
-            if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > GlobalUtils.increaseNumberByPercent(buyOrder.average, 0.2)) {
+            if (tempTrailPrice > newSellStopLimitPrice && tempTrailPrice > NumberUtils.increaseNumberByPercent(buyOrder.average, 0.2)) {
                 firstTrailPriceSet = true;
                 // cancel the previous sell limit order
                 await this.cryptoExchangePlatform.cancelOrder(lastSellStopLimitOrder.externalId, sellStopLimitOrder.id,
@@ -237,11 +238,11 @@ export class Squeeze implements BaseStrategy {
                 tempTrailPrice = lastSellStopLimitOrder.limitPrice!;
                 newSellStopLimitPrice = lastSellStopLimitOrder.limitPrice!;
             }
-            priceChange = Number(StrategyUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
+            priceChange = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
             this.state.runUp = Math.max(this.state.runUp, priceChange);
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
-            potentialProfit = StrategyUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
+            potentialProfit = NumberUtils.getPercentVariation(buyOrder.average, newSellStopLimitPrice);
             log.info(`Buy : ${buyOrder.average.toFixed(this.market?.pricePrecision)}, current : ${(marketUnitPrice)
                 .toFixed(this.market?.pricePrecision)}, change % : ${priceChange}% | Sell : ${(firstTrailPriceSet ? 
                 newSellStopLimitPrice : stopLimitPrice).toFixed(this.market?.pricePrecision)} | Potential profit : ${potentialProfit
@@ -265,7 +266,7 @@ export class Squeeze implements BaseStrategy {
         await this.handleRedeem(market);
 
         this.state.profitUsdt = this.state.retrievedAmountOfUsdt! - this.state.investedAmountOfUsdt!;
-        this.state.profitPercent = StrategyUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
+        this.state.profitPercent = NumberUtils.getPercentVariation(this.state.investedAmountOfUsdt!, this.state.retrievedAmountOfUsdt!);
 
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.USDT.toString(), market.targetAsset], 3)
             .catch(e => Promise.reject(e));
@@ -429,7 +430,7 @@ export class Squeeze implements BaseStrategy {
 
             if (!sellMarketOrder) {
                 for (const percent of [0.05, 0.5, 1, 2]) {
-                    this.amountOfTargetAssetThatWasBought = GlobalUtils.decreaseNumberByPercent(
+                    this.amountOfTargetAssetThatWasBought = NumberUtils.decreaseNumberByPercent(
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
                         sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
