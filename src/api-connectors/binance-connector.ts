@@ -253,10 +253,12 @@ export class BinanceConnector {
      * uses it to truncate the {@link amount}
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
-        awaitCompletion?: boolean, retries?: number, amountToInvest?: number, marketAmountPrecision?: number): Promise<Order> {
-        if (this.configService.isSimulation()) {
-            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side);
-            log.info(`Executing simulated order %O`, o);
+        awaitCompletion?: boolean, retries?: number, amountToInvest?: number, marketAmountPrecision?: number, simulation?: boolean): Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
+            const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
+                .catch(e => Promise.reject(e));
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side, currentMarketPrice, amountToInvest, amount);
+            log.info(`Executing simulated order ${JSON.stringify(o)}`);
             return Promise.resolve(o);
         }
         amount = NumberUtils.truncateNumber(amount, marketAmountPrecision ?? 8);
@@ -361,12 +363,15 @@ export class BinanceConnector {
      * @param quoteAmount If market is BNB/EUR then this represents the amount of EUR that we want to spend
      * @param awaitCompletion
      * @param retries
+     * @param simulation In case if a particular strategy wants to use simulated orders
      */
     public async createMarketBuyOrder(originAsset: Currency, targetAsset: string, quoteAmount: number,
-        awaitCompletion?: boolean, retries?: number): Promise<Order> {
-        if (this.configService.isSimulation()) {
-            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "buy");
-            log.info(`Executing simulated order %O`, o);
+        awaitCompletion?: boolean, retries?: number, simulation?: boolean): Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
+            const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
+                .catch(e => Promise.reject(e));
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "buy", currentMarketPrice, quoteAmount);
+            log.info(`Executing simulated order ${JSON.stringify(o)}`);
             return Promise.resolve(o);
         }
 
@@ -447,10 +452,12 @@ export class BinanceConnector {
      * @param retries
      */
     public async createMarketSellOrder(originAsset: Currency, targetAsset: string, amount: number,
-        awaitCompletion?: boolean, retries?: number, marketAmountPrecision?: number): Promise<Order> {
-        if (this.configService.isSimulation()) {
-            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "sell");
-            log.info(`Executing simulated order %O`, o);
+        awaitCompletion?: boolean, retries?: number, marketAmountPrecision?: number, simulation?: boolean): Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
+            const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
+                .catch(e => Promise.reject(e));
+            const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "sell", currentMarketPrice, undefined, amount);
+            log.info(`Executing simulated order ${JSON.stringify(o)}`);
             return Promise.resolve(o);
         }
 
@@ -515,10 +522,10 @@ export class BinanceConnector {
      * Creates a stop limit order.
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
-        stopPrice: number, limitPrice: number, retries?: number): Promise<Order> {
-        if (this.configService.isSimulation()) {
+        stopPrice: number, limitPrice: number, retries?: number, simulation?: boolean): Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
             const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side);
-            log.info(`Executing simulated order %O`, simulatedOrder);
+            log.info(`Executing simulated order ${JSON.stringify(simulatedOrder)}`);
             return Promise.resolve(simulatedOrder);
         }
 
@@ -581,7 +588,7 @@ export class BinanceConnector {
         limitPrice: number, retries?: number): Promise<Order> {
         if (this.configService.isSimulation()) {
             const simulatedOrder: Order = SimulationUtils.getSimulatedLimitOrder(originAsset, targetAsset, "sell");
-            log.info(`Executing simulated order %O`, simulatedOrder);
+            log.info(`Executing simulated order ${JSON.stringify(simulatedOrder)}`);
             return Promise.resolve(simulatedOrder);
         }
 
@@ -664,10 +671,9 @@ export class BinanceConnector {
      * @param verbose If `true` then more information is printed to console
      */
     public async getOrder(externalId: string, originAsset: Currency, targetAsset: string,
-        internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean) : Promise<Order> {
-        if (this.configService.isSimulation()) {
+        internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean, simulation?: boolean) : Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
             const order: Order = SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
-            log.info(`Executing simulated order %O`, order);
             return Promise.resolve(order);
         }
         if (verbose) {
@@ -718,19 +724,20 @@ export class BinanceConnector {
      * @return `true` if order is closed or `false` otherwise
      */
     public async orderIsClosed(externalId: string, originAsset: Currency, targetAsset: string,
-        internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean): Promise<boolean> {
+        internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean, simulation?: boolean): Promise<boolean> {
         const order = await this.getOrder(externalId, originAsset, targetAsset, internalOrderId,
-            orderType, retries, verbose).catch(e => Promise.reject(e));
+            orderType, retries, verbose, simulation).catch(e => Promise.reject(e));
         return Promise.resolve(order.status === "closed");
     }
 
     /**
      * @return The cancelled order
      */
-    public async cancelOrder(externalOrderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string, retries: number) : Promise<Order> {
-        if (this.configService.isSimulation()) {
+    public async cancelOrder(externalOrderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string,
+        retries: number, simulation?: boolean) : Promise<Order> {
+        if (this.configService.isSimulation() || simulation) {
             const o = SimulationUtils.getSimulatedCancelOrder();
-            log.info(`Executing simulated cancel order %O`, o);
+            log.info(`Executing simulated cancel order ${JSON.stringify(o)}`);
             return Promise.resolve(o);
         }
         let inputRetries = retries;

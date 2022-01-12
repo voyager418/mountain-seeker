@@ -2,23 +2,29 @@ import { Order } from "../models/order";
 import { OrderType } from "../enums/order-type.enum";
 import { Currency } from "../enums/trading-currencies.enum";
 import { v4 as uuidv4 } from "uuid";
+import { NumberUtils } from "./number-utils";
 
 export class SimulationUtils {
 
-    public static getSimulatedMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell"): Order {
+    public static getSimulatedMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell",
+        currentPrice: number, quoteAmount?: number, targetAmount?: number): Order {
         return {
-            amountOfTargetAsset: 0,
+            amountOfTargetAsset: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
+                targetAmount!,
             datetime: "",
             externalId: "222",
-            filled: 0,
+            filled: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
+                NumberUtils.decreaseNumberByPercent(targetAmount!, 0.1) * currentPrice,
             id: "111",
             originAsset,
             remaining: 0,
             side: side,
-            status: "open",
+            status: "closed",
             targetAsset,
             type: OrderType.MARKET,
-            average: 200
+            average: currentPrice,
+            amountOfOriginAsset: side === "sell" ? NumberUtils.decreaseNumberByPercent(targetAmount!, 0.1) * currentPrice :
+                NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)
         };
     }
 
@@ -66,7 +72,7 @@ export class SimulationUtils {
             originAsset,
             remaining: 0,
             side: "sell",
-            status: "closed",
+            status: "open",
             targetAsset,
             type: OrderType.STOP_LIMIT,
             average: 200
@@ -79,7 +85,7 @@ export class SimulationUtils {
             externalId: "",
             filled: 0,
             remaining: 0,
-            status: "closed" as "open" | "closed" | "canceled",
+            status: "canceled" as "open" | "closed" | "canceled",
             datetime: "",
             side: "sell" as "buy" | "sell",
             amountOfTargetAsset: 2,

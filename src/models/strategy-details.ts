@@ -16,4 +16,7 @@ export type BaseStrategyConfig = {
     /** Indicates if the strategy should automatically restart
      * when it ends with a profit */
     autoRestartOnProfit?: boolean
+
+    /** If set to `true` then no real orders will be made */
+    simulation?: boolean;
 }

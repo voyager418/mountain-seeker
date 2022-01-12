@@ -53,4 +53,11 @@ export class NumberUtils {
         assert(percent > 0, `${percent} must be a positive number`);
         return number + (number * Math.abs(percent)/100);
     }
+
+    /**
+     * @return Random number (min and max included)
+     */
+    static randomNumber(min: number, max: number): number {
+        return Math.floor(Math.random() * (max - min + 1) + min)
+    }
 }
