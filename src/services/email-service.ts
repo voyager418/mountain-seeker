@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 import { Market } from "../models/market";
 import { StrategyDetails } from "../models/strategy-details";
 import { NumberUtils } from "../utils/number-utils";
+import { GlobalUtils } from "../utils/global-utils";
 
 const nodemailer = require('nodemailer');
 
@@ -24,15 +25,21 @@ export class EmailService {
 
     public async sendEmail(subject: string, text: string): Promise<void> {
         if (!this.configService.isSimulation()) {
-            try {
-                await this.transporter.sendMail({
-                    from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                    to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject: subject,
-                    text: text
-                });
-            } catch (e) {
-                log.warn("Failed to send mail : ", e);
+            let retries = 5;
+            let sent = false;
+            while (!sent && retries-- > 0) {
+                try {
+                    await this.transporter.sendMail({
+                        from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
+                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        subject: subject,
+                        text: text
+                    });
+                    sent = true;
+                } catch (e) {
+                    log.warn("Failed to send mail : ", e);
+                    await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
+                }
             }
         }
         return Promise.resolve();
@@ -54,15 +61,21 @@ export class EmailService {
             text += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
             // text += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
-            try {
-                await this.transporter.sendMail({
-                    from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                    to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject: `Trading started on ${market.symbol} (${strategy.customName})`,
-                    text: text
-                });
-            } catch (e) {
-                log.error("Failed to send initial mail : ", e);
+            let retries = 5;
+            let sent = false;
+            while (!sent && retries-- > 0) {
+                try {
+                    await this.transporter.sendMail({
+                        from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
+                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        subject: `Trading started on ${market.symbol} (${strategy.customName})`,
+                        text: text
+                    });
+                    sent = true;
+                } catch (e) {
+                    log.warn("Failed to send initial mail : ", e);
+                    await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
+                }
             }
         }
         return Promise.resolve();
@@ -88,15 +101,21 @@ export class EmailService {
             text += `Drawdown : ${drawDown}%\n`;
             text += `Strategie : ${strategyName}\n`;
 
-            try {
-                await this.transporter.sendMail({
-                    from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                    to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                    subject:`Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent}%, ${plusPrefix}${profitMoney} ${market.originAsset}) (${strategy.customName})`,
-                    text: text
-                });
-            } catch (e) {
-                log.error("Failed to send final mail : ", e);
+            let retries = 5;
+            let sent = false;
+            while (!sent && retries-- > 0) {
+                try {
+                    await this.transporter.sendMail({
+                        from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
+                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        subject: `Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent}%, ${plusPrefix}${profitMoney} ${market.originAsset}) (${strategy.customName})`,
+                        text: text
+                    });
+                    sent = true;
+                } catch (e) {
+                    log.warn("Failed to send final mail : ", e);
+                    await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
+                }
             }
         }
         return Promise.resolve();
