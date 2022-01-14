@@ -28,7 +28,8 @@ export class SimulationUtils {
         };
     }
 
-    public static getSimulatedStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell"): Order {
+    public static getSimulatedStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell",
+        stopPrice: number, limitPrice: number): Order {
         return {
             amountOfTargetAsset: 0,
             datetime: "",
@@ -36,6 +37,8 @@ export class SimulationUtils {
             filled: 0,
             id: "333",
             originAsset,
+            stopPrice,
+            limitPrice,
             remaining: 0,
             side: side,
             status: "open",

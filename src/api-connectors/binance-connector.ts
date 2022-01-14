@@ -524,7 +524,7 @@ export class BinanceConnector {
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, retries?: number, simulation?: boolean): Promise<Order> {
         if (this.configService.isSimulation() || simulation) {
-            const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side);
+            const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side, stopPrice, limitPrice);
             log.info(`Executing simulated order ${JSON.stringify(simulatedOrder)}`);
             return Promise.resolve(simulatedOrder);
         }

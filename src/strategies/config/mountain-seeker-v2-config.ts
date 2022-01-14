@@ -48,4 +48,7 @@ export type TradingLoopConfig = {
     /** Loss in percentage after which the trading will stop.
      * Example: -10 stands for a loss of -10% */
     stopTradingMaxPercentLoss: number;
+
+    /** Amount of seconds to sleep in the loop to monitor the price */
+    priceWatchInterval: number;
 }

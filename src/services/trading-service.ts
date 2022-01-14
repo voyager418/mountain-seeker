@@ -22,10 +22,12 @@ export class TradingService {
         config: {
             maxMoneyToTrade: 25,
             autoRestartOnProfit: true,
+            simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 900, // 15min
                 decisionMinutes: [0, 15, 30, 45],
-                stopTradingMaxPercentLoss: -4.8
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2 // TODO change to 5 ?
             }
             ]])
         }
@@ -38,10 +40,12 @@ export class TradingService {
         config: {
             maxMoneyToTrade: 25,
             autoRestartOnProfit: true,
+            simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
                 secondsToSleepAfterTheBuy: 300, // 5min
                 decisionMinutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
-                stopTradingMaxPercentLoss: -4.8
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2
             }
             ]])
         }
@@ -54,44 +58,12 @@ export class TradingService {
         config: {
             maxMoneyToTrade: 25,
             autoRestartOnProfit: true,
-            activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                decisionMinutes: [0, 15, 30, 45],
-                stopTradingMaxPercentLoss: -4.8
-            }
-            ]])
-        }
-    }
-
-    private strategy6: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
-        type: TradingStrategy.MSV2,
-        customName: "strat6-15-30", // based on 15min candlesticks and takes a decision every 15min
-        config: {
-            maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 decisionMinutes: [0, 15, 30, 45],
-                stopTradingMaxPercentLoss: -4.8
-            }
-            ]])
-        }
-    }
-
-    private strategy7: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
-        type: TradingStrategy.MSV2,
-        customName: "strat7-5-5", // based on 5min candlesticks and takes a decision every 5min
-        config: {
-            maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
-            simulation: true,
-            activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
-                secondsToSleepAfterTheBuy: 300, // 5min
-                decisionMinutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
-                stopTradingMaxPercentLoss: -4.8
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2
             }
             ]])
         }
@@ -107,8 +79,7 @@ export class TradingService {
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy);
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy4);
         container.resolve(MountainSeekerV2).setup(this.account, this.strategy5);
-        container.resolve(MountainSeekerV2).setup(this.account, this.strategy6);
-        container.resolve(MountainSeekerV2).setup(this.account, this.strategy7);
+        // last strategy name was strat7
     }
 
     public stopTrading(): string {

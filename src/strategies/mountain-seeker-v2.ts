@@ -120,7 +120,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             const configFor15min: TradingLoopConfig = {
                 secondsToSleepAfterTheBuy: 900, // 15min
                 decisionMinutes: [15, 30, 45, 0], // [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 0]
-                stopTradingMaxPercentLoss: -4.8
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 5
             };
             this.config.activeCandleStickIntervals = new Map([
                 [CandlestickInterval.FIFTEEN_MINUTES, configFor15min]
@@ -187,12 +188,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.runUp = -Infinity;
         this.state.drawDown = Infinity;
         let priceChange;
-        const priceWatchInterval = 5; // in seconds
         const endTradingDate = GlobalUtils.getCurrentBelgianDate();
         endTradingDate.setSeconds(endTradingDate.getSeconds() + tradingLoopConfig.secondsToSleepAfterTheBuy)
 
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
-            await GlobalUtils.sleep(priceWatchInterval);
+            await GlobalUtils.sleep(tradingLoopConfig.priceWatchInterval);
 
             if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
                 lastOrder.id, lastOrder.type!, 5, undefined, this.config.simulation).catch(e => Promise.reject(e)))) {
