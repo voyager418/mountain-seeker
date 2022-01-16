@@ -155,7 +155,7 @@ export class MountainSeekerV3 implements BaseStrategy {
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails, this.market!, buyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
             this.state.profitMoney, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
-            this.state.runUp!, this.state.drawDown!, this.strategyDetails.type).catch(e => log.error(e));
+            this.state.runUp!, this.state.drawDown!, this.strategyDetails.type, completedOrder).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO print full account object when api key/secret are moved to DB
         log.info(`Final percent change : ${this.state.profitPercent.toFixed(2)} | State : ${JSON

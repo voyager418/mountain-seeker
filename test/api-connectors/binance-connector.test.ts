@@ -194,12 +194,14 @@ describe("Binance connector", () => {
             binanceInstance.createOrder = jest.fn(async () => TestHelper.getBinanceCreateBuyMarketOrder());
         });
 
-        xtest("Should not call binance API if it is a simulation", async() => {
+        test("Should not call binance API if it is a simulation", async() => {
             // arrange
             configService.isSimulation = jest.fn(() => true);
+            binanceConnector.getUnitPrice = jest.fn(async () => 5);
 
             // act
-            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10, true);
+            const res = await binanceConnector.createMarketOrder(Currency.EUR, "BNB", "buy", 10, true,
+                undefined, 2);
 
             // assert
             expect(binanceInstance.createOrder).not.toHaveBeenCalled();
@@ -252,7 +254,7 @@ describe("Binance connector", () => {
             });
         });
 
-        xtest("Should retry and recalculate the amount to buy when order creation fails and retries are set", async() => {
+        test("Should retry and recalculate the amount to buy when order creation fails and retries are set", async() => {
             // arrange
             binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
             binanceInstance.createOrder = jest.fn(async () => Promise.reject());
@@ -279,9 +281,10 @@ describe("Binance connector", () => {
             binanceInstance.createMarketBuyOrder = jest.fn(async () => TestHelper.getBinanceCreateBuyMarketOrder());
         });
 
-        xtest("Should not call binance API if it is a simulation", async() => {
+        test("Should not call binance API if it is a simulation", async() => {
             // arrange
             configService.isSimulation = jest.fn(() => true);
+            binanceConnector.getUnitPrice = jest.fn(async () => 5);
 
             // act
             const res = await binanceConnector.createMarketBuyOrder(Currency.EUR, "BNB", 12, true);
@@ -292,7 +295,7 @@ describe("Binance connector", () => {
             configService.isSimulation = jest.fn(() => false);
         });
 
-        xtest("Should correctly create a MARKET BUY order", async() => {
+        test("Should correctly create a MARKET BUY order", async() => {
             // arrange
             const waitForOrderCompletionSpy = jest.spyOn(binanceConnector, 'waitForOrderCompletion');
             mockedAxios.post.mockResolvedValueOnce(TestHelper.getDirectBinanceCreateBuyMarketOrder());
@@ -344,7 +347,7 @@ describe("Binance connector", () => {
             });
         });
 
-        xtest("Should retry when order creation fails and retries are set", async() => {
+        test("Should retry when order creation fails and retries are set", async() => {
             // arrange
             mockdate.set(new Date('14 Sep 2020 00:00:00'));
             binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
@@ -625,7 +628,7 @@ describe("Binance connector", () => {
     });
 
     describe("redeemBlvt", () => {
-        xtest("Should correctly return after redeeming BLVT order", async() => {
+        test("Should correctly return after redeeming BLVT order", async() => {
             // arrange
             const redeemOrder = TestHelper.getMockedRedeemOrder();
             mockedAxios.post.mockResolvedValueOnce({

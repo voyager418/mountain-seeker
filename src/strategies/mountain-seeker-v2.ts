@@ -238,7 +238,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails!, this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
             this.state.profitMoney, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
-            this.state.runUp!, this.state.drawDown!, this.strategyDetails!.type).catch(e => log.error(e));
+            this.state.runUp!, this.state.drawDown!, this.strategyDetails!.type, completedOrder).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,
@@ -307,23 +307,58 @@ export class MountainSeekerV2 implements BaseStrategy {
      */
     private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
         if (this.configService.isSimulation()) {
-            this.state.selectedCandleStickInterval = CandlestickInterval.FIFTEEN_MINUTES;
+            this.state.selectedCandleStickInterval = Array.from(this.config.activeCandleStickIntervals!.keys())[0];
             return Promise.resolve(this.markets[0]);
         }
         const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossPrice: number,
             maxVariation: number, edgeVariation: number, volumeRatio: number}> = [];
+        let shouldAddResult: { shouldAdd: boolean, maxVariation?: number,
+            edgeVariation?: number, volumeRatio?: number };
+        let previousShouldAdd: { shouldAdd: boolean, maxVariation?: number,
+            edgeVariation?: number, volumeRatio?: number };
         for (const market of markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
                 switch (interval) {
                 case CandlestickInterval.FIVE_MINUTES:
-                    this.selectMarketBy5MinutesCandleSticks(market, potentialMarkets);
+                    shouldAddResult = this.shouldSelectMarketBy5MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
+                        market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!);
                     break;
                 case CandlestickInterval.FIFTEEN_MINUTES:
-                    this.selectMarketBy15MinutesCandleSticks(market, potentialMarkets);
+                    shouldAddResult = this.shouldSelectMarketBy15MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!,
+                        market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!);
+                    break;
+                case CandlestickInterval.THIRTY_MINUTES:
+                    shouldAddResult = this.shouldSelectMarketBy30MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
+                        market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!);
                     break;
                 default:
                     return Promise.reject(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
+                }
+
+                // checking the decision without the last candle
+                if (shouldAddResult!.shouldAdd) {
+                    const candleSticksExceptLast = [...market.candleSticks.get(interval)!];
+                    candleSticksExceptLast.pop();
+                    const candleSticksPercentageVariationsExceptLast = [...market.candleSticksPercentageVariations.get(interval)!];
+                    candleSticksPercentageVariationsExceptLast.pop();
+                    switch (interval) {
+                    case CandlestickInterval.FIVE_MINUTES:
+                        previousShouldAdd = this.shouldSelectMarketBy5MinutesCandleSticks(market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+                        break;
+                    case CandlestickInterval.FIFTEEN_MINUTES:
+                        previousShouldAdd = this.shouldSelectMarketBy15MinutesCandleSticks(market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+                        break;
+                    case CandlestickInterval.THIRTY_MINUTES:
+                        previousShouldAdd = this.shouldSelectMarketBy30MinutesCandleSticks(market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+                        break;
+                    }
+                    if (!previousShouldAdd!.shouldAdd) {
+                        log.debug("Added potential market %O with interval %O", market.symbol, interval);
+                        potentialMarkets.push({ market, interval, takeProfitATR: 0, stopLossPrice: 0,
+                            maxVariation: shouldAddResult!.maxVariation!, edgeVariation: shouldAddResult!.edgeVariation!,
+                            volumeRatio: shouldAddResult!.volumeRatio! });
+                    }
                 }
             }
         }
@@ -338,25 +373,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.edgeVariation = potentialMarkets[0].edgeVariation;
             this.volumeRatio = potentialMarkets[0].volumeRatio;
             return Promise.resolve(potentialMarkets[0].market);
-        }
-    }
-
-    private selectMarketBy15MinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
-        takeProfitATR: number, stopLossPrice: number, maxVariation: number, edgeVariation: number, volumeRatio: number}>) {
-        const shouldAddResult = this.shouldSelectMarketBy15MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!,
-            market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!);
-        if (shouldAddResult.shouldAdd) {
-            const candleSticksExceptLast = [...market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!];
-            candleSticksExceptLast.pop();
-            const candleSticksPercentageVariationsExceptLast = [...market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!];
-            candleSticksPercentageVariationsExceptLast.pop();
-            const previousShouldAdd = this.shouldSelectMarketBy15MinutesCandleSticks(market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
-            if (!previousShouldAdd.shouldAdd) {
-                log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIFTEEN_MINUTES);
-                potentialMarkets.push({ market, interval: CandlestickInterval.FIFTEEN_MINUTES, takeProfitATR: 0, stopLossPrice: 0,
-                    maxVariation: shouldAddResult.maxVariation!, edgeVariation: shouldAddResult.edgeVariation!,
-                    volumeRatio: shouldAddResult.volumeRatio! });
-            }
         }
     }
 
@@ -440,25 +456,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         return { shouldAdd: true, maxVariation, edgeVariation, volumeRatio: beforeLastCandle[5] / beforeBeforeLastCandle[5] };
     }
 
-    private selectMarketBy5MinutesCandleSticks(market: Market, potentialMarkets: Array<{ market: Market; interval: CandlestickInterval,
-        takeProfitATR: number, stopLossPrice: number, maxVariation: number, edgeVariation: number, volumeRatio: number}>) {
-        const shouldAddResult = this.shouldSelectMarketBy5MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
-            market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!);
-        if (shouldAddResult.shouldAdd) {
-            const candleSticksExceptLast = [...market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!];
-            candleSticksExceptLast.pop();
-            const candleSticksPercentageVariationsExceptLast = [...market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!];
-            candleSticksPercentageVariationsExceptLast.pop();
-            const previousShouldAdd = this.shouldSelectMarketBy5MinutesCandleSticks(market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
-            if (!previousShouldAdd.shouldAdd) {
-                log.debug("Added potential market %O with interval %O", market.symbol, CandlestickInterval.FIVE_MINUTES);
-                potentialMarkets.push({ market, interval: CandlestickInterval.FIVE_MINUTES, takeProfitATR: 0, stopLossPrice: 0,
-                    maxVariation: shouldAddResult.maxVariation!, edgeVariation: shouldAddResult.edgeVariation!,
-                    volumeRatio: shouldAddResult.volumeRatio! });
-            }
-        }
-    }
-
     private shouldSelectMarketBy5MinutesCandleSticks(market: Market, candleSticks: Array<TOHLCV>,
         candleSticksPercentageVariations: Array<number>): { shouldAdd: boolean, maxVariation?: number,
         edgeVariation?: number, volumeRatio?: number } {
@@ -539,6 +536,78 @@ export class MountainSeekerV2 implements BaseStrategy {
         return { shouldAdd: true, maxVariation, edgeVariation, volumeRatio: beforeLastCandle[5] / beforeBeforeLastCandle[5] };
     }
 
+    private shouldSelectMarketBy30MinutesCandleSticks(market: Market, candleSticks: Array<TOHLCV>,
+        candleSticksPercentageVariations: Array<number>): { shouldAdd: boolean, maxVariation?: number,
+        edgeVariation?: number, volumeRatio?: number } {
+        // should wait at least 1 hour for consecutive trades on same market
+        const lastTradeDate = this.config.marketLastTradeDate!.get(market.symbol);
+        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
+            return { shouldAdd: false };
+        }
+
+        // should be in some range
+        if (market.percentChangeLast24h! < -3 || market.percentChangeLast24h! > 25) {
+            return { shouldAdd: false };
+        }
+
+        // should make a decision at fixed minutes
+        const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(CandlestickInterval.THIRTY_MINUTES)!;
+        const minuteOfLastCandlestick = new Date(StrategyUtils.getCandleStick(candleSticks, 0)[0]).getMinutes();
+        const currentMinute = new Date().getMinutes();
+        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1 ||
+            (tradingLoopConfig.decisionMinutes.indexOf(currentMinute) === -1 &&
+                tradingLoopConfig.decisionMinutes.indexOf(currentMinute - 1) === -1)) {
+            return { shouldAdd: false };
+        }
+
+        const beforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 1);
+
+        // if before last candle percent change is below minimal threshold
+        if (beforeLastCandlestickPercentVariation < 2) {
+            return { shouldAdd: false };
+        }
+
+        // if before last candle percent change is above maximal threshold
+        if (beforeLastCandlestickPercentVariation > 30) {
+            return { shouldAdd: false };
+        }
+
+        const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
+
+        // if before before last candle percent change is below minimal threshold
+        if (beforeBeforeLastCandlestickPercentVariation < 2) {
+            return { shouldAdd: false };
+        }
+
+        // if before before last candle percent change is above maximal threshold
+        if (beforeBeforeLastCandlestickPercentVariation > 30) {
+            return { shouldAdd: false };
+        }
+
+        const allCandlesticks = candleSticks;
+        let twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 3, -3);
+
+        // if c2 close > c3..20 high
+        const beforeBeforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 2);
+        if (twentyCandlesticks.some(candle => candle[2] > beforeBeforeLastCandle[4])) {
+            return { shouldAdd: false };
+        }
+
+        // v1 must be >= 1.7 * v2..20
+        const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
+        if (beforeLastCandle[5] < 1.7 * beforeBeforeLastCandle[5] ||
+            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
+            return { shouldAdd: false };
+        }
+
+        // if the line is not +/- horizontal
+        twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 6, -6); // except the last 6
+        // the variation of the 20 candlesticks should not be bigger than 5%
+        const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticks);
+        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticks[0][4],
+            twentyCandlesticks[twentyCandlesticks.length - 1][4]));
+        return { shouldAdd: true, maxVariation, edgeVariation, volumeRatio: beforeLastCandle[5] / beforeBeforeLastCandle[5] };
+    }
 
     /**
      * @return All potentially interesting markets after filtering based on various criteria

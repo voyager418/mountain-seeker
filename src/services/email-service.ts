@@ -5,6 +5,8 @@ import { Market } from "../models/market";
 import { StrategyDetails } from "../models/strategy-details";
 import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
+import { text } from "express";
+import { Order } from "../models/order";
 
 const nodemailer = require('nodemailer');
 
@@ -37,11 +39,11 @@ export class EmailService {
                     });
                     sent = true;
                 } catch (e) {
-                    log.warn("Failed to send mail : ", e);
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
         }
+        log.error(`Failed to send mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 
@@ -73,17 +75,18 @@ export class EmailService {
                     });
                     sent = true;
                 } catch (e) {
-                    log.warn("Failed to send initial mail : ", e);
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
         }
+        log.error(`Failed to send initial mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 
     public async sendFinalMail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
         retrievedAmount: number, profitMoney: number, profitPercent: number, initialWalletBalance: Map<string, number>,
-        endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string): Promise<void> {
+        endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string,
+        lastOrder: Order): Promise<void> {
         if (!this.configService.isSimulation()) {
             let text = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
@@ -100,6 +103,7 @@ export class EmailService {
             text += `Run-up : ${runUp}%\n`;
             text += `Drawdown : ${drawDown}%\n`;
             text += `Strategie : ${strategyName}\n`;
+            text += `Date de fin : ${lastOrder.datetime}\n`;
 
             let retries = 5;
             let sent = false;
@@ -113,11 +117,11 @@ export class EmailService {
                     });
                     sent = true;
                 } catch (e) {
-                    log.warn("Failed to send final mail : ", e);
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
         }
+        log.error(`Failed to send final mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 }

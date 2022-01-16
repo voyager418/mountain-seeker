@@ -115,7 +115,7 @@ export class BinanceDataService implements Subject {
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
         for (const interval of [
-            CandlestickInterval.FIFTEEN_MINUTES]) {
+            CandlestickInterval.FIFTEEN_MINUTES, CandlestickInterval.THIRTY_MINUTES]) {
             StrategyUtils.addCandleSticksWithInterval(this.markets, interval);
             StrategyUtils.setCandlestickPercentVariations(this.markets, interval);
         }
