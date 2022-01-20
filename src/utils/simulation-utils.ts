@@ -11,7 +11,7 @@ export class SimulationUtils {
         return {
             amountOfTargetAsset: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
                 targetAmount!,
-            datetime: "",
+            datetime: new Date().toISOString(),
             externalId: "222",
             filled: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
                 NumberUtils.decreaseNumberByPercent(targetAmount!, 0.1) * currentPrice,
@@ -89,7 +89,7 @@ export class SimulationUtils {
             filled: 0,
             remaining: 0,
             status: "canceled" as "open" | "closed" | "canceled",
-            datetime: "",
+            datetime: new Date().toISOString(),
             side: "sell" as "buy" | "sell",
             amountOfTargetAsset: 2,
             average: 200,

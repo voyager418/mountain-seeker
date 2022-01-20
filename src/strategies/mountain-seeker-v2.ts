@@ -433,10 +433,10 @@ export class MountainSeekerV2 implements BaseStrategy {
             return { shouldAdd: false };
         }
 
-        // v1 must be >= 1.7 * v2..20
+        // v1 must be >= 1.2 * v2..20
         const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
-        if (beforeLastCandle[5] < 1.7 * beforeBeforeLastCandle[5] ||
-            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
+        if (beforeLastCandle[5] < 1.2 * beforeBeforeLastCandle[5] ||
+            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.2 * candle[5])) {
             return { shouldAdd: false };
         }
 
@@ -513,10 +513,10 @@ export class MountainSeekerV2 implements BaseStrategy {
             return { shouldAdd: false };
         }
 
-        // v1 must be >= 1.7 * v2..25
+        // v1 must be >= 1.2 * v2..25
         const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
-        if (beforeLastCandle[5] < 1.7 * beforeBeforeLastCandle[5] ||
-            twentyFiveCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
+        if (beforeLastCandle[5] < 1.2 * beforeBeforeLastCandle[5] ||
+            twentyFiveCandlesticks.some(candle => beforeLastCandle[5] < 1.2 * candle[5])) {
             return { shouldAdd: false };
         }
 
@@ -593,10 +593,10 @@ export class MountainSeekerV2 implements BaseStrategy {
             return { shouldAdd: false };
         }
 
-        // v1 must be >= 1.7 * v2..20
+        // v1 must be >= 1.2 * v2..20
         const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
-        if (beforeLastCandle[5] < 1.7 * beforeBeforeLastCandle[5] ||
-            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.7 * candle[5])) {
+        if (beforeLastCandle[5] < 1.2 * beforeBeforeLastCandle[5] ||
+            twentyCandlesticks.some(candle => beforeLastCandle[5] < 1.2 * candle[5])) {
             return { shouldAdd: false };
         }
 
