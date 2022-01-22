@@ -5,7 +5,6 @@ const defaultFormat = {
     format : winston.format.combine(
         winston.format.timestamp({
             format: 'DD-MM-YYYY HH:mm:ss'
-
         }),
         winston.format.splat(),
         winston.format.printf((info: { timestamp: never; level: never; message: never; }) =>
@@ -23,7 +22,6 @@ const log = winston.createLogger({
     transports: []
 });
 
-
 if (process.env.NODE_ENV === "prod" || process.env.NODE_ENV === "test") {
     log.add(new winston.transports.Console());
 } else {
@@ -32,10 +30,6 @@ if (process.env.NODE_ENV === "prod" || process.env.NODE_ENV === "test") {
             winston.format.colorize(),
             defaultFormat.format
         ) },
-    ));
-    log.add(new winston.transports.File({
-        filename: 'log.log',
-        level: 'debug' }
     ));
 }
 

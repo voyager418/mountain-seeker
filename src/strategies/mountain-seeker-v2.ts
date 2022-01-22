@@ -243,7 +243,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,
             { period: 14 }).result.reverse()[1];
-        // TODO print full account object when api key/secret are moved to DB
         const finalLog = `Final percent change : ${this.state.profitPercent}
             | State : ${JSON.stringify(this.state)}
             | Account : ${JSON.stringify(this.account.email)} 
@@ -408,14 +407,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         // if before last candle percent change is above maximal threshold
-        if (beforeLastCandlestickPercentVariation > 13) {
+        if (beforeLastCandlestickPercentVariation > 20) {
             return { shouldAdd: false };
         }
 
         const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
 
         // if before before last candle percent change is below minimal threshold
-        if (beforeBeforeLastCandlestickPercentVariation < 2) {
+        if (beforeBeforeLastCandlestickPercentVariation < 1.5) {
             return { shouldAdd: false };
         }
 
@@ -488,14 +487,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         // if before last candle percent change is above maximal threshold
-        if (beforeLastCandlestickPercentVariation > 7) {
+        if (beforeLastCandlestickPercentVariation > 12) {
             return { shouldAdd: false };
         }
 
         const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
 
         // if before before last candle percent change is below minimal threshold
-        if (beforeBeforeLastCandlestickPercentVariation < 1.4) {
+        if (beforeBeforeLastCandlestickPercentVariation < 1.2) {
             return { shouldAdd: false };
         }
 

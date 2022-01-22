@@ -3,6 +3,7 @@ import { OrderType } from "../enums/order-type.enum";
 import { Currency } from "../enums/trading-currencies.enum";
 import { v4 as uuidv4 } from "uuid";
 import { NumberUtils } from "./number-utils";
+import { GlobalUtils } from "./global-utils";
 
 export class SimulationUtils {
 
@@ -11,7 +12,7 @@ export class SimulationUtils {
         return {
             amountOfTargetAsset: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
                 targetAmount!,
-            datetime: new Date().toISOString(),
+            datetime: GlobalUtils.getCurrentBelgianDate().toISOString(),
             externalId: "222",
             filled: side === "buy" ? NumberUtils.decreaseNumberByPercent(quoteAmount!, 0.1)/currentPrice :
                 NumberUtils.decreaseNumberByPercent(targetAmount!, 0.1) * currentPrice,
@@ -89,7 +90,7 @@ export class SimulationUtils {
             filled: 0,
             remaining: 0,
             status: "canceled" as "open" | "closed" | "canceled",
-            datetime: new Date().toISOString(),
+            datetime: GlobalUtils.getCurrentBelgianDate().toISOString(),
             side: "sell" as "buy" | "sell",
             amountOfTargetAsset: 2,
             average: 200,
