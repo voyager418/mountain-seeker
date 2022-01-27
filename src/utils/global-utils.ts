@@ -21,9 +21,8 @@ export class GlobalUtils {
                 dataType: 'Map',
                 value: Array.from(value.entries())
             };
-        } else {
-            return value;
         }
+        return value;
     }
 
     /**
@@ -31,7 +30,7 @@ export class GlobalUtils {
      */
     static getCurrentBelgianDate(): Date {
         const currentDate = new Date();
-        let belgianHours = currentDate.toLocaleTimeString("fr-BE");
+        let belgianHours = currentDate.toLocaleTimeString("fr-BE", { timeZone: "Europe/Brussels" });
         belgianHours = belgianHours.substr(0, belgianHours.indexOf(':'));
         currentDate.setHours(Number(belgianHours)); // to convert amazon time to belgian
         return currentDate;

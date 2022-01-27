@@ -177,7 +177,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         await this.runTradingLoop(buyOrder, this.latestSellStopLimitOrder!, tradingLoopConfig);
 
         // 6. Finishing
-        return await this.handleTradeEnd(buyOrder, this.latestSellStopLimitOrder!).catch(e => Promise.reject(e));
+        return this.handleTradeEnd(buyOrder, this.latestSellStopLimitOrder!).catch(e => Promise.reject(e));
     }
 
     /**
@@ -253,7 +253,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             | edgeVariation : ${this.edgeVariation?.toFixed(2)} 
             | volumeRatio : ${this.volumeRatio?.toFixed(2)}
             |`;
-        log.info(finalLog.replace(/(\r\n|\n|\r)/gm, ""));
+        log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
         return Promise.resolve();
     }
 
@@ -307,7 +307,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
         if (this.configService.isSimulation()) {
             this.state.selectedCandleStickInterval = Array.from(this.config.activeCandleStickIntervals!.keys())[0];
-            return Promise.resolve(this.markets[0]);
+            return this.markets[0];
         }
         const potentialMarkets: Array<{market: Market, interval: CandlestickInterval, takeProfitATR: number, stopLossPrice: number,
             maxVariation: number, edgeVariation: number, volumeRatio: number}> = [];
@@ -318,6 +318,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         for (const market of markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
+                // TODO refactor
                 switch (interval) {
                 case CandlestickInterval.FIVE_MINUTES:
                     shouldAddResult = this.shouldSelectMarketBy5MinutesCandleSticks(market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
@@ -363,7 +364,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         if (potentialMarkets.length === 0) {
-            return Promise.resolve(undefined);
+            return undefined;
         }
 
         if (potentialMarkets.length > 0) {
@@ -371,7 +372,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.maxVariation = potentialMarkets[0].maxVariation;
             this.edgeVariation = potentialMarkets[0].edgeVariation;
             this.volumeRatio = potentialMarkets[0].volumeRatio;
-            return Promise.resolve(potentialMarkets[0].market);
+            return potentialMarkets[0].market;
         }
     }
 
@@ -669,7 +670,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
                         sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
-                            this.market!.targetAsset!, "sell", this.amountOfTargetAssetThatWasBought,
+                            this.market!.targetAsset, "sell", this.amountOfTargetAssetThatWasBought,
                             true, 3);
                         if (sellMarketOrder) {
                             break;

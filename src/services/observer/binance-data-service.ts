@@ -111,7 +111,7 @@ export class BinanceDataService implements Subject {
             .catch(e => Promise.reject(e));
         this.markets = StrategyUtils.filterByMinimumAmountOfCandleSticks(this.markets, this.minimumNumberOfCandlesticks,
             CandlestickInterval.DEFAULT);
-        // default candlesticks are added by default
+        // default candlesticks are added implicitly
         StrategyUtils.setCandlestickPercentVariations(this.markets, this.defaultCandleStickInterval);
 
         for (const interval of [

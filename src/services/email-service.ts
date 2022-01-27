@@ -5,7 +5,6 @@ import { Market } from "../models/market";
 import { StrategyDetails } from "../models/strategy-details";
 import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
-import { text } from "express";
 import { Order } from "../models/order";
 
 const nodemailer = require('nodemailer');
@@ -25,25 +24,24 @@ export class EmailService {
         });
     }
 
-    public async sendEmail(subject: string, text: string): Promise<void> {
+    public async sendEmail(subject: string, emailText: string): Promise<void> {
         if (!this.configService.isSimulation()) {
             let retries = 5;
-            let sent = false;
-            while (!sent && retries-- > 0) {
+            while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                         to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
                         subject: subject,
-                        text: text
+                        text: emailText
                     });
-                    sent = true;
+                    return Promise.resolve();
                 } catch (e) {
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
+            log.error(`Failed to send mail with text: ${JSON.stringify(emailText)}`);
         }
-        log.error(`Failed to send mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 
@@ -51,35 +49,34 @@ export class EmailService {
         averageFilledPrice: number, initialWalletBalance: Map<string, number>,
         stopTradingMaxPercentLoss: number): Promise<void> {
         if (!this.configService.isSimulation()) {
-            let text = "Portefeuille initial :\n";
+            let emailText = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
-                text += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + " : " + value + "\n";
             }
-            text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            // text += "Prix stop loss : " + stopLossPrice + "\n";
-            // text += "Prix take profit : " + NumberUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
-            text += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
-            // text += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
-            text += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
-            // text += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
+            emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
+            // emailText += "Prix stop loss : " + stopLossPrice + "\n";
+            // emailText += "Prix take profit : " + NumberUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
+            emailText += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
+            // emailText += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
+            emailText += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
+            // emailText += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             let retries = 5;
-            let sent = false;
-            while (!sent && retries-- > 0) {
+            while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                         to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
                         subject: `Trading started on ${market.symbol} (${strategy.customName})`,
-                        text: text
+                        text: emailText
                     });
-                    sent = true;
+                    return Promise.resolve();
                 } catch (e) {
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
+            log.error(`Failed to send initial mail with text: ${JSON.stringify(emailText)}`);
         }
-        log.error(`Failed to send initial mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 
@@ -88,40 +85,39 @@ export class EmailService {
         endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string,
         lastOrder: Order): Promise<void> {
         if (!this.configService.isSimulation()) {
-            let text = "Portefeuille initial :\n";
+            let emailText = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
-                text += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + " : " + value + "\n";
             }
-            text += "Portefeuille final :\n";
+            emailText += "Portefeuille final :\n";
             for (const [key, value] of endWalletBalance) {
-                text += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + " : " + value + "\n";
             }
             const plusPrefix = profitPercent > 0 ? '+' : '';
-            text += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            text += "Somme récupérée : " + retrievedAmount + " " + market.originAsset + "\n";
-            text += `Changement : ${plusPrefix}${profitPercent}%\n`;
-            text += `Run-up : ${runUp}%\n`;
-            text += `Drawdown : ${drawDown}%\n`;
-            text += `Strategie : ${strategyName}\n`;
-            text += `Date de fin : ${lastOrder.datetime}\n`;
+            emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
+            emailText += "Somme récupérée : " + retrievedAmount + " " + market.originAsset + "\n";
+            emailText += `Changement : ${plusPrefix}${profitPercent}%\n`;
+            emailText += `Run-up : ${runUp}%\n`;
+            emailText += `Drawdown : ${drawDown}%\n`;
+            emailText += `Strategie : ${strategyName}\n`;
+            emailText += `Date de fin : ${lastOrder.datetime}\n`;
 
             let retries = 5;
-            let sent = false;
-            while (!sent && retries-- > 0) {
+            while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                         to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
                         subject: `Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent}%, ${plusPrefix}${profitMoney} ${market.originAsset}) (${strategy.customName})`,
-                        text: text
+                        text: emailText
                     });
-                    sent = true;
+                    return Promise.resolve();
                 } catch (e) {
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
+            log.error(`Failed to send final mail with text: ${JSON.stringify(emailText)}`);
         }
-        log.error(`Failed to send final mail with text: ${JSON.stringify(text)}`);
         return Promise.resolve();
     }
 }

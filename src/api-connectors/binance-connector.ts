@@ -315,7 +315,7 @@ export class BinanceConnector {
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
-        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+        return this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
     }
 
     /**
@@ -397,7 +397,7 @@ export class BinanceConnector {
             return Promise.reject(`Failed to execute buy market order on market ${targetAsset}/${originAsset}`);
         }
 
-        return await this.waitMarketOrderCompletion(awaitCompletion, binanceOrder, originAsset, targetAsset, orderCompletionRetries);
+        return this.waitMarketOrderCompletion(awaitCompletion, binanceOrder, originAsset, targetAsset, orderCompletionRetries);
     }
 
     /**
@@ -500,7 +500,7 @@ export class BinanceConnector {
             type: OrderType.MARKET,
             info: binanceOrder.info
         }
-        return await this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
+        return this.waitMarketOrderCompletion(awaitCompletion, order, originAsset, targetAsset, orderCompletionRetries);
     }
 
     private async waitMarketOrderCompletion(awaitCompletion: undefined | boolean, order: Order, originAsset: Currency, targetAsset: string, orderCompletionRetries: number) {
@@ -578,7 +578,7 @@ export class BinanceConnector {
         }
 
         log.debug(`Created ${order.type} order : ${JSON.stringify(order)}`);
-        return Promise.resolve(order);
+        return order;
     }
 
     /**
@@ -634,7 +634,7 @@ export class BinanceConnector {
         }
 
         log.debug(`Created ${order.type} order : ${JSON.stringify(order)}`);
-        return Promise.resolve(order);
+        return order;
     }
 
     /**
@@ -662,7 +662,7 @@ export class BinanceConnector {
             }
             await GlobalUtils.sleep(2);
         }
-        return Promise.resolve(undefined);
+        return undefined;
     }
 
     /**
@@ -673,8 +673,7 @@ export class BinanceConnector {
     public async getOrder(externalId: string, originAsset: Currency, targetAsset: string,
         internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean, simulation?: boolean) : Promise<Order> {
         if (this.configService.isSimulation() || simulation) {
-            const order: Order = SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
-            return Promise.resolve(order);
+            return SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
         }
         if (verbose) {
             log.debug(`Getting information about binance order ${externalId}`);
