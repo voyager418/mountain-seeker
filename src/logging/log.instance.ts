@@ -1,5 +1,6 @@
 const winston = require('winston');
 const CONFIG = require('config').logging;
+const getNamespace = require('continuation-local-storage').getNamespace;
 
 const defaultFormat = {
     format : winston.format.combine(
@@ -7,9 +8,13 @@ const defaultFormat = {
             format: 'DD-MM-YYYY HH:mm:ss'
         }),
         winston.format.splat(),
-        winston.format.printf((info: { timestamp: never; level: never; message: never; }) =>
-            `[${info.timestamp}] ${info.level}: ${info.message}`)
+        winston.format.printf(templateFunction)
     )
+}
+
+function templateFunction(info: { timestamp: never; level: never; message: never; }): string {
+    const writer = getNamespace('logger');
+    return `[${info.timestamp}] ${info.level} ${writer && writer.get('id') ? "("+writer.get('id')+")" : ''}: ${info.message}`;
 }
 
 /**

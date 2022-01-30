@@ -2,7 +2,6 @@ import { BaseStrategy } from "./base-strategy.interface";
 import { Account } from "../models/account";
 import log from '../logging/log.instance';
 import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
-import { v4 as uuidv4 } from 'uuid';
 import { BinanceConnector } from "../api-connectors/binance-connector";
 import { getCandleSticksByInterval, getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
@@ -21,7 +20,9 @@ import { ATRIndicator } from "../indicators/atr-indicator";
 import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
-
+const shortUUID = require('short-uuid');
+const createNamespace = require('continuation-local-storage').createNamespace;
+const getNamespace = require('continuation-local-storage').getNamespace;
 
 /**
  * Mountain Seeker V2.
@@ -36,7 +37,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private markets: Array<Market> = [];
     private account: Account = { email: '' };
     private initialWalletBalance?: Map<string, number>;
-    private state: MountainSeekerV2State = { id: uuidv4() };
+    private state: MountainSeekerV2State = { id: shortUUID.generate() };
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
     private market?: Market;
     private latestSellStopLimitOrder?: Order;
@@ -75,9 +76,16 @@ export class MountainSeekerV2 implements BaseStrategy {
     async update(markets: Array<Market>): Promise<void> {
         if (!this.state.marketSymbol) { // if there is no active trading
             this.markets = markets;
+            let writer = getNamespace('logger');
+            if (!writer) {
+                writer = createNamespace('logger');
+            }
             try {
-                await this.run();
-                this.prepareForNextTrade();
+                writer.run(async () => {
+                    writer.set('id', this.state.id);
+                    await this.run();
+                    this.prepareForNextTrade();
+                });
             } catch (e) {
                 await this.abort();
                 this.binanceDataService.removeObserver(this);
@@ -87,7 +95,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                     error: error.message,
                     account: this.account.email,
                     strategyDetails: this.strategyDetails,
-                    config: this.config
+                    config: this.config,
+                    uniqueID: this.state.id
                 }, GlobalUtils.replacer, 4));
             }
         }
@@ -103,7 +112,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 return;
             }
             this.config.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
-            this.state = { id: uuidv4() }; // resetting the state after a trade
+            this.state = { id: shortUUID.generate() }; // resetting the state after a trade
             this.latestSellStopLimitOrder = undefined;
             this.amountOfTargetAssetThatWasBought = undefined;
             this.takeProfitATR = undefined;
@@ -122,7 +131,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor15min: TradingLoopConfig = {
                 secondsToSleepAfterTheBuy: 900, // 15min
-                decisionMinutes: [15, 30, 45, 0], // [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 0]
+                decisionMinutes: [15, 30, 45, 0],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 5
             };
@@ -168,7 +177,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const buyOrder = await this.createFirstMarketBuyOrder(usdtAmountToInvest, currentMarketPrice).catch(e => Promise.reject(e));
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-        this.emailService.sendInitialEmail(this.strategyDetails!, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average, this.initialWalletBalance!,
+        this.emailService.sendInitialEmail(this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
             tradingLoopConfig.stopTradingMaxPercentLoss).then().catch(e => log.error(e));
 
         // 4. Stop loss
@@ -203,7 +212,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 break;
             }
 
-            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, false, 10)
+            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isSimulation(), 10)
                 .catch(e => Promise.reject(e));
 
             priceChange = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
@@ -218,7 +227,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
         return Promise.resolve();
     }
-
 
     private async handleTradeEnd(firstBuyOrder: Order, stopLossOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
@@ -239,9 +247,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendFinalMail(this.strategyDetails!, this.market!, firstBuyOrder.amountOfOriginAsset!, this.state.retrievedAmountOfBusd!,
-            this.state.profitMoney, this.state.profitPercent, this.initialWalletBalance!, endWalletBalance,
-            this.state.runUp!, this.state.drawDown!, this.strategyDetails!.type, completedOrder).catch(e => log.error(e));
+        await this.emailService.sendFinalMail(this.strategyDetails!, this.state, this.market!,
+            firstBuyOrder.amountOfOriginAsset!, completedOrder).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,

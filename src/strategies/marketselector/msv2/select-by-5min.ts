@@ -58,7 +58,7 @@ export class SelectBy5min {
         const allCandlesticks = candleSticks;
         const twentyFiveCandlesticks = allCandlesticks.slice(allCandlesticks.length - 25 - 3, -3); // except the last 3
 
-        // if c2 close > c3..25 high
+        // c2 close must be > c3..25 high
         const beforeBeforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 2);
         if (twentyFiveCandlesticks.some(candle => candle[2] > beforeBeforeLastCandle[4])) {
             return undefined;

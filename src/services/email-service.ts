@@ -6,6 +6,7 @@ import { StrategyDetails } from "../models/strategy-details";
 import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
+import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
 
 const nodemailer = require('nodemailer');
 
@@ -47,12 +48,11 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendInitialEmail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
-        averageFilledPrice: number, initialWalletBalance: Map<string, number>,
-        stopTradingMaxPercentLoss: number): Promise<void> {
+    public async sendInitialEmail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
+        averageFilledPrice: number, stopTradingMaxPercentLoss: number): Promise<void> {
         if (!this.configService.isSimulation()) {
             let emailText = "Portefeuille initial :\n";
-            for (const [key, value] of initialWalletBalance) {
+            for (const [key, value] of state.initialWalletBalance!) {
                 emailText += "    " + key + " : " + value + "\n";
             }
             emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
@@ -60,7 +60,7 @@ export class EmailService {
             // emailText += "Prix take profit : " + NumberUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
             emailText += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
             // emailText += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
-            emailText += `Trading volume last 24h : ${market.originAssetVolumeLast24h} ${market.originAsset}\n`;
+            emailText += `Unique ID : ${state.id}\n`;
             // emailText += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             let retries = 5;
@@ -84,26 +84,24 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendFinalMail(strategy: StrategyDetails<any>, market: Market, investedAmount: number,
-        retrievedAmount: number, profitMoney: number, profitPercent: number, initialWalletBalance: Map<string, number>,
-        endWalletBalance: Map<string, number>, runUp: number, drawDown: number, strategyName: string,
-        lastOrder: Order): Promise<void> {
+    public async sendFinalMail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market,
+        investedAmount: number, lastOrder: Order): Promise<void> {
         if (!this.configService.isSimulation()) {
             let emailText = "Portefeuille initial :\n";
-            for (const [key, value] of initialWalletBalance) {
+            for (const [key, value] of state.initialWalletBalance!) {
                 emailText += "    " + key + " : " + value + "\n";
             }
             emailText += "Portefeuille final :\n";
-            for (const [key, value] of endWalletBalance) {
+            for (const [key, value] of state.endWalletBalance!) {
                 emailText += "    " + key + " : " + value + "\n";
             }
-            const plusPrefix = profitPercent > 0 ? '+' : '';
+            const plusPrefix = state.profitPercent! > 0 ? '+' : '';
             emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            emailText += "Somme récupérée : " + retrievedAmount + " " + market.originAsset + "\n";
-            emailText += `Changement : ${plusPrefix}${profitPercent}%\n`;
-            emailText += `Run-up : ${runUp}%\n`;
-            emailText += `Drawdown : ${drawDown}%\n`;
-            emailText += `Strategie : ${strategyName}\n`;
+            emailText += "Somme récupérée : " + state.retrievedAmountOfBusd + " " + market.originAsset + "\n";
+            emailText += `Changement : ${plusPrefix}${state.profitPercent}%\n`;
+            emailText += `Run-up : ${state.runUp}%\n`;
+            emailText += `Drawdown : ${state.drawDown}%\n`;
+            emailText += `Strategie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
             emailText += `Date de fin : ${lastOrder.datetime}\n`;
 
             let retries = 5;
@@ -113,7 +111,7 @@ export class EmailService {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
                         to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
-                        subject: `Trading finished on ${market!.symbol} (${plusPrefix}${profitPercent}%, ${plusPrefix}${profitMoney} ${market.originAsset}) (${strategy.customName})`,
+                        subject: `Trading finished on ${market!.symbol} (${plusPrefix}${state.profitPercent}%, ${plusPrefix}${state.profitMoney} ${market.originAsset}) (${strategy.customName})`,
                         text: emailText
                     });
                     return Promise.resolve();
