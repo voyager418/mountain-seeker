@@ -264,4 +264,16 @@ export class StrategyUtils {
         const lowest = Math.min(lowestOpen, lowestClose);
         return Math.abs(NumberUtils.getPercentVariation(highest, lowest));
     }
+
+    static getCandleSticksExceptLast(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
+        const candleSticksExceptLast = [...market.candleSticks.get(interval)!];
+        candleSticksExceptLast.pop();
+        return candleSticksExceptLast;
+    }
+
+    static getCandleSticksPercentVariationsExceptLast(market: Market, interval: CandlestickInterval) : Array<number> {
+        const candleSticksPercentageVariationsExceptLast = [...market.candleSticksPercentageVariations.get(interval)!];
+        candleSticksPercentageVariationsExceptLast.pop();
+        return candleSticksPercentageVariationsExceptLast;
+    }
 }

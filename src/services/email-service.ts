@@ -27,6 +27,7 @@ export class EmailService {
     public async sendEmail(subject: string, emailText: string): Promise<void> {
         if (!this.configService.isSimulation()) {
             let retries = 5;
+            let errorMessage;
             while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
@@ -37,10 +38,11 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
+                    errorMessage = e.message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
-            log.error(`Failed to send mail with text: ${JSON.stringify(emailText)}`);
+            log.error(`Failed to send mail: ${JSON.stringify(errorMessage)}. The text was: ${JSON.stringify(emailText)}`);
         }
         return Promise.resolve();
     }
@@ -62,6 +64,7 @@ export class EmailService {
             // emailText += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             let retries = 5;
+            let errorMessage;
             while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
@@ -72,10 +75,11 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
+                    errorMessage = e.message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
-            log.error(`Failed to send initial mail with text: ${JSON.stringify(emailText)}`);
+            log.error(`Failed to send initial mail: ${JSON.stringify(errorMessage)}. The text was: ${JSON.stringify(emailText)}`);
         }
         return Promise.resolve();
     }
@@ -103,6 +107,7 @@ export class EmailService {
             emailText += `Date de fin : ${lastOrder.datetime}\n`;
 
             let retries = 5;
+            let errorMessage;
             while (retries-- > 0) {
                 try {
                     await this.transporter.sendMail({
@@ -113,10 +118,11 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
+                    errorMessage = e.message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
-            log.error(`Failed to send final mail with text: ${JSON.stringify(emailText)}`);
+            log.error(`Failed to send final mail: ${JSON.stringify(errorMessage)}. The text was: ${JSON.stringify(emailText)}`);
         }
         return Promise.resolve();
     }

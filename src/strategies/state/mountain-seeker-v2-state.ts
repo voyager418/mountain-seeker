@@ -34,7 +34,4 @@ export type MountainSeekerV2State = TradingState & {
     amountOfYBought?: number;
     /** The candlestick interval that is being used by a strategy */
     selectedCandleStickInterval?: CandlestickInterval;
-    /** Binance allows to convert small amounts to BNB. This value represents the amount
-     * of BNB retrieved after converting the small amounts. */
-    profitBNB?: number;
 }

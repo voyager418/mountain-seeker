@@ -65,9 +65,13 @@ export class BinanceDataService implements Subject {
     registerObserver(observer: BaseStrategy): void {
         // TODO remove if
         // TODO what if same account calls this multiple times?
-        // if (this.observers.length < 4) {
-        this.observers.push(observer);
-        // }
+        if (!this.configService.isSimulation()) {
+            this.observers.push(observer);
+            return;
+        }
+        if (this.observers.length < 1) { // if simulation then add only 1 strategy
+            this.observers.push(observer);
+        }
     }
 
     removeObserver(observer: BaseStrategy): void {
