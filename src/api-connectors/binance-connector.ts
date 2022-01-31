@@ -848,7 +848,7 @@ export class BinanceConnector {
         await Promise.all([firstHalf(this),
             secondHalf(this),
             thirdHalf(this),
-            GlobalUtils.sleep(6)]).catch(e => Promise.reject(e));
+            GlobalUtils.sleep(this.configService.isSimulation() ? 0 : 6)]).catch(e => Promise.reject(e));
         progress.stop();
     }
 

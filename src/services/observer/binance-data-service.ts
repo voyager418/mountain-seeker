@@ -11,6 +11,9 @@ import { BaseStrategy } from "../../strategies/base-strategy.interface";
 import { GlobalUtils } from "../../utils/global-utils";
 import { Currency } from "../../enums/trading-currencies.enum";
 import { Observer } from "./observer.interface";
+const createNamespace = require('continuation-local-storage').createNamespace;
+const shortUUID = require('short-uuid');
+
 
 /**
  * This service continually fetches data from Binance platform.
@@ -31,6 +34,7 @@ export class BinanceDataService implements Subject {
     private readonly minimumNumberOfCandlesticks = 400;
     private readonly minimumPercentFor24hVariation = this.configService.isSimulation() ? 10 : -3; // so that local testing is faster
     private readonly authorizedCurrencies = [Currency.BUSD];
+    private readonly writer = createNamespace('logger');
 
     constructor(private configService: ConfigService,
         private binanceConnector: BinanceConnector) {
@@ -101,7 +105,14 @@ export class BinanceDataService implements Subject {
     }
 
     notifyObservers(observers: Array<Observer>): void {
-        observers.forEach(observer => observer.update(this.markets));
+        let sessionID;
+        observers.forEach(observer => {
+            this.writer.run(() => {
+                sessionID = shortUUID.generate();
+                this.writer.set('id', sessionID)
+                observer.update(this.markets, sessionID);
+            });
+        });
     }
 
     async getDataFromBinance(): Promise<void> {

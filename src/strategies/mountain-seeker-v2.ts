@@ -20,9 +20,6 @@ import { ATRIndicator } from "../indicators/atr-indicator";
 import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
-const shortUUID = require('short-uuid');
-const createNamespace = require('continuation-local-storage').createNamespace;
-const getNamespace = require('continuation-local-storage').getNamespace;
 
 /**
  * Mountain Seeker V2.
@@ -37,7 +34,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private markets: Array<Market> = [];
     private account: Account = { email: '' };
     private initialWalletBalance?: Map<string, number>;
-    private state: MountainSeekerV2State = { id: shortUUID.generate() };
+    private state: MountainSeekerV2State = { id: "" };
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
     private market?: Market;
     private latestSellStopLimitOrder?: Order;
@@ -73,19 +70,13 @@ export class MountainSeekerV2 implements BaseStrategy {
         return this;
     }
 
-    async update(markets: Array<Market>): Promise<void> {
+    async update(markets: Array<Market>, sessionID: string): Promise<void> {
         if (!this.state.marketSymbol) { // if there is no active trading
             this.markets = markets;
-            let writer = getNamespace('logger');
-            if (!writer) {
-                writer = createNamespace('logger');
-            }
+            this.state.id = sessionID;
             try {
-                writer.run(async () => {
-                    writer.set('id', this.state.id);
-                    await this.run();
-                    this.prepareForNextTrade();
-                });
+                await this.run();
+                this.prepareForNextTrade();
             } catch (e) {
                 await this.abort();
                 this.binanceDataService.removeObserver(this);
@@ -112,7 +103,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 return;
             }
             this.config.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
-            this.state = { id: shortUUID.generate() }; // resetting the state after a trade
+            this.state = { id: "" }; // resetting the state after a trade
             this.latestSellStopLimitOrder = undefined;
             this.amountOfTargetAssetThatWasBought = undefined;
             this.takeProfitATR = undefined;
@@ -178,7 +169,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
         this.emailService.sendInitialEmail(this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
-            tradingLoopConfig.stopTradingMaxPercentLoss).then().catch(e => log.error(e));
+            this.initialWalletBalance!).then().catch(e => log.error(e));
 
         // 4. Stop loss
         const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
@@ -248,7 +239,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails!, this.state, this.market!,
-            firstBuyOrder.amountOfOriginAsset!, completedOrder).catch(e => log.error(e));
+            firstBuyOrder.amountOfOriginAsset!, completedOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,

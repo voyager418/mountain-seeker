@@ -49,10 +49,10 @@ export class EmailService {
     }
 
     public async sendInitialEmail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
-        averageFilledPrice: number, stopTradingMaxPercentLoss: number): Promise<void> {
+        averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation()) {
             let emailText = "Portefeuille initial :\n";
-            for (const [key, value] of state.initialWalletBalance!) {
+            for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";
             }
             emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
@@ -85,14 +85,15 @@ export class EmailService {
     }
 
     public async sendFinalMail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market,
-        investedAmount: number, lastOrder: Order): Promise<void> {
+        investedAmount: number, lastOrder: Order, initialWalletBalance: Map<string, number>,
+        endWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation()) {
             let emailText = "Portefeuille initial :\n";
-            for (const [key, value] of state.initialWalletBalance!) {
+            for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";
             }
             emailText += "Portefeuille final :\n";
-            for (const [key, value] of state.endWalletBalance!) {
+            for (const [key, value] of endWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";
             }
             const plusPrefix = state.profitPercent! > 0 ? '+' : '';
@@ -103,6 +104,7 @@ export class EmailService {
             emailText += `Drawdown : ${state.drawDown}%\n`;
             emailText += `Strategie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
             emailText += `Date de fin : ${lastOrder.datetime}\n`;
+            emailText += `Unique ID : ${state.id}\n`;
 
             let retries = 5;
             let errorMessage;

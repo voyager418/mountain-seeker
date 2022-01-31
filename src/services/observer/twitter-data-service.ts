@@ -81,7 +81,7 @@ export class TwitterDataService implements Subject {
     }
 
     notifyObservers(observers: Array<Observer>): void {
-        observers.forEach(observer => observer.update(this.lastTweetText));
+        observers.forEach(observer => observer.update(this.lastTweetText, ""));
     }
 
     async getTweets(): Promise<void> {
