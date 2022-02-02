@@ -325,14 +325,15 @@ export class MountainSeekerV2 implements BaseStrategy {
             return undefined;
         }
 
-        if (potentialMarkets.length > 0) {
-            // TODO select the best among the found ones
-            this.state.selectedCandleStickInterval = potentialMarkets[0].interval;
-            this.maxVariation = potentialMarkets[0].maxVariation;
-            this.edgeVariation = potentialMarkets[0].edgeVariation;
-            this.volumeRatio = potentialMarkets[0].volumeRatio;
-            return potentialMarkets[0].market;
-        }
+        // TODO select the best among the found ones
+        const marketWithLowestVariation = potentialMarkets.reduce((prev, current) =>
+            (prev.maxVariation! < current.maxVariation! ? prev : current));
+
+        this.state.selectedCandleStickInterval = marketWithLowestVariation.interval;
+        this.maxVariation = marketWithLowestVariation.maxVariation;
+        this.edgeVariation = marketWithLowestVariation.edgeVariation;
+        this.volumeRatio = marketWithLowestVariation.volumeRatio;
+        return marketWithLowestVariation.market;
     }
 
     /**

@@ -17,7 +17,7 @@ export class SelectBy30min {
         }
 
         // should be in some range
-        if (market.percentChangeLast24h! < -3 || market.percentChangeLast24h! > 25) {
+        if (market.percentChangeLast24h! < -3 || market.percentChangeLast24h! > 35) {
             return undefined;
         }
 
