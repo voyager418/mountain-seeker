@@ -46,7 +46,7 @@ export class SelectBy5min {
         const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
 
         // if before before last candle percent change is below minimal threshold
-        if (beforeBeforeLastCandlestickPercentVariation < 1.2) {
+        if (beforeBeforeLastCandlestickPercentVariation < 1) {
             return undefined;
         }
 
