@@ -12,8 +12,11 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v2
 
+    - name: Install libraries and compile
+      run: npm ci && tsc
+
     - name: Generate application zip
-      run: tsc && sh ./compress_to_zip.sh MS.zip
+      run: sh ./compress_to_zip.sh MS.zip
 
     - name: Deploy to EB
       uses: einaregilsson/beanstalk-deploy@v20
