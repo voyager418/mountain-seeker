@@ -10,7 +10,7 @@ echo "Response $status_result"
 
 # grep -o -E "\d+" matches all the numbers
 # so if input is {"running":0,"total":5} it will print 2 lines : 0 and 5
-running=$(echo "$status_result" | grep -o -E "\d+" | sed -n '2p') # 1p prints second line
+running=$(echo "$status_result" | grep -Po "\d+" | sed -n '2p') # 1p prints second line
 echo "running = $running"
 exit 1
 if [[ $running -eq 0 ]]
