@@ -56,12 +56,9 @@ export class EmailService {
                 emailText += "    " + key + " : " + value + "\n";
             }
             emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            // emailText += "Prix stop loss : " + stopLossPrice + "\n";
-            // emailText += "Prix take profit : " + NumberUtils.truncateNumber(takeProfitPrice, market.pricePrecision!) + "\n";
             emailText += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
-            // emailText += `Perte maximum ≈ ${stopTradingMaxPercentLoss}%\n`;
+            emailText += `Stratégie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
             emailText += `Unique ID : ${state.id}\n`;
-            // emailText += `Gain maximum ≈ +${NumberUtils.getPercentVariation(averageFilledPrice, NumberUtils.decreaseNumberByPercent(takeProfitPrice, 0.1)).toFixed(2)}%`;
 
             let retries = 5;
             let errorMessage;
@@ -96,14 +93,14 @@ export class EmailService {
             for (const [key, value] of endWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";
             }
-            const plusPrefix = state.profitPercent! > 0 ? '+' : '';
+            const plusPrefix = state.profitPercent! > 0 ? '+' : "";
             emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
             emailText += "Somme récupérée : " + state.retrievedAmountOfBusd + " " + market.originAsset + "\n";
             emailText += `Changement : ${plusPrefix}${state.profitPercent}%\n`;
             emailText += `Run-up : ${state.runUp}%\n`;
             emailText += `Drawdown : ${state.drawDown}%\n`;
-            emailText += `Strategie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
             emailText += `Date de fin : ${lastOrder.datetime}\n`;
+            emailText += `Stratégie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
             emailText += `Unique ID : ${state.id}\n`;
 
             let retries = 5;
