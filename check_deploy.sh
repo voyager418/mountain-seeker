@@ -14,8 +14,7 @@ echo "Response $status_result"
 running=$(echo "$status_result" | grep -Po "\d+" | sed -n '2p') # 2p prints second line
 echo "Running strategies: $running"
 
-if [[ $running -ne 0 ]]
- then
+if (( running != 0 )); then
     echo "Exiting as there are $running running strategies"
     exit 1
 fi
@@ -26,8 +25,7 @@ stop_result=$(curl -s -H "Accept: application/json" -H "Content-Type: applicatio
 echo "Response $stop_result"
 
 running=$(echo "$stop_result" | grep -Po "\d+" | sed -n '2p')
-if [[ $running -ne 0 ]]
- then
+if (( running != 0 )); then
     echo "Exiting as there are $running running strategies (after stopping)"
     exit 1
 fi
