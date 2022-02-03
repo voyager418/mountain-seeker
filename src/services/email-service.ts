@@ -39,7 +39,7 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
-                    errorMessage = e.message;
+                    errorMessage = (e as any).message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
@@ -72,7 +72,7 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
-                    errorMessage = e.message;
+                    errorMessage = (e as any).message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
@@ -115,7 +115,7 @@ export class EmailService {
                     });
                     return Promise.resolve();
                 } catch (e) {
-                    errorMessage = e.message;
+                    errorMessage = (e as any).message;
                     await GlobalUtils.sleep(NumberUtils.randomNumber(2, 60));
                 }
             }
