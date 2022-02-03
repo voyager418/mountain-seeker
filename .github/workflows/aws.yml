@@ -12,6 +12,9 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v2
 
+    - name: Check if strategies are running
+      uses: sh ./check_deploy.sh
+
     - name: Install libraries and compile
       run: npm ci && tsc
 

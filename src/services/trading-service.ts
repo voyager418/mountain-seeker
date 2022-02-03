@@ -127,6 +127,6 @@ export class TradingService {
     public getStatus(): any {
         const total = container.resolve(BinanceDataService).getTotalObservers();
         const running = container.resolve(BinanceDataService).getRunningObservers();
-        return { running, total };
+        return { total, running };
     }
 }
