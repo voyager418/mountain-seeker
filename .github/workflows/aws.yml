@@ -25,6 +25,6 @@ jobs:
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         application_name: MS
         environment_name: Ms-env-2
-        version_label: ${{github.SHA}}
+        version_label: ${{ github.SHA }}
         region: eu-west-1
         deployment_package: MS.zip

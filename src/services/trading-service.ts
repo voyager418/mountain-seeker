@@ -120,14 +120,13 @@ export class TradingService {
         // last strategy name was strat9
     }
 
-    public stopTrading(): string {
-        const removeResult = container.resolve(BinanceDataService).removeAllObservers();
-        return `${removeResult.removed} strategies cancelled <br> ${removeResult.running} strategies still running`
+    public stopTrading(): any {
+        return container.resolve(BinanceDataService).removeAllObservers();
     }
 
-    public getStatus(): string {
+    public getStatus(): any {
         const total = container.resolve(BinanceDataService).getTotalObservers();
         const running = container.resolve(BinanceDataService).getRunningObservers();
-        return `${total} strategies are active <br> ${running} strategies currently running`
+        return { running, total };
     }
 }
