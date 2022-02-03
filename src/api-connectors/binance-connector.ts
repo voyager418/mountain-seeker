@@ -123,7 +123,7 @@ export class BinanceConnector {
                 if (retries <= -1) {
                     return Promise.reject(`Failed to fetch candle sticks.`);
                 } else {
-                    if (e.message?.toString().includes("DDoSProtection")) {
+                    if ((e as any).message?.toString().includes("DDoSProtection")) {
                         return Promise.reject(`Failed to fetch candle sticks: ${e}`);
                     }
                     log.warn(`Failed to fetch candle sticks: ${e}. Retrying...`);
