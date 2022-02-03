@@ -95,13 +95,18 @@ export class BinanceDataService implements Subject {
         }
     }
 
-    getObserversStatus(): { total: number, running: number } {
-        const running = this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
-        const total = this.observers.length;
-        return {
-            total,
-            running
-        }
+    /**
+     * @return Total number of active strategies
+     */
+    getTotalObservers(): number {
+        return this.observers.length;
+    }
+
+    /**
+     * @return Number of running strategies
+     */
+    getRunningObservers(): number {
+        return  this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
     }
 
     notifyObservers(observers: Array<Observer>): void {

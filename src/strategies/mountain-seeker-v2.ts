@@ -80,7 +80,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             } catch (e) {
                 await this.abort();
                 this.binanceDataService.removeObserver(this);
-                const error = new Error(e);
+                const error = new Error(e as any);
                 log.error("Trading was aborted due to an error : ", error);
                 await this.emailService.sendEmail("Trading stopped...", JSON.stringify({
                     error: error.message,

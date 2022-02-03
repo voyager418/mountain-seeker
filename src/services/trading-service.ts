@@ -126,7 +126,8 @@ export class TradingService {
     }
 
     public getStatus(): string {
-        const status = container.resolve(BinanceDataService).getObserversStatus();
-        return `${status.total} strategies are active <br> ${status.running} strategies currently running`
+        const total = container.resolve(BinanceDataService).getTotalObservers();
+        const running = container.resolve(BinanceDataService).getRunningObservers();
+        return `${total} strategies are active <br> ${running} strategies currently running`
     }
 }
