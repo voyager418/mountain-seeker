@@ -12,3 +12,6 @@ aws:
 
 database:
   url: 'http://localhost:8000'
+
+# maximum amount of money that all users are allowed to invest
+maxMoneyAmount: 1000

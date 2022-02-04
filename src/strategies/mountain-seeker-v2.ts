@@ -20,6 +20,7 @@ import { ATRIndicator } from "../indicators/atr-indicator";
 import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
+const CONFIG = require('config')
 
 /**
  * Mountain Seeker V2.
@@ -159,13 +160,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         // 2. Fetch wallet balance and compute amount of BUSD to invest
         await this.getInitialBalance([Currency.BUSD.toString(), this.market.targetAsset]);
         const availableBusdAmount = this.initialWalletBalance?.get(Currency.BUSD.toString());
-        const currentMarketPrice = await this.cryptoExchangePlatform.getUnitPrice(Currency.BUSD, this.market.targetAsset, false, 5)
-            .catch(e => Promise.reject(e));
-        const usdtAmountToInvest = this.computeAmountToInvest(availableBusdAmount!,
-            ((this.market.maxPosition! - this.initialWalletBalance!.get(this.market.targetAsset)!) * currentMarketPrice));
+        const busdAmountToInvest = this.computeAmountToInvest(availableBusdAmount!);
 
         // 3. First BUY MARKET order to buy market.targetAsset
-        const buyOrder = await this.createFirstMarketBuyOrder(usdtAmountToInvest, currentMarketPrice).catch(e => Promise.reject(e));
+        const buyOrder = await this.createFirstMarketBuyOrder(busdAmountToInvest).catch(e => Promise.reject(e));
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
         this.emailService.sendInitialEmail(this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
@@ -283,20 +281,18 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     /**
      * If the market accepts quote price then it will create a BUY MARKET order by specifying how much we want to spend.
-     * Otherwise, it will compute the equivalent amount of target asset and make a different buy order.
      */
-    private async createFirstMarketBuyOrder(moneyAmountToInvest: number, currentMarketPrice: number): Promise<Order> {
-        let buyOrder;
+    private async createFirstMarketBuyOrder(moneyAmountToInvest: number): Promise<Order> {
         const retries = 5;
         if (this.market!.quoteOrderQtyMarketAllowed) {
-            buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
-                moneyAmountToInvest, true, retries, this.config.simulation).catch(e => Promise.reject(e));
-        } else {
-            buyOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset, this.market!.targetAsset,
-                "buy", moneyAmountToInvest / currentMarketPrice, true, retries, moneyAmountToInvest,
-                this.market!.amountPrecision, this.config.simulation)
-                .catch(e => Promise.reject(e));
+            // normally this should ever happen on non BLVT markets
+            // but if this happens in future we could for example use this.cryptoExchangePlatform.createMarketOrder()
+            const errorMessage = `quoteOrderQtyMarketAllowed is not supported on market ${this.market?.symbol}`;
+            log.error(errorMessage);
+            return Promise.reject(errorMessage);
         }
+        const buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
+            moneyAmountToInvest, true, retries, this.config.simulation).catch(e => Promise.reject(e));
         this.state.investedAmountOfBusd = buyOrder.amountOfOriginAsset;
         return buyOrder;
     }
@@ -363,8 +359,8 @@ export class MountainSeekerV2 implements BaseStrategy {
      * @return The amount of {@link Currency.BUSD} that will be invested (the minimum between the available
      * and the max money to trade)
      */
-    private computeAmountToInvest(availableAmountOfBusd: number, maxAmountToBuy: number): number {
-        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, maxAmountToBuy);
+    private computeAmountToInvest(availableAmountOfBusd: number): number {
+        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, CONFIG.maxMoneyAmount);
     }
 
     /**
