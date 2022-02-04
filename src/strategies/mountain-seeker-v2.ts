@@ -284,7 +284,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      */
     private async createFirstMarketBuyOrder(moneyAmountToInvest: number): Promise<Order> {
         const retries = 5;
-        if (this.market!.quoteOrderQtyMarketAllowed) {
+        if (!this.market!.quoteOrderQtyMarketAllowed) {
             // normally this should ever happen on non BLVT markets
             // but if this happens in future we could for example use this.cryptoExchangePlatform.createMarketOrder()
             const errorMessage = `quoteOrderQtyMarketAllowed is not supported on market ${this.market?.symbol}`;
