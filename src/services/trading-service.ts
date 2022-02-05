@@ -21,7 +21,7 @@ export class TradingService {
         customName: "strat1-15-15", // based on 15min candlesticks and takes a decision every 15min
         config: {
             maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
+            autoRestart: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 900, // 15min
@@ -39,7 +39,7 @@ export class TradingService {
         customName: "strat4-5-5", // based on 5min candlesticks and takes a decision every 5min
         config: {
             maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
+            autoRestart: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
                 secondsToSleepAfterTheBuy: 300, // 5min
@@ -57,7 +57,7 @@ export class TradingService {
         customName: "strat5-15-30", // based on 15min candlesticks and takes a decision every 15min
         config: {
             maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
+            autoRestart: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 1800, // 30min
@@ -75,7 +75,7 @@ export class TradingService {
         customName: "strat8-5-10", // based on 5min candlesticks and takes a decision every 5min
         config: {
             maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
+            autoRestart: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
                 secondsToSleepAfterTheBuy: 600, // 10min
@@ -93,7 +93,7 @@ export class TradingService {
         customName: "strat9-30-30", // based on 5min candlesticks and takes a decision every 30min
         config: {
             maxMoneyToTrade: 25,
-            autoRestartOnProfit: true,
+            autoRestart: true,
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.THIRTY_MINUTES, {
                 secondsToSleepAfterTheBuy: 1800, // 30min
@@ -107,6 +107,7 @@ export class TradingService {
 
     private account: Account = {
         email: process.env.RECEIVER_EMAIL_ADDRESS!,
+        maxMoneyAmount: 1000,
         apiKey: process.env.BINANCE_API_KEY,
         apiSecret: process.env.BINANCE_API_SECRET
     }

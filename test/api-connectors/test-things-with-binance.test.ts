@@ -15,6 +15,7 @@ import { GlobalUtils } from "../../src/utils/global-utils";
 import { ATR } from "technicalindicators";
 import { StrategyUtils } from "../../src/utils/strategy-utils";
 import { MACDIndicator } from "../../src/indicators/macd-indicator";
+import { Account } from "../../src/models/account";
 
 
 describe("Test things with Binance", () => {
@@ -22,13 +23,18 @@ describe("Test things with Binance", () => {
     let configService: ConfigService;
     let binanceInstance: binance;
     let squeezeIndicator: SqueezeIndicator;
+    const account: Account = {
+        email: "",
+        maxMoneyAmount: 1000,
+        apiKey: 'api key',
+        apiSecret: 'api secret'
+    }
 
     beforeAll(() => {
-        // comment the next line to use real environment variables
-        process.env = Object.assign(process.env, { BINANCE_API_KEY: 'api key', BINANCE_API_SECRET: 'api secret' });
         configService = TestHelper.getMockedConfigService();
         configService.isSimulation = jest.fn(() => false);
         binanceConnector = new BinanceConnector(configService);
+        binanceConnector.setup(account);
         binanceInstance = binanceConnector.getBinanceInstance();
         squeezeIndicator = container.resolve(SqueezeIndicator);
     });

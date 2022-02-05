@@ -20,7 +20,6 @@ import { ATRIndicator } from "../indicators/atr-indicator";
 import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
-const CONFIG = require('config')
 
 /**
  * Mountain Seeker V2.
@@ -33,7 +32,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     private strategyDetails: StrategyDetails<any> | undefined;
     private markets: Array<Market> = [];
-    private account: Account = { email: '' };
+    private account: Account = { email: '', maxMoneyAmount: 0 };
     private initialWalletBalance?: Map<string, number>;
     private state: MountainSeekerV2State = { id: "" };
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
@@ -47,7 +46,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private volumeRatio?: number;
 
     constructor(private configService: ConfigService,
-        private cryptoExchangePlatform: BinanceConnector,
+        private binanceConnector: BinanceConnector,
         private emailService: EmailService,
         private binanceDataService: BinanceDataService,
         private atrIndicator: ATRIndicator,
@@ -64,6 +63,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerV2Config>): MountainSeekerV2 {
         log.debug(`Adding new strategy ${JSON.stringify(strategyDetails)}`);
         this.account = account;
+        this.binanceConnector.setup(account);
         this.strategyDetails = { ...strategyDetails };
         this.config = { ...strategyDetails.config };
         this.initDefaultConfig(this.strategyDetails);
@@ -87,7 +87,6 @@ export class MountainSeekerV2 implements BaseStrategy {
                     error: error.message,
                     account: this.account.email,
                     strategyDetails: this.strategyDetails,
-                    config: this.config,
                     uniqueID: this.state.id
                 }, GlobalUtils.replacer, 4));
             }
@@ -99,7 +98,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             if (this.state.profitPercent && this.state.profitPercent <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss : ${this.state.profitPercent}%`);
             }
-            if (!this.config.autoRestartOnProfit) {
+            if (!this.config.autoRestart) {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
@@ -150,7 +149,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         log.debug(`Using config : ${JSON.stringify(this.strategyDetails)}`);
         this.state.marketSymbol = this.market.symbol;
-        this.cryptoExchangePlatform.printMarketDetails(this.market);
+        this.printMarketDetails(this.market);
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market,
             this.state.selectedCandleStickInterval!).slice(-5);
@@ -171,7 +170,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         // 4. Stop loss
         const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
-        this.latestSellStopLimitOrder = await this.cryptoExchangePlatform.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
+        this.latestSellStopLimitOrder = await this.binanceConnector.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
             "sell", buyOrder.filled, stopLossPrice, stopLossPrice, 5, this.config.simulation).catch(e => Promise.reject(e));
 
         // 5. Sleep
@@ -195,13 +194,13 @@ export class MountainSeekerV2 implements BaseStrategy {
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
             await GlobalUtils.sleep(tradingLoopConfig.priceWatchInterval);
 
-            if ((await this.cryptoExchangePlatform.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
+            if ((await this.binanceConnector.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
                 lastOrder.id, lastOrder.type!, 5, undefined, this.config.simulation).catch(e => Promise.reject(e)))) {
                 log.debug(`Order ${lastOrder.id} is already closed`);
                 break;
             }
 
-            marketUnitPrice = await this.cryptoExchangePlatform.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isSimulation(), 10)
+            marketUnitPrice = await this.binanceConnector.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isSimulation(), 10)
                 .catch(e => Promise.reject(e));
 
             priceChange = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
@@ -220,20 +219,18 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async handleTradeEnd(firstBuyOrder: Order, stopLossOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
         let completedOrder;
-        completedOrder = await this.cryptoExchangePlatform.cancelOrder(stopLossOrder.externalId, stopLossOrder.id,
+        completedOrder = await this.binanceConnector.cancelOrder(stopLossOrder.externalId, stopLossOrder.id,
             stopLossOrder.originAsset, stopLossOrder.targetAsset, 3, this.config.simulation).catch(e => Promise.reject(e));
         if (completedOrder.status === "canceled") {
-            completedOrder = await this.cryptoExchangePlatform.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
+            completedOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
                 firstBuyOrder.filled, true, 5, undefined, this.config.simulation).catch(e => Promise.reject(e));
         }
 
         this.state.retrievedAmountOfBusd = completedOrder!.amountOfOriginAsset!;
-        await this.handleRedeem(); // TODO shouldn't we filter BLVT?
-
         this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
         this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
 
-        const endWalletBalance = await this.cryptoExchangePlatform.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
+        const endWalletBalance = await this.binanceConnector.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.strategyDetails!, this.state, this.market!,
@@ -257,42 +254,18 @@ export class MountainSeekerV2 implements BaseStrategy {
     }
 
     /**
-     * Sometimes Binance is not able to sell everything so in this method, if the market is BLVT,
-     * we will try to sell the remaining amount. In order to add it to the profit
-     */
-    private async handleRedeem(): Promise<void> {
-        if (!this.market?.quoteOrderQtyMarketAllowed) {
-            try {
-                const amountNotSold = await this.cryptoExchangePlatform.getBalanceForAsset(this.market!.targetAsset, 3);
-                if (amountNotSold && amountNotSold > 0) {
-                    const redeemOrder = await this.cryptoExchangePlatform.redeemBlvt(this.market!.targetAsset!, amountNotSold, 5);
-                    log.debug(`Local redeem order object : ${redeemOrder} , retrievedAmountOfBusd : ${this.state.retrievedAmountOfBusd}`);
-                    if (this.state.retrievedAmountOfBusd !== undefined && this.state.retrievedAmountOfBusd !== 0) {
-                        this.state.retrievedAmountOfBusd += redeemOrder.amount;
-                    } else {
-                        this.state.retrievedAmountOfBusd = redeemOrder.amount;
-                    }
-                }
-            } catch (e) {
-                log.error(`Failed to redeem BLVT : ${JSON.stringify(e)}`)
-            }
-        }
-    }
-
-    /**
      * If the market accepts quote price then it will create a BUY MARKET order by specifying how much we want to spend.
      */
     private async createFirstMarketBuyOrder(moneyAmountToInvest: number): Promise<Order> {
-        const retries = 5;
         if (!this.market!.quoteOrderQtyMarketAllowed) {
             // normally this should ever happen on non BLVT markets
-            // but if this happens in future we could for example use this.cryptoExchangePlatform.createMarketOrder()
+            // but if this happens in future we could for example use this.binanceConnector.createMarketOrder()
             const errorMessage = `quoteOrderQtyMarketAllowed is not supported on market ${this.market?.symbol}`;
             log.error(errorMessage);
             return Promise.reject(errorMessage);
         }
-        const buyOrder = await this.cryptoExchangePlatform.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
-            moneyAmountToInvest, true, retries, this.config.simulation).catch(e => Promise.reject(e));
+        const buyOrder = await this.binanceConnector.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
+            moneyAmountToInvest, true, 5, this.config.simulation).catch(e => Promise.reject(e));
         this.state.investedAmountOfBusd = buyOrder.amountOfOriginAsset;
         return buyOrder;
     }
@@ -339,7 +312,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private getFilteredMarkets(): Array<Market> {
         this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.config.authorizedCurrencies);
         this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.config.ignoredMarkets);
-        // this.markets = StrategyUtils.filterByMinimumTradingVolume(this.markets, 100000);
+        this.markets = StrategyUtils.filterBLVT(this.markets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
         return this.markets;
     }
@@ -348,7 +321,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * Fetches wallet information
      */
     private async getInitialBalance(assets: Array<string>): Promise<void> {
-        this.initialWalletBalance = await this.cryptoExchangePlatform.getBalance(assets, 3)
+        this.initialWalletBalance = await this.binanceConnector.getBalance(assets, 3)
             .catch(e => Promise.reject(e));
         this.state.initialWalletBalance = JSON.stringify(Array.from(this.initialWalletBalance!.entries()));
         log.info("Initial wallet balance : %O", this.initialWalletBalance);
@@ -360,7 +333,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * and the max money to trade)
      */
     private computeAmountToInvest(availableAmountOfBusd: number): number {
-        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, CONFIG.maxMoneyAmount);
+        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, this.account.maxMoneyAmount);
     }
 
     /**
@@ -370,7 +343,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (this.latestSellStopLimitOrder && this.latestSellStopLimitOrder.externalId) {
             log.debug(`Aborting - cancelling order ${JSON.stringify(this.latestSellStopLimitOrder)}`);
             try {
-                await this.cryptoExchangePlatform.cancelOrder(this.latestSellStopLimitOrder?.externalId,
+                await this.binanceConnector.cancelOrder(this.latestSellStopLimitOrder?.externalId,
                     this.latestSellStopLimitOrder?.id, this.latestSellStopLimitOrder.originAsset,
                     this.latestSellStopLimitOrder.targetAsset, 5);
             } catch (e) {
@@ -382,20 +355,21 @@ export class MountainSeekerV2 implements BaseStrategy {
             log.debug(`Aborting - selling ${this.amountOfTargetAssetThatWasBought} ${this.market?.targetAsset}`);
             let sellMarketOrder;
             try {
-                sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
-                this.market!.targetAsset!, "sell", this.amountOfTargetAssetThatWasBought, true, 3);
+                sellMarketOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
+                    this.amountOfTargetAssetThatWasBought, true, 3,
+                    undefined, this.config.simulation);
             } catch (e) {
                 log.error(`Error while creating market sell order : ${JSON.stringify(e)}`);
             }
 
             if (!sellMarketOrder) {
                 for (const percent of [0.05, 0.5, 1, 2]) {
-                    this.amountOfTargetAssetThatWasBought = NumberUtils.decreaseNumberByPercent(
+                    const decreasedAmount = NumberUtils.decreaseNumberByPercent(
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
-                        sellMarketOrder = await this.cryptoExchangePlatform.createMarketOrder(this.market!.originAsset!,
-                            this.market!.targetAsset, "sell", this.amountOfTargetAssetThatWasBought,
-                            true, 3);
+                        sellMarketOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
+                            decreasedAmount, true, 3,
+                            undefined, this.config.simulation);
                         if (sellMarketOrder) {
                             break;
                         }
@@ -404,6 +378,15 @@ export class MountainSeekerV2 implements BaseStrategy {
                     }
                 }
             }
+        }
+    }
+
+    private printMarketDetails(market: Market) {
+        try {
+            log.debug(`Market details from local object : ${JSON.stringify(market)}`);
+            log.debug(`Market details from binance : ${JSON.stringify(this.binanceDataService.getBinanceMarketDetails(market))}`);
+        } catch (e) {
+            log.warn(`Failed to get market details ${e}`);
         }
     }
 }

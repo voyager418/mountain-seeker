@@ -8,6 +8,7 @@ import { binance } from "ccxt";
 import { ConfigService } from "../../src/services/config-service";
 import * as mockdate from "mockdate";
 import { OrderType } from "../../src/enums/order-type.enum";
+import { Account } from "../../src/models/account";
 import { fail } from "assert";
 
 jest.mock("axios");
@@ -18,14 +19,20 @@ describe("Binance connector", () => {
     let binanceConnector: BinanceConnector;
     let configService: ConfigService;
     let binanceInstance: binance;
+    const account: Account = {
+        email: "",
+        maxMoneyAmount: 1000,
+        apiKey: 'api key',
+        apiSecret: 'api secret'
+    }
 
     beforeAll(() => {
         jest.spyOn(GlobalUtils, 'sleep').mockImplementation(() => Promise.resolve());
-        process.env = Object.assign(process.env, { BINANCE_API_KEY: 'api key', BINANCE_API_SECRET: 'api secret' });
         configService = TestHelper.getMockedConfigService();
         configService.isSimulation = jest.fn(() => false);
 
         binanceConnector = new BinanceConnector(configService);
+        binanceConnector.setup(account)
         binanceInstance = binanceConnector.getBinanceInstance();
     });
 
@@ -363,7 +370,7 @@ describe("Binance connector", () => {
                 expect(axios.post).toHaveBeenCalledWith(
                     "https://api.binance.com/api/v3/order?symbol=BNBEUR&side=BUY&type=MARKET&quoteOrderQty=25&timestamp=1600034400000&signature=d4bbfa7c90879b92174976b266fc183413c3bb4923a4d285a8f24f5a7acd2878",
                     undefined,
-                    { "headers": { "Content-Type": "application/json", "X-MBX-APIKEY": process.env.BINANCE_API_KEY } }
+                    { "headers": { "Content-Type": "application/json", "X-MBX-APIKEY": account.apiKey } }
                 );
                 expect(axios.post).toHaveBeenCalledTimes(6);
             }

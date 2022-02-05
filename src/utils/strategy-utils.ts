@@ -104,6 +104,14 @@ export class StrategyUtils {
     }
 
     /**
+     * @return Markets that are not BLVT (binance leveraged tokens)
+     */
+    static filterBLVT(markets: Array<Market>): Array<Market> {
+        return markets.filter(market => !market.symbol.split("/")[0].endsWith("UP") &&
+            !market.symbol.split("/")[0].endsWith("DOWN"));
+    }
+
+    /**
      * @return Markets that can accept at least `minimalPrecision` digits after the dot in the amounts
      * used in buy/sell orders
      */

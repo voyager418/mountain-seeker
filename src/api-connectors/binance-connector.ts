@@ -9,12 +9,13 @@ import { v4 as uuidv4 } from "uuid";
 import { SimulationUtils } from "../utils/simulation-utils";
 import cliProgress from "cli-progress";
 import { ConfigService } from "../services/config-service";
-import { singleton } from "tsyringe";
+import { injectable } from "tsyringe";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
 import { RedeemOrder } from "../models/redeem-order";
 import { BinanceUtils } from "../utils/binance-utils";
 import { NumberUtils } from "../utils/number-utils";
+import { Account } from "../models/account";
 
 const axios = require('axios').default;
 
@@ -24,7 +25,7 @@ const axios = require('axios').default;
  *
  * It is a wrapper around ccxt library with possibly additional/custom implementations.
  */
-@singleton()
+@injectable()
 export class BinanceConnector {
 
     /** Binance ccxt instance.
@@ -38,17 +39,21 @@ export class BinanceConnector {
      *
      * @see https://github.com/binance/binance-spot-api-docs/blob/master/rest-api.md for more info
      * */
-    private readonly binance;
+    private binance;
 
     private readonly V1_URL_BASE_PATH = "https://api.binance.com/sapi/v1";
     private readonly V3_URL_BASE_PATH = "https://api.binance.com/api/v3";
 
-    private readonly headers = {};
+    private headers = {};
 
     constructor(private configService: ConfigService) {
+        this.binance = new ccxt.binance();
+    }
+
+    public setup(account: Account): void {
         this.binance = new ccxt.binance({
-            apiKey: process.env.BINANCE_API_KEY,
-            secret: process.env.BINANCE_API_SECRET,
+            apiKey: account.apiKey,
+            secret: account.apiSecret,
             verbose: false,
             enableRateLimit: false
         });
@@ -813,9 +818,9 @@ export class BinanceConnector {
         const progress = new cliProgress.SingleBar({}, cliProgress.Presets.shades_grey);
         progress.start(markets.length, 0);
         let index = 0;
-        const oneThird = ~~(markets.length/3);
-        async function firstHalf(apiConnector: BinanceConnector) {
-            for (let i = 0; i < oneThird; i++) {
+        const oneFifth = ~~(markets.length/5);
+        async function getHalf(apiConnector: BinanceConnector, startIndex: number, endIndex: number) {
+            for (let i = startIndex; i < endIndex; i++) {
                 const market = markets[i];
                 progress.update(++index);
                 market.candleStickIntervals.push(interval);
@@ -824,44 +829,17 @@ export class BinanceConnector {
                         .catch(e => Promise.reject(e))]]);
             }
         }
-        async function secondHalf(apiConnector: BinanceConnector) {
-            for (let i = oneThird; i < oneThird * 2; i++) {
-                const market = markets[i];
-                progress.update(++index);
-                market.candleStickIntervals.push(interval);
-                market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
-                        .catch(e => Promise.reject(e))]]);
-            }
-        }
-        async function thirdHalf(apiConnector: BinanceConnector) {
-            for (let i = oneThird * 2; i < markets.length; i++) {
-                const market = markets[i];
-                progress.update(++index);
-                market.candleStickIntervals.push(interval);
-                market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
-                        .catch(e => Promise.reject(e))]]);
-            }
-        }
-        // if this method ends faster than around 6 seconds then we exceed the limit for binance API calls per minute
-        await Promise.all([firstHalf(this),
-            secondHalf(this),
-            thirdHalf(this),
+        // If this method ends faster than around 6 seconds then we exceed the limit for binance API calls per minute
+        // The tested speed with 205 markets is between 15 - 20 seconds,
+        // during this time the request weight reaches around 860
+        await Promise.all([
+            getHalf(this, 0, oneFifth),
+            getHalf(this, oneFifth, oneFifth * 2),
+            getHalf(this, oneFifth * 2, oneFifth * 3),
+            getHalf(this, oneFifth * 3, oneFifth * 4),
+            getHalf(this, oneFifth * 4, markets.length),
             GlobalUtils.sleep(this.configService.isSimulation() ? 0 : 6)]).catch(e => Promise.reject(e));
         progress.stop();
-    }
-
-    /**
-     * Used for debug purposes
-     */
-    public printMarketDetails(market: Market): void {
-        try {
-            log.debug(`Market details from local object : ${JSON.stringify(market)}`);
-            log.debug(`Market details from binance : ${JSON.stringify(this.binance.markets[market.symbol])}`);
-        } catch (e) {
-            log.warn(`Failed to get market details ${e}`);
-        }
     }
 
     /**

@@ -11,6 +11,7 @@ import { BaseStrategy } from "../../strategies/base-strategy.interface";
 import { GlobalUtils } from "../../utils/global-utils";
 import { Currency } from "../../enums/trading-currencies.enum";
 import { Observer } from "./observer.interface";
+import ccxt from "ccxt";
 const createNamespace = require('continuation-local-storage').createNamespace;
 const shortUUID = require('short-uuid');
 
@@ -106,7 +107,11 @@ export class BinanceDataService implements Subject {
      * @return Number of running strategies
      */
     getRunningObservers(): number {
-        return  this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
+        return this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
+    }
+
+    getBinanceMarketDetails(market: Market): ccxt.Market {
+        return this.binanceConnector.getBinanceInstance().markets[market.symbol];
     }
 
     notifyObservers(observers: Array<Observer>): void {

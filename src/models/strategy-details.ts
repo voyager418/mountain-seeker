@@ -13,9 +13,8 @@ export type StrategyDetails<T> = {
 }
 
 export type BaseStrategyConfig = {
-    /** Indicates if the strategy should automatically restart
-     * when it ends with a profit */
-    autoRestartOnProfit?: boolean
+    /** Indicates if the strategy should automatically restart after finishing a trade */
+    autoRestart?: boolean
 
     /** If set to `true` then no real orders will be made */
     simulation?: boolean;
