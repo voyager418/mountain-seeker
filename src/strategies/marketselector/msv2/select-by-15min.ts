@@ -4,14 +4,15 @@ import { SelectorResult } from "../selector.interface";
 import { StrategyUtils } from "../../../utils/strategy-utils";
 import { NumberUtils } from "../../../utils/number-utils";
 import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
+import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 
 export class SelectBy15min {
     private static readonly INTERVAL = CandlestickInterval.FIFTEEN_MINUTES;
 
-    static shouldSelectMarket(config: MountainSeekerV2Config, market: Market, candleSticks: Array<TOHLCV>,
+    static shouldSelectMarket(config: MountainSeekerV2Config, state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCV>,
         candleSticksPercentageVariations: Array<number>): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
-        const lastTradeDate = config.marketLastTradeDate!.get(market.symbol);
+        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
             return undefined;
         }

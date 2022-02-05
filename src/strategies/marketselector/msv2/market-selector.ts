@@ -8,22 +8,23 @@ import { StrategyUtils } from "../../../utils/strategy-utils";
 import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
 import { SelectBy15min } from "./select-by-15min";
 import { SelectBy30min } from "./select-by-30min";
+import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 
 
 @singleton()
 export class MarketSelector implements Selector {
 
-    public isMarketEligible(config: MountainSeekerV2Config, market: Market, interval: CandlestickInterval): SelectorResult | undefined {
+    public isMarketEligible(config: MountainSeekerV2Config, state: MountainSeekerV2State, market: Market, interval: CandlestickInterval): SelectorResult | undefined {
         let shouldSelect;
         switch (interval) {
         case CandlestickInterval.FIVE_MINUTES:
-            shouldSelect = SelectBy5min.shouldSelectMarket(config, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy5min.shouldSelectMarket(config, state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
             break;
         case CandlestickInterval.FIFTEEN_MINUTES:
-            shouldSelect = SelectBy15min.shouldSelectMarket(config, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy15min.shouldSelectMarket(config, state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
             break;
         case CandlestickInterval.THIRTY_MINUTES:
-            shouldSelect = SelectBy30min.shouldSelectMarket(config, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy30min.shouldSelectMarket(config, state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
             break;
         default:
             log.error(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
@@ -37,13 +38,13 @@ export class MarketSelector implements Selector {
         let previousShouldSelect;
         switch (interval) {
         case CandlestickInterval.FIVE_MINUTES:
-            previousShouldSelect = SelectBy5min.shouldSelectMarket(config, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+            previousShouldSelect = SelectBy5min.shouldSelectMarket(config, state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case CandlestickInterval.FIFTEEN_MINUTES:
-            previousShouldSelect = SelectBy15min.shouldSelectMarket(config, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+            previousShouldSelect = SelectBy15min.shouldSelectMarket(config, state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case CandlestickInterval.THIRTY_MINUTES:
-            previousShouldSelect = SelectBy30min.shouldSelectMarket(config, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+            previousShouldSelect = SelectBy30min.shouldSelectMarket(config, state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         default:
             log.error(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);

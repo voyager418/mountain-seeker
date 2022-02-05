@@ -34,4 +34,10 @@ export type MountainSeekerV2State = TradingState & {
     amountOfYBought?: number;
     /** The candlestick interval that is being used by a strategy */
     selectedCandleStickInterval?: CandlestickInterval;
+    /** Key is the name of the market, value is the date of the last finished trade.
+     * This will allow to implement a logic to wait x amount of time between consecutive trades on
+     * same market */
+    marketLastTradeDate?: Map<string, Date>
+    /** Percent profit of previous trade */
+    profitOfPreviousTrade?: number;
 }

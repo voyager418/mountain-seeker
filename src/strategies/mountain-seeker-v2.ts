@@ -95,15 +95,20 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     private prepareForNextTrade(): void {
         if (this.state.marketSymbol) {
-            if (this.state.profitPercent && this.state.profitPercent <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
-                throw new Error(`Aborting due to a big loss : ${this.state.profitPercent}%`);
+            const profit = this.state.profitPercent;
+            if (profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+                throw new Error(`Aborting due to a big loss: ${this.state.profitPercent}%`);
+            }
+            if (profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+                throw new Error(`Aborting due to a big loss during last two trades. Previous: ${this.state.profitOfPreviousTrade}%, current: ${profit}%`);
             }
             if (!this.config.autoRestart) {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
-            this.config.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
-            this.state = { id: "" }; // resetting the state after a trade
+
+            this.state.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
+            this.state = { id: "", profitOfPreviousTrade: profit }; // resetting the state after a trade
             this.latestSellStopLimitOrder = undefined;
             this.amountOfTargetAssetThatWasBought = undefined;
             this.takeProfitATR = undefined;
@@ -115,7 +120,8 @@ export class MountainSeekerV2 implements BaseStrategy {
      * Set default config values
      */
     private initDefaultConfig(strategyDetails: StrategyDetails<MountainSeekerV2Config>) {
-        this.config.marketLastTradeDate = new Map<string, Date>();
+        this.state.marketLastTradeDate = new Map<string, Date>();
+        this.state.profitOfPreviousTrade = 0;
         if (!strategyDetails.config.authorizedCurrencies) {
             this.config.authorizedCurrencies = [Currency.BUSD];
         }
@@ -282,7 +288,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         for (const market of markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
-                const selectorResult = this.marketSelector.isMarketEligible(this.config, market, interval);
+                const selectorResult = this.marketSelector.isMarketEligible(this.config, this.state, market, interval);
                 if (selectorResult) {
                     log.debug("Added potential market %O with interval %O", market.symbol, interval);
                     potentialMarkets.push(selectorResult);
