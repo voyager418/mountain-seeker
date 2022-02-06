@@ -27,7 +27,8 @@ describe("Test things with Binance", () => {
         email: "",
         maxMoneyAmount: 1000,
         apiKey: 'api key',
-        apiSecret: 'api secret'
+        apiSecret: 'api secret',
+        mailPreferences: {}
     }
 
     beforeAll(() => {
