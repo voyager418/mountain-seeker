@@ -107,9 +107,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
-
             this.state.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
-            this.state = { id: "", profitOfPreviousTrade: profit }; // resetting the state after a trade
+            this.state = { id: "", profitOfPreviousTrade: profit, marketLastTradeDate: this.state.marketLastTradeDate }; // resetting the state after a trade
             this.latestSellStopLimitOrder = undefined;
             this.amountOfTargetAssetThatWasBought = undefined;
             this.takeProfitATR = undefined;
