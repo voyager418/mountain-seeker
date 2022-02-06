@@ -8,6 +8,9 @@ echo "Executing GET request to $stop_endpoint"
 stop_result=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" $stop_endpoint)
 echo "Response $stop_result"
 
+# grep -o -E "\d+" matches all the numbers
+# so if input is {"running":0,"total":5} it will print 2 lines : 0 and 5
+# on Mac grep -Po doesn't work, need to use -o -E
 running=$(echo "$stop_result" | grep -Po "\d+" | sed -n '2p')
 if [ "$running" -ne "0" ]; then
     echo "Exiting as $running strategies are still running"
