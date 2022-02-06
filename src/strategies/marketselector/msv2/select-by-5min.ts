@@ -22,35 +22,14 @@ export class SelectBy5min {
             return undefined;
         }
 
+        // should make a decision at fixed minutes
         const tradingLoopConfig = config.activeCandleStickIntervals!.get(this.INTERVAL)!;
-
-        // allowed to start only 15 seconds earlier or at defined minutes
         const minuteOfLastCandlestick = new Date(StrategyUtils.getCandleStick(candleSticks, 0)[0]).getMinutes();
-        const dateInFuture = new Date();
-        dateInFuture.setSeconds(dateInFuture.getSeconds() + 15);
-        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1 &&
-            tradingLoopConfig.decisionMinutes.indexOf(dateInFuture.getMinutes()) === -1) {
+        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1) {
             return undefined;
         }
 
-        const candlesticksCopy = candleSticks;
-        const candleSticksPercentageVariationsCopy = candleSticksPercentageVariations;
-        // to be able to use same indexes when starting earlier than defined minutes
-        // because if we start earlier, there is no c0
-        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) !== -1) {
-            candlesticksCopy.pop();
-            candleSticksPercentageVariationsCopy.pop();
-        }
-
-        const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
-        const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
-        const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
-        const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
-        const twentyFiveCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 25 - 2, -2); // except the last 2
-        const twentyCandlesticksExcept5 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 5, -5); // except the last 5
-        const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept5);
-        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticksExcept5[0][4],
-            twentyCandlesticksExcept5[twentyCandlesticksExcept5.length - 1][4]));
+        const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 1);
 
         // if before last candle percent change is below minimal threshold
         if (c1Variation < 1.4) {
@@ -62,6 +41,8 @@ export class SelectBy5min {
             return undefined;
         }
 
+        const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
+
         // if before before last candle percent change is below minimal threshold
         if (c2Variation < 1) {
             return undefined;
@@ -72,25 +53,32 @@ export class SelectBy5min {
             return undefined;
         }
 
+        const allCandlesticks = candleSticks;
+        const twentyFiveCandlesticks = allCandlesticks.slice(allCandlesticks.length - 25 - 3, -3); // except the last 3
 
         // c2 close must be > c3..25 high
-        if (twentyFiveCandlesticksExcept2.some(candle => candle[2] > c2[4])) {
+        const c2 = StrategyUtils.getCandleStick(candleSticks, 2);
+        if (twentyFiveCandlesticks.some(candle => candle[2] > c2[4])) {
             return undefined;
         }
 
         // v1 must be >= 1.2 * v2..25
+        const c1 = StrategyUtils.getCandleStick(candleSticks, 1);
         if (c1[5] < 1.2 * c2[5] ||
-            twentyFiveCandlesticksExcept2.some(candle => c1[5] < 1.2 * candle[5])) {
+            twentyFiveCandlesticks.some(candle => c1[5] < 1.2 * candle[5])) {
             return undefined;
         }
 
         // if the line is not +/- horizontal
+        const twentyCandlesticks = allCandlesticks.slice(allCandlesticks.length - 20 - 6, -6); // except the last 6
+        const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticks);
         // the variation of the 20 candlesticks should not be bigger than 5%
         if (maxVariation > 5) {
             return undefined;
         }
-
         // the variation of the first and last in the 20 candlesticks should not be bigger than 5% // TODO 5 or 3?
+        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticks[0][4],
+            twentyCandlesticks[twentyCandlesticks.length - 1][4]));
         if (edgeVariation > 5) {
             return undefined;
         }
