@@ -32,7 +32,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     private strategyDetails: StrategyDetails<any> | undefined;
     private markets: Array<Market> = [];
-    private account: Account = { email: '', maxMoneyAmount: 0 };
+    private account: Account = { email: '', maxMoneyAmount: 0, mailPreferences: {} };
     private initialWalletBalance?: Map<string, number>;
     private state: MountainSeekerV2State = { id: "" };
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
@@ -96,10 +96,11 @@ export class MountainSeekerV2 implements BaseStrategy {
     private prepareForNextTrade(): void {
         if (this.state.marketSymbol) {
             const profit = this.state.profitPercent;
-            if (profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+            if (!this.config.simulation! && profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss: ${this.state.profitPercent}%`);
             }
-            if (profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+            if (!this.config.simulation! &&
+                profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss during last two trades. Previous: ${this.state.profitOfPreviousTrade}%, current: ${profit}%`);
             }
             if (!this.config.autoRestart) {
@@ -171,7 +172,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const buyOrder = await this.createFirstMarketBuyOrder(busdAmountToInvest).catch(e => Promise.reject(e));
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-        this.emailService.sendInitialEmail(this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
+        this.emailService.sendInitialEmail(this.account, this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
             this.initialWalletBalance!).then().catch(e => log.error(e));
 
         // 4. Stop loss
@@ -239,7 +240,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const endWalletBalance = await this.binanceConnector.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendFinalMail(this.strategyDetails!, this.state, this.market!,
+        await this.emailService.sendFinalMail(this.account, this.strategyDetails!, this.state, this.market!,
             firstBuyOrder.amountOfOriginAsset!, completedOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr

@@ -32,27 +32,27 @@ export class SelectBy5min {
             return undefined;
         }
 
-        const beforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 1);
+        const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 1);
 
         // if before last candle percent change is below minimal threshold
-        if (beforeLastCandlestickPercentVariation < 1.4) {
+        if (c1Variation < 1.4) {
             return undefined;
         }
 
         // if before last candle percent change is above maximal threshold
-        if (beforeLastCandlestickPercentVariation > 12) {
+        if (c1Variation > 12) {
             return undefined;
         }
 
-        const beforeBeforeLastCandlestickPercentVariation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
+        const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariations, 2);
 
         // if before before last candle percent change is below minimal threshold
-        if (beforeBeforeLastCandlestickPercentVariation < 1) {
+        if (c2Variation < 1) {
             return undefined;
         }
 
         // if before before last candle percent change is above maximal threshold
-        if (beforeBeforeLastCandlestickPercentVariation > 7) {
+        if (c2Variation > 7) {
             return undefined;
         }
 
@@ -60,15 +60,15 @@ export class SelectBy5min {
         const twentyFiveCandlesticks = allCandlesticks.slice(allCandlesticks.length - 25 - 3, -3); // except the last 3
 
         // c2 close must be > c3..25 high
-        const beforeBeforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 2);
-        if (twentyFiveCandlesticks.some(candle => candle[2] > beforeBeforeLastCandle[4])) {
+        const c2 = StrategyUtils.getCandleStick(candleSticks, 2);
+        if (twentyFiveCandlesticks.some(candle => candle[2] > c2[4])) {
             return undefined;
         }
 
         // v1 must be >= 1.2 * v2..25
-        const beforeLastCandle = StrategyUtils.getCandleStick(candleSticks, 1);
-        if (beforeLastCandle[5] < 1.2 * beforeBeforeLastCandle[5] ||
-            twentyFiveCandlesticks.some(candle => beforeLastCandle[5] < 1.2 * candle[5])) {
+        const c1 = StrategyUtils.getCandleStick(candleSticks, 1);
+        if (c1[5] < 1.2 * c2[5] ||
+            twentyFiveCandlesticks.some(candle => c1[5] < 1.2 * candle[5])) {
             return undefined;
         }
 
@@ -85,6 +85,6 @@ export class SelectBy5min {
         if (edgeVariation > 5) {
             return undefined;
         }
-        return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: beforeLastCandle[5] / beforeBeforeLastCandle[5] };
+        return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5] };
     }
 }

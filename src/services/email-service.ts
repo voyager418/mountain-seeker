@@ -7,6 +7,7 @@ import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
+import { Account } from "../models/account";
 
 const nodemailer = require('nodemailer');
 
@@ -48,9 +49,9 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendInitialEmail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
+    public async sendInitialEmail(account: Account, strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
         averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
-        if (!this.configService.isSimulation()) {
+        if (!this.configService.isSimulation() && account.mailPreferences.onNewTrade) {
             let emailText = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";
@@ -81,10 +82,10 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendFinalMail(strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market,
+    public async sendFinalMail(account: Account, strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market,
         investedAmount: number, lastOrder: Order, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>): Promise<void> {
-        if (!this.configService.isSimulation()) {
+        if (!this.configService.isSimulation() && account.mailPreferences.onEndTrade) {
             let emailText = "Portefeuille initial :\n";
             for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + " : " + value + "\n";

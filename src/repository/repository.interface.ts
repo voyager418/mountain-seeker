@@ -1,5 +1,6 @@
-import { Market } from "../models/market";
+import { Account } from "../models/account";
 
 export interface Repository {
-    putMarket(market: Market): void;
+    /** Creates or updates an account */
+    updateAccount(account: Account): void;
 }

@@ -1,1 +1,4 @@
 simulation: false # IF false THEN REAL ORDERS WILL BE MADE !
+
+database:
+  url: 'https://dynamodb.eu-west-1.amazonaws.com'
