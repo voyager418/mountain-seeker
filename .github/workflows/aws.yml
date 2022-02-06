@@ -18,6 +18,9 @@ jobs:
     - name: Install libraries and compile
       run: npm ci && tsc
 
+    - name: Run tests
+      run: npm run test
+
     - name: Generate application zip
       run: sh ./compress_to_zip.sh MS.zip
 
