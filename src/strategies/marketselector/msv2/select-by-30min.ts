@@ -25,10 +25,7 @@ export class SelectBy30min {
         // should make a decision at fixed minutes
         const tradingLoopConfig = config.activeCandleStickIntervals!.get(this.INTERVAL)!;
         const minuteOfLastCandlestick = new Date(StrategyUtils.getCandleStick(candleSticks, 0)[0]).getMinutes();
-        const currentMinute = new Date().getMinutes();
-        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1 ||
-            (tradingLoopConfig.decisionMinutes.indexOf(currentMinute) === -1 &&
-                tradingLoopConfig.decisionMinutes.indexOf(currentMinute - 1) === -1)) {
+        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1) {
             return undefined;
         }
 

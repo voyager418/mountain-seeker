@@ -12,7 +12,7 @@ import { Account } from "../models/account";
 @singleton()
 export class DynamodbRepository implements Repository {
     private readonly db;
-    private documentClient;
+    private readonly documentClient;
 
     constructor(private configService: ConfigService) {
         AWS.config.update({
