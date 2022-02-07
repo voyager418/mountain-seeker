@@ -214,11 +214,11 @@ export class StrategyUtils {
          Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
         case CandlestickInterval.FIFTEEN_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 3);
+            return this.constructCandleSticks(inputCandleSticks, 3, 5);
         case CandlestickInterval.THIRTY_MINUTES:
-            return this.constructCandleSticks(inputCandleSticks, 6);
+            return this.constructCandleSticks(inputCandleSticks, 6, 5);
         case CandlestickInterval.ONE_HOUR:
-            return this.constructCandleSticks(inputCandleSticks, 12);
+            return this.constructCandleSticks(inputCandleSticks, 12, 5);
         default: throw new Error(`Unhandled candlestick interval: ${to}`);
         }
     }
@@ -228,31 +228,45 @@ export class StrategyUtils {
      * @param numberOfDefaultCandlesInDesiredPeriod For example to convert 30m to 4h candle sticks then this value must be
      * 8 because there are 8 30m candle sticks in 4h
      */
-    private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOfDefaultCandlesInDesiredPeriod: number): Array<TOHLCV> {
+    private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOfDefaultCandlesInDesiredPeriod: number,
+        minutesInDefaultCandle: number): Array<TOHLCV> {
         const res: Array<TOHLCV> = [];
-        res.push(inputCandleSticks[inputCandleSticks.length - 1]); // putting latest candle as the last candle in desired period
 
-        for (let i = inputCandleSticks.length - 2; i > 0; i -= numberOfDefaultCandlesInDesiredPeriod) {
+        const minuteOfLastCandle = new Date(inputCandleSticks[inputCandleSticks.length - 1][0]).getMinutes();
+        const minutesInDesiredCandle = minutesInDefaultCandle * numberOfDefaultCandlesInDesiredPeriod;
+        const amountOfDefaultCandlesInLatestPeriod = ((minuteOfLastCandle - Math.floor(minuteOfLastCandle/minutesInDesiredCandle)
+            * minutesInDesiredCandle)/minutesInDefaultCandle) + 1;
+        let candleSticksInDesiredPeriod;
+
+        // constructing the latest period
+        candleSticksInDesiredPeriod = inputCandleSticks.slice(inputCandleSticks.length - amountOfDefaultCandlesInLatestPeriod);
+        this.constructLargerCandle(candleSticksInDesiredPeriod, res);
+
+        for (let i = inputCandleSticks.length - 1 - amountOfDefaultCandlesInLatestPeriod; i > 0; i -= numberOfDefaultCandlesInDesiredPeriod) {
             if (i - numberOfDefaultCandlesInDesiredPeriod > 0) {
-                const candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOfDefaultCandlesInDesiredPeriod + 1, i + 1);
-                const firstCandle = candleSticksInDesiredPeriod[0];
-                const lastCandle = candleSticksInDesiredPeriod[numberOfDefaultCandlesInDesiredPeriod - 1];
-
-                const highestPrice = candleSticksInDesiredPeriod.map(candle => candle[2])
-                    .reduce((prev, current) => (prev > current ? prev : current));
-
-                const lowestPrice = candleSticksInDesiredPeriod.map(candle => candle[3])
-                    .reduce((prev, current) => (prev < current ? prev : current));
-
-                const totalVolume = candleSticksInDesiredPeriod.map(candle => candle[5])
-                    .reduce((prev, current) => prev + current);
-
-                const tempCandle: TOHLCV = [firstCandle[0], firstCandle[1], highestPrice,
-                    lowestPrice, lastCandle[4], totalVolume];
-                res.push(tempCandle);
+                candleSticksInDesiredPeriod = inputCandleSticks.slice(i - numberOfDefaultCandlesInDesiredPeriod + 1, i + 1);
+                this.constructLargerCandle(candleSticksInDesiredPeriod, res);
             }
         }
         return res.reverse();
+    }
+
+    private static constructLargerCandle(candleSticksInDesiredPeriod: Array<TOHLCV>, res: Array<TOHLCV>): void {
+        const firstCandle = candleSticksInDesiredPeriod[0];
+        const lastCandle = candleSticksInDesiredPeriod[candleSticksInDesiredPeriod.length - 1];
+
+        const highestPrice = candleSticksInDesiredPeriod.map(candle => candle[2])
+            .reduce((prev, current) => (prev > current ? prev : current));
+
+        const lowestPrice = candleSticksInDesiredPeriod.map(candle => candle[3])
+            .reduce((prev, current) => (prev < current ? prev : current));
+
+        const totalVolume = candleSticksInDesiredPeriod.map(candle => candle[5])
+            .reduce((prev, current) => prev + current);
+
+        const tempCandle: TOHLCV = [firstCandle[0], firstCandle[1], highestPrice,
+            lowestPrice, lastCandle[4], totalVolume];
+        res.push(tempCandle);
     }
 
     /**
