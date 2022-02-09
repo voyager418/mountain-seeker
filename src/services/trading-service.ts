@@ -25,7 +25,6 @@ export class TradingService {
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 900, // 15min
-                decisionMinutes: [0, 15, 30, 45],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2 // TODO change to 5 ?
             }
@@ -43,7 +42,6 @@ export class TradingService {
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
                 secondsToSleepAfterTheBuy: 300, // 5min
-                decisionMinutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2
             }
@@ -61,7 +59,6 @@ export class TradingService {
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIFTEEN_MINUTES, {
                 secondsToSleepAfterTheBuy: 1800, // 30min
-                decisionMinutes: [0, 15, 30, 45],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2
             }
@@ -79,7 +76,6 @@ export class TradingService {
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.FIVE_MINUTES, {
                 secondsToSleepAfterTheBuy: 600, // 10min
-                decisionMinutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2
             }
@@ -97,7 +93,6 @@ export class TradingService {
             simulation: true,
             activeCandleStickIntervals: new Map([[CandlestickInterval.THIRTY_MINUTES, {
                 secondsToSleepAfterTheBuy: 1800, // 30min
-                decisionMinutes: [0, 30],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2
             }

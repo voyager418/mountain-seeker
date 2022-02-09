@@ -27,7 +27,7 @@ import { SelectorResult } from "./marketselector/selector.interface";
  */
 @injectable()
 export class MountainSeekerV2 implements BaseStrategy {
-    /** If a loss of -7% or less is reached it means that something went wrong and we abort everything */
+    /** If a loss of -7% or less is reached it means that something went wrong, and we abort everything */
     private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
 
     private strategyDetails: StrategyDetails<any> | undefined;
@@ -37,7 +37,6 @@ export class MountainSeekerV2 implements BaseStrategy {
     private state: MountainSeekerV2State = { id: "" };
     private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
     private market?: Market;
-    private latestSellStopLimitOrder?: Order;
     private amountOfTargetAssetThatWasBought?: number;
     private takeProfitATR?: number;
     private ATR?: number;
@@ -109,7 +108,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             }
             this.state.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
             this.state = { id: "", profitOfPreviousTrade: profit, marketLastTradeDate: this.state.marketLastTradeDate }; // resetting the state after a trade
-            this.latestSellStopLimitOrder = undefined;
             this.amountOfTargetAssetThatWasBought = undefined;
             this.takeProfitATR = undefined;
             this.market = undefined;
@@ -128,7 +126,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!strategyDetails.config.activeCandleStickIntervals) {
             const configFor15min: TradingLoopConfig = {
                 secondsToSleepAfterTheBuy: 900, // 15min
-                decisionMinutes: [15, 30, 45, 0],
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 5
             };
@@ -144,7 +141,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     public async run(): Promise<void> {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
-        this.market = await this.selectMarketForTrading(this.markets).catch(e => Promise.reject(e));
+        this.market = await this.selectMarketForTrading().catch(e => Promise.reject(e));
 
         if (!this.market) {
             if (this.configService.isSimulation()) {
@@ -174,37 +171,27 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.emailService.sendInitialEmail(this.account, this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
             this.initialWalletBalance!).then().catch(e => log.error(e));
 
-        // 4. Stop loss
-        const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
-        this.latestSellStopLimitOrder = await this.binanceConnector.createStopLimitOrder(this.market.originAsset, this.market.targetAsset,
-            "sell", buyOrder.filled, stopLossPrice, stopLossPrice, 5, this.config.simulation).catch(e => Promise.reject(e));
+        // 4. Trading loop
+        await this.runTradingLoop(buyOrder, tradingLoopConfig);
 
-        // 5. Sleep
-        await this.runTradingLoop(buyOrder, this.latestSellStopLimitOrder!, tradingLoopConfig);
-
-        // 6. Finishing
-        return this.handleTradeEnd(buyOrder, this.latestSellStopLimitOrder!).catch(e => Promise.reject(e));
+        // 5. Finishing
+        return this.handleTradeEnd(buyOrder).catch(e => Promise.reject(e));
     }
 
     /**
      * Monitors the current market price and creates new stop limit orders if price increases.
      */
-    private async runTradingLoop(buyOrder: Order, lastOrder: Order, tradingLoopConfig: TradingLoopConfig): Promise<void> {
+    private async runTradingLoop(buyOrder: Order, tradingLoopConfig: TradingLoopConfig): Promise<void> {
         let marketUnitPrice = Infinity;
         this.state.runUp = -Infinity;
         this.state.drawDown = Infinity;
         let priceChange;
         const endTradingDate = GlobalUtils.getCurrentBelgianDate();
-        endTradingDate.setSeconds(endTradingDate.getSeconds() + tradingLoopConfig.secondsToSleepAfterTheBuy)
+        const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
+        endTradingDate.setSeconds(endTradingDate.getSeconds() + tradingLoopConfig.secondsToSleepAfterTheBuy);
 
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
             await GlobalUtils.sleep(tradingLoopConfig.priceWatchInterval);
-
-            if ((await this.binanceConnector.orderIsClosed(lastOrder.externalId, lastOrder.originAsset, lastOrder.targetAsset,
-                lastOrder.id, lastOrder.type!, 5, undefined, this.config.simulation).catch(e => Promise.reject(e)))) {
-                log.debug(`Order ${lastOrder.id} is already closed`);
-                break;
-            }
 
             marketUnitPrice = await this.binanceConnector.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isSimulation(), 10)
                 .catch(e => Promise.reject(e));
@@ -213,26 +200,22 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.runUp = Math.max(this.state.runUp, priceChange);
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
-            if (marketUnitPrice < lastOrder.stopPrice!) {
+            if (marketUnitPrice <= stopLossPrice) {
                 // if price dropped below stop loss order price and the stop loss order is still open
-                log.debug(`Price change is too low ${priceChange}% ! Stop price is ${lastOrder.stopPrice!} while the current is ${marketUnitPrice}`);
+                log.debug(`Price change is too low ${priceChange}% ! Stop price is ${stopLossPrice} while the current is ${marketUnitPrice}`);
                 break;
             }
         }
         return Promise.resolve();
     }
 
-    private async handleTradeEnd(firstBuyOrder: Order, stopLossOrder: Order): Promise<void> {
+    private async handleTradeEnd(firstBuyOrder: Order): Promise<void> {
         log.debug("Finishing trading...");
-        let completedOrder;
-        completedOrder = await this.binanceConnector.cancelOrder(stopLossOrder.externalId, stopLossOrder.id,
-            stopLossOrder.originAsset, stopLossOrder.targetAsset, 3, this.config.simulation).catch(e => Promise.reject(e));
-        if (completedOrder.status === "canceled") {
-            completedOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
-                firstBuyOrder.filled, true, 5, undefined, this.config.simulation).catch(e => Promise.reject(e));
-        }
+        const sellOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset,
+            this.market!.targetAsset, firstBuyOrder.filled, true, 5,
+            undefined, this.config.simulation).catch(e => Promise.reject(e));
 
-        this.state.retrievedAmountOfBusd = completedOrder!.amountOfOriginAsset!;
+        this.state.retrievedAmountOfBusd = sellOrder!.amountOfOriginAsset!;
         this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
         this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
 
@@ -240,7 +223,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.account, this.strategyDetails!, this.state, this.market!,
-            firstBuyOrder.amountOfOriginAsset!, completedOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
+            firstBuyOrder.amountOfOriginAsset!, sellOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         this.state.endedWithoutErrors = true;
         // TODO remove atr
         this.ATR = this.atrIndicator.compute(this.market!.candleSticks.get(this.state.selectedCandleStickInterval!)!,
@@ -279,16 +262,16 @@ export class MountainSeekerV2 implements BaseStrategy {
     /**
      * @return A market which will be used for trading. Or `undefined` if not found
      */
-    private async selectMarketForTrading(markets: Array<Market>): Promise<Market | undefined> {
+    private async selectMarketForTrading(): Promise<Market | undefined> {
         if (this.configService.isSimulation()) {
             this.state.selectedCandleStickInterval = Array.from(this.config.activeCandleStickIntervals!.keys())[0];
             return this.markets[0];
         }
         const potentialMarkets: Array<SelectorResult> = [];
-        for (const market of markets) {
+        for (const market of this.markets) {
             for (const interval of _.intersection(market.candleStickIntervals,
                 Array.from(this.config.activeCandleStickIntervals!.keys()))) {
-                const selectorResult = this.marketSelector.isMarketEligible(this.config, this.state, market, interval);
+                const selectorResult = this.marketSelector.isMarketEligible(this.state, market, interval);
                 if (selectorResult) {
                     log.debug("Added potential market %O with interval %O", market.symbol, interval);
                     potentialMarkets.push(selectorResult);
@@ -346,17 +329,6 @@ export class MountainSeekerV2 implements BaseStrategy {
      * First tries to cancel the stop limit order and then tries to sell {@link Market.targetAsset}
      */
     private async abort(): Promise<void> {
-        if (this.latestSellStopLimitOrder && this.latestSellStopLimitOrder.externalId) {
-            log.debug(`Aborting - cancelling order ${JSON.stringify(this.latestSellStopLimitOrder)}`);
-            try {
-                await this.binanceConnector.cancelOrder(this.latestSellStopLimitOrder?.externalId,
-                    this.latestSellStopLimitOrder?.id, this.latestSellStopLimitOrder.originAsset,
-                    this.latestSellStopLimitOrder.targetAsset, 5);
-            } catch (e) {
-                log.error(`Error while cancelling order ${this.latestSellStopLimitOrder.externalId}: ${JSON.stringify(e)}`);
-            }
-        }
-
         if (this.amountOfTargetAssetThatWasBought !== undefined && this.amountOfTargetAssetThatWasBought !== 0) {
             log.debug(`Aborting - selling ${this.amountOfTargetAssetThatWasBought} ${this.market?.targetAsset}`);
             let sellMarketOrder;
@@ -373,9 +345,9 @@ export class MountainSeekerV2 implements BaseStrategy {
                     const decreasedAmount = NumberUtils.decreaseNumberByPercent(
                         this.amountOfTargetAssetThatWasBought, percent);
                     try {
-                        sellMarketOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
-                            decreasedAmount, true, 3,
-                            undefined, this.config.simulation);
+                        sellMarketOrder = await this.binanceConnector.createMarketOrder(this.market!.originAsset!,
+                            this.market!.targetAsset, "sell", decreasedAmount,
+                            true, 3, undefined, undefined, this.config.simulation);
                         if (sellMarketOrder) {
                             break;
                         }

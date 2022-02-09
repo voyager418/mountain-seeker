@@ -8,7 +8,7 @@ export interface Selector {
     /**
      * @return Market and some details if a trade is eligible to start or undefined otherwise
      */
-    isMarketEligible(config: any, state: any, market: Market, interval: CandlestickInterval): SelectorResult | undefined;
+    isMarketEligible(state: any, market: Market, interval: CandlestickInterval): SelectorResult | undefined;
 }
 
 export type SelectorResult = {

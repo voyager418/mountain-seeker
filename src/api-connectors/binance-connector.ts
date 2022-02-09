@@ -725,13 +725,13 @@ export class BinanceConnector {
     }
 
     /**
-     * @return `true` if order is closed or `false` otherwise
+     * @return `true` if order is closed/canceled or `false` otherwise
      */
     public async orderIsClosed(externalId: string, originAsset: Currency, targetAsset: string,
         internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean, simulation?: boolean): Promise<boolean> {
         const order = await this.getOrder(externalId, originAsset, targetAsset, internalOrderId,
             orderType, retries, verbose, simulation).catch(e => Promise.reject(e));
-        return Promise.resolve(order.status === "closed");
+        return Promise.resolve(order.status !== "open");
     }
 
     /**
@@ -766,8 +766,8 @@ export class BinanceConnector {
             } catch (e) {
                 log.warn(`Failed to cancel order : ${e}`);
                 const closedOrder = await this.getOrder(externalOrderId, originAsset, targetAsset, internalOrderId, OrderType.STOP_LIMIT, retries); // the OrderType has no importance
-                if (closedOrder.status === "closed") {
-                    log.info(`Can't cancel order ${externalOrderId} as it's already closed`);
+                if (closedOrder.status !== "open") {
+                    log.info(`Can't cancel order ${externalOrderId} as it's already ${closedOrder.status}`);
                     return Promise.resolve(closedOrder);
                 }
             }
@@ -829,6 +829,7 @@ export class BinanceConnector {
                         .catch(e => Promise.reject(e))]]);
             }
         }
+        const start = new Date();
         // If this method ends faster than around 6 seconds then we exceed the limit for binance API calls per minute
         // The tested speed with 205 markets is between 15 - 20 seconds,
         // during this time the request weight reaches around 860
@@ -839,6 +840,10 @@ export class BinanceConnector {
             getHalf(this, oneFifth * 3, oneFifth * 4),
             getHalf(this, oneFifth * 4, markets.length),
             GlobalUtils.sleep(this.configService.isSimulation() ? 0 : 6)]).catch(e => Promise.reject(e));
+        const stop = new Date();
+        if ((stop.getTime() - start.getTime())/1000 >= 30) {
+            log.warn(`Fetching candlesticks took ${(stop.getTime() - start.getTime())/1000} seconds`);
+        }
         progress.stop();
     }
 

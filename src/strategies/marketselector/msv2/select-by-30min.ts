@@ -3,14 +3,15 @@ import { CandlestickInterval } from "../../../enums/candlestick-interval.enum";
 import { SelectorResult } from "../selector.interface";
 import { StrategyUtils } from "../../../utils/strategy-utils";
 import { NumberUtils } from "../../../utils/number-utils";
-import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
 import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { cloneDeep } from 'lodash';
+import log from "../../../logging/log.instance";
 
 export class SelectBy30min {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
+    private static readonly DECISION_MINUTES = [0, 30];
 
-    static shouldSelectMarket(config: MountainSeekerV2Config, state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCV>,
+    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCV>,
         candleSticksPercentageVariations: Array<number>): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
@@ -23,22 +24,50 @@ export class SelectBy30min {
             return undefined;
         }
 
-        const tradingLoopConfig = config.activeCandleStickIntervals!.get(this.INTERVAL)!;
+        // allowed to start only 1 minute earlier or 1 minute late
+        const currentDate = new Date();
+        let timeIsOk = false;
+        const dateInFuture = new Date();
+        dateInFuture.setSeconds(dateInFuture.getSeconds() + 60);
+        const dateInPast = new Date();
+        dateInPast.setSeconds(dateInPast.getSeconds() - 61);
 
-        // allowed to start only 1 minute earlier or at defined minutes
-        const minuteOfLastCandlestick = new Date(StrategyUtils.getCandleStick(candleSticks, 0)[0]).getMinutes();
-        if (tradingLoopConfig.decisionMinutes.indexOf(new Date().getMinutes() + 1) === -1 &&
-            tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) === -1) {
+        let past = false;
+        let future = false;
+        if (!this.isADecisionMinute(currentDate.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
+            timeIsOk = true;
+            future = true;
+        }
+
+        if(!timeIsOk && this.isADecisionMinute(currentDate.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
+            timeIsOk = true;
+            past = true;
+        }
+
+        if(!timeIsOk) {
             return undefined;
         }
 
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
+        let popped = false;
+
         // to be able to use same indexes when starting earlier than defined minutes
         // because if we start earlier, there is no c0
-        if (tradingLoopConfig.decisionMinutes.indexOf(minuteOfLastCandlestick) !== -1) {
+        if (this.isADecisionMinute(currentDate.getMinutes())) {
+            popped = true;
             candlesticksCopy.pop();
             candleSticksPercentageVariationsCopy.pop();
+        }
+
+        if (popped) {
+            log.debug("popped");
+        }
+        if (future) {
+            log.debug("future");
+        }
+        if (past) {
+            log.debug("past");
         }
 
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
@@ -82,5 +111,9 @@ export class SelectBy30min {
             return undefined;
         }
         return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5] };
+    }
+
+    static isADecisionMinute(minute: number) {
+        return this.DECISION_MINUTES.indexOf(minute) !== -1;
     }
 }

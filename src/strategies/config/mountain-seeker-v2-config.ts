@@ -37,9 +37,6 @@ export type TradingLoopConfig = {
     /** Seconds to sleep after buying */
     secondsToSleepAfterTheBuy: number;
 
-    /** Minutes of the hour when the strategy is allowed to be executed */
-    decisionMinutes: Array<number>;
-
     /** Loss in percentage after which the trading will stop.
      * Example: -10 stands for a loss of -10% */
     stopTradingMaxPercentLoss: number;
