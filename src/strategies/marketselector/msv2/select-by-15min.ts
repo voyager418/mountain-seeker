@@ -60,16 +60,6 @@ export class SelectBy15min {
             candleSticksPercentageVariationsCopy.pop();
         }
 
-        if (popped) {
-            log.debug("popped");
-        }
-        if (future) {
-            log.debug("future");
-        }
-        if (past) {
-            log.debug("past");
-        }
-
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
@@ -112,6 +102,15 @@ export class SelectBy15min {
             return undefined;
         }
 
+        if (popped) {
+            log.debug("popped");
+        }
+        if (future) {
+            log.debug("future");
+        }
+        if (past) {
+            log.debug("past");
+        }
         return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5] };
     }
 

@@ -24,7 +24,7 @@ const shortUUID = require('short-uuid');
 @singleton()
 export class BinanceDataService implements Subject {
 
-    private readonly observers: Array<BaseStrategy> = [];
+    private observers: Array<BaseStrategy> = [];
     private markets: Array<Market> = [];
 
     // Default config for fetching candlesticks from Binance //
@@ -86,13 +86,12 @@ export class BinanceDataService implements Subject {
         }
     }
 
-    removeAllObservers(): { removed: number, running: number } {
-        const running = this.observers.filter(o => o.getState().marketSymbol !== undefined).length;
-        const removed = this.observers.length;
-        this.observers.splice(0);
+    removeIdleObservers(): { removed: number, running: number } {
+        const initialNumberOfObservers = this.observers.length;
+        this.observers = this.observers.filter(o => o.getState().marketSymbol !== undefined);
         return {
-            removed,
-            running
+            removed: initialNumberOfObservers - this.observers.length,
+            running: this.observers.length
         }
     }
 

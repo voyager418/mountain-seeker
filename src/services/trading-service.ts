@@ -121,7 +121,7 @@ export class TradingService {
     }
 
     public stopTrading(): any {
-        return container.resolve(BinanceDataService).removeAllObservers();
+        return container.resolve(BinanceDataService).removeIdleObservers();
     }
 
     public getStatus(): any {
