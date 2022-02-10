@@ -17,13 +17,13 @@ export class MarketSelector implements Selector {
         let shouldSelect;
         switch (interval) {
         case CandlestickInterval.FIVE_MINUTES:
-            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, true);
             break;
         case CandlestickInterval.FIFTEEN_MINUTES:
-            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, true);
             break;
         case CandlestickInterval.THIRTY_MINUTES:
-            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!);
+            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, true);
             break;
         default:
             log.error(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);

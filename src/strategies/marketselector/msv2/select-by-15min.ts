@@ -1,4 +1,4 @@
-import { Market, TOHLCV } from "../../../models/market";
+import { Market, TOHLCVF } from "../../../models/market";
 import { CandlestickInterval } from "../../../enums/candlestick-interval.enum";
 import { SelectorResult } from "../selector.interface";
 import { StrategyUtils } from "../../../utils/strategy-utils";
@@ -11,8 +11,8 @@ export class SelectBy15min {
     private static readonly INTERVAL = CandlestickInterval.FIFTEEN_MINUTES;
     private static readonly DECISION_MINUTES = [0, 15, 30, 45];
 
-    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCV>,
-        candleSticksPercentageVariations: Array<number>): SelectorResult | undefined {
+    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
+        candleSticksPercentageVariations: Array<number>, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -24,40 +24,47 @@ export class SelectBy15min {
             return undefined;
         }
 
-        // allowed to start only 45 seconds earlier or 45 seconds late
-        const currentDate = new Date();
-        let timeIsOk = false;
-        const dateInFuture = new Date();
-        dateInFuture.setSeconds(dateInFuture.getSeconds() + 45);
-        const dateInPast = new Date();
-        dateInPast.setSeconds(dateInPast.getSeconds() - 46);
-
-        let past = false;
-        let future = false;
-        if (!this.isADecisionMinute(currentDate.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
-            timeIsOk = true;
-            future = true;
-        }
-
-        if(!timeIsOk && this.isADecisionMinute(currentDate.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
-            timeIsOk = true;
-            past = true;
-        }
-
-        if(!timeIsOk) {
-            return undefined;
-        }
-
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
+        let past = false;
+        let future = false;
         let popped = false;
 
-        // to be able to use same indexes when starting earlier than defined minutes
-        // because if we start earlier, there is no c0
-        if (this.isADecisionMinute(currentDate.getMinutes())) {
-            popped = true;
-            candlesticksCopy.pop();
-            candleSticksPercentageVariationsCopy.pop();
+        // allowed to start only 45 seconds earlier or 45 seconds late
+        if (shouldValidateDates) {
+            const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
+            if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
+                // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds
+                // and if that's the case then we have an incorrect perception of the situation
+                return undefined;
+            }
+            let timeIsOk = false;
+            const dateInFuture = new Date();
+            dateInFuture.setSeconds(dateInFuture.getSeconds() + 45);
+            const dateInPast = new Date();
+            dateInPast.setSeconds(dateInPast.getSeconds() - 46);
+
+            if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
+                timeIsOk = true;
+                future = true;
+            }
+
+            if (!timeIsOk && this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
+                timeIsOk = true;
+                past = true;
+            }
+
+            if (!timeIsOk) {
+                return undefined;
+            }
+
+            // to be able to use same indexes when starting earlier than defined minutes
+            // because if we start earlier, there is no c0
+            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())) {
+                popped = true;
+                candlesticksCopy.pop();
+                candleSticksPercentageVariationsCopy.pop();
+            }
         }
 
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
