@@ -78,7 +78,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
                 log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${(e as any).stack}`);
-                await this.emailService.sendEmail(this.config.simulation ? process.env.ADMIN_MAIL! : this.account.email,
+                await this.emailService.sendEmail(this.config.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
                         account: this.account.email,
