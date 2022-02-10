@@ -1,4 +1,4 @@
-import { TOHLCV } from "../models/market";
+import { TOHLCVF } from "../models/market";
 
 
 export interface Indicator {
@@ -6,7 +6,7 @@ export interface Indicator {
     /**
      * @return {@link IndicatorOutput} object
      */
-    compute(candleSticks: Array<TOHLCV>, params?: any): IndicatorOutput<any>
+    compute(candleSticks: Array<TOHLCVF>, params?: any): IndicatorOutput<any>
 
 }
 

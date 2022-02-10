@@ -1,6 +1,6 @@
 import { Indicator, IndicatorOutput } from "./indicator.interface";
 import { singleton } from "tsyringe";
-import { TOHLCV } from "../models/market";
+import { TOHLCVF } from "../models/market";
 const ATR = require('technicalindicators').ATR;
 
 /**
@@ -9,7 +9,7 @@ const ATR = require('technicalindicators').ATR;
 @singleton()
 export class ATRIndicator implements Indicator {
 
-    compute(candleSticks: Array<TOHLCV>, params: { period: number }): IndicatorOutput<number[]> {
+    compute(candleSticks: Array<TOHLCVF>, params: { period: number }): IndicatorOutput<number[]> {
         const ATRResult = ATR.calculate({
             low: candleSticks.map(candle => candle[3]),
             high: candleSticks.map(candle => candle[2]),

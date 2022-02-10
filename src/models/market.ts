@@ -14,7 +14,7 @@ export type Market = {
 
     /** Candlesticks grouped by their interval.
      * A candlestick has the following shape : [ timestamp, open, high, low, close, volume ] */
-    candleSticks: Map<CandlestickInterval, Array<TOHLCV>>;
+    candleSticks: Map<CandlestickInterval, Array<TOHLCVF>>;
 
     /** Variations in percent for each candleStick defined in `Market.candleSticks`, grouped by the interval.
      * Each percentage variation array is ordered from oldest to more recent.
@@ -58,8 +58,8 @@ export type Market = {
     quoteOrderQtyMarketAllowed?: boolean;
 }
 
-/** [ timestamp, open, high, low, close, volume ] */
-export type TOHLCV = [number, number, number, number, number, number];
+/** [ timestamp, open, high, low, close, volume, optional fetch timestamp ] */
+export type TOHLCVF = [number, number, number, number, number, number, number?];
 
 // TODO move the methods to a utility class
 export function getCurrentCandleStickPercentageVariation(array: Array<number>): number {
@@ -68,7 +68,7 @@ export function getCurrentCandleStickPercentageVariation(array: Array<number>): 
     return array[array.length - 1];
 }
 
-export function getCandleSticksByInterval(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
+export function getCandleSticksByInterval(market: Market, interval: CandlestickInterval) : Array<TOHLCVF> {
     assert(market.candleSticks.get(interval) !== undefined, `No candlesticks found for market ${market.symbol} and interval ${interval}`);
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return market.candleSticks.get(interval)!;

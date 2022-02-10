@@ -1,6 +1,6 @@
 import { Indicator, IndicatorOutput } from "./indicator.interface";
 import { singleton } from "tsyringe";
-import { TOHLCV } from "../models/market";
+import { TOHLCVF } from "../models/market";
 import { MACDOutput } from "technicalindicators/declarations/moving_averages/MACD";
 const MACD = require('technicalindicators').MACD;
 
@@ -10,7 +10,7 @@ const MACD = require('technicalindicators').MACD;
 @singleton()
 export class MACDIndicator implements Indicator {
 
-    compute(candleSticks: Array<TOHLCV>): IndicatorOutput<MACDOutput[]> {
+    compute(candleSticks: Array<TOHLCVF>): IndicatorOutput<MACDOutput[]> {
         const macdResult = MACD.calculate({
             values: candleSticks.map(candle => candle[4]), // MACD is based on the close price
             SimpleMAOscillator: false, // when both set to false then we get similar results as in tradingview

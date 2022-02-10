@@ -8,7 +8,7 @@ import { container } from "tsyringe";
 const MACD = require('technicalindicators').MACD;
 import hmacSHA256 from 'crypto-js/hmac-sha256';
 import { Currency } from "../../src/enums/trading-currencies.enum";
-import { Market, TOHLCV } from "../../src//models/market";
+import { Market, TOHLCVF } from "../../src//models/market";
 import { CandlestickInterval } from "../../src/enums/candlestick-interval.enum";
 import { OrderType } from "../../src/enums/order-type.enum";
 import { GlobalUtils } from "../../src/utils/global-utils";

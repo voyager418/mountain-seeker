@@ -1,6 +1,6 @@
 import { Indicator, IndicatorOutput } from "./indicator.interface";
 import { singleton } from "tsyringe";
-import { TOHLCV } from "../models/market";
+import { TOHLCVF } from "../models/market";
 import { spawnSync } from "child_process";
 
 /**
@@ -9,7 +9,7 @@ import { spawnSync } from "child_process";
 @singleton()
 export class SqueezeIndicator implements Indicator {
 
-    compute(candleSticks: Array<TOHLCV>): IndicatorOutput<SqueezeOutput> {
+    compute(candleSticks: Array<TOHLCVF>): IndicatorOutput<SqueezeOutput> {
         let colorsArray: Array<string>;
 
         const pythonProcess = spawnSync("python3", ["src/scripts/squeeze_indicator.py", candleSticks.toString()]);

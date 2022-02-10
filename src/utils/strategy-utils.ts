@@ -1,4 +1,4 @@
-import { getCandleSticksByInterval, Market, TOHLCV } from "../models/market";
+import { getCandleSticksByInterval, Market, TOHLCVF } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
@@ -189,7 +189,7 @@ export class StrategyUtils {
      * @param array
      * @param indexFromEnd 0 based
      */
-    static getCandleStick(array: Array<TOHLCV>, indexFromEnd: number): TOHLCV {
+    static getCandleStick(array: Array<TOHLCVF>, indexFromEnd: number): TOHLCVF {
         assert(array.length >= indexFromEnd, `Candlestick array is too short, wanted at least ${indexFromEnd} elements but got ${array.length}`);
         return array[array.length - 1 - indexFromEnd];
     }
@@ -209,7 +209,7 @@ export class StrategyUtils {
      * @param to The interval with which the new candlesticks will be created
      * @param inputCandleSticks Input candlesticks with interval of {@param from}
      */
-    private static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCV>): Array<TOHLCV> {
+    private static convert(from: CandlestickInterval, to: CandlestickInterval, inputCandleSticks: Array<TOHLCVF>): Array<TOHLCVF> {
         assert(from === CandlestickInterval.DEFAULT, `Unhandled interval ${from}.
          Can only convert from ${CandlestickInterval.DEFAULT}`);
         switch (to) {
@@ -228,9 +228,9 @@ export class StrategyUtils {
      * @param numberOfDefaultCandlesInDesiredPeriod For example to convert 30m to 4h candle sticks then this value must be
      * 8 because there are 8 30m candle sticks in 4h
      */
-    private static constructCandleSticks(inputCandleSticks: Array<TOHLCV>, numberOfDefaultCandlesInDesiredPeriod: number,
-        minutesInDefaultCandle: number): Array<TOHLCV> {
-        const res: Array<TOHLCV> = [];
+    private static constructCandleSticks(inputCandleSticks: Array<TOHLCVF>, numberOfDefaultCandlesInDesiredPeriod: number,
+        minutesInDefaultCandle: number): Array<TOHLCVF> {
+        const res: Array<TOHLCVF> = [];
 
         const minuteOfLastCandle = new Date(inputCandleSticks[inputCandleSticks.length - 1][0]).getMinutes();
         const minutesInDesiredCandle = minutesInDefaultCandle * numberOfDefaultCandlesInDesiredPeriod;
@@ -240,7 +240,7 @@ export class StrategyUtils {
 
         // constructing the latest period
         candleSticksInDesiredPeriod = inputCandleSticks.slice(inputCandleSticks.length - amountOfDefaultCandlesInLatestPeriod);
-        this.constructLargerCandle(candleSticksInDesiredPeriod, res);
+        this.constructLargerCandle(candleSticksInDesiredPeriod, res, true);
 
         for (let i = inputCandleSticks.length - 1 - amountOfDefaultCandlesInLatestPeriod; i > 0; i -= numberOfDefaultCandlesInDesiredPeriod) {
             if (i - numberOfDefaultCandlesInDesiredPeriod > 0) {
@@ -251,7 +251,7 @@ export class StrategyUtils {
         return res.reverse();
     }
 
-    private static constructLargerCandle(candleSticksInDesiredPeriod: Array<TOHLCV>, res: Array<TOHLCV>): void {
+    private static constructLargerCandle(candleSticksInDesiredPeriod: Array<TOHLCVF>, res: Array<TOHLCVF>, addFetchDate?: boolean): void {
         const firstCandle = candleSticksInDesiredPeriod[0];
         const lastCandle = candleSticksInDesiredPeriod[candleSticksInDesiredPeriod.length - 1];
 
@@ -264,8 +264,11 @@ export class StrategyUtils {
         const totalVolume = candleSticksInDesiredPeriod.map(candle => candle[5])
             .reduce((prev, current) => prev + current);
 
-        const tempCandle: TOHLCV = [firstCandle[0], firstCandle[1], highestPrice,
+        const tempCandle: TOHLCVF = [firstCandle[0], firstCandle[1], highestPrice,
             lowestPrice, lastCandle[4], totalVolume];
+        if (addFetchDate) {
+            tempCandle.push(lastCandle[6]);
+        }
         res.push(tempCandle);
     }
 
@@ -273,7 +276,7 @@ export class StrategyUtils {
      * @return the maximum % variation between the open/close in a set of candles sticks
      * i.e. the maximum change between 2 extremities of a series
      */
-    static getMaxVariation(candleSticks : Array<TOHLCV>): number {
+    static getMaxVariation(candleSticks : Array<TOHLCVF>): number {
         const highestOpen = candleSticks.map(candle => candle[1])
             .reduce((prev, current) => (prev > current ? prev : current));
         const highestClose = candleSticks.map(candle => candle[4])
@@ -287,7 +290,7 @@ export class StrategyUtils {
         return Math.abs(NumberUtils.getPercentVariation(highest, lowest));
     }
 
-    static getCandleSticksExceptLast(market: Market, interval: CandlestickInterval) : Array<TOHLCV> {
+    static getCandleSticksExceptLast(market: Market, interval: CandlestickInterval) : Array<TOHLCVF> {
         const candleSticksExceptLast = [...market.candleSticks.get(interval)!];
         candleSticksExceptLast.pop();
         return candleSticksExceptLast;

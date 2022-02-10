@@ -1,6 +1,6 @@
 import ccxt from "ccxt";
 import log from '../logging/log.instance';
-import { Market, TOHLCV } from "../models/market";
+import { Market, TOHLCVF } from "../models/market";
 import { Order } from "../models/order";
 import { Currency } from "../enums/trading-currencies.enum";
 import { OrderType } from "../enums/order-type.enum";
@@ -113,7 +113,7 @@ export class BinanceConnector {
      * @param retries Number of times that the operation will be repeated after failure
      * @return An array of candlesticks where each element has the following shape [ timestamp, open, high, low, close, volume ]
      */
-    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<TOHLCV[]> {
+    public async getCandlesticks(market: string, interval: string, numberOfCandlesticks: number, retries: number): Promise<TOHLCVF[]> {
         let candleSticks;
         while (!candleSticks && retries-- > -1) {
             try {
@@ -824,9 +824,10 @@ export class BinanceConnector {
                 const market = markets[i];
                 progress.update(++index);
                 market.candleStickIntervals.push(interval);
-                market.candleSticks = new Map([[interval,
-                    await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
-                        .catch(e => Promise.reject(e))]]);
+                const candles = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
+                    .catch(e => Promise.reject(e));
+                candles[candles.length - 1].push(new Date().getTime()); // the last candlestick contains additional fetching date timestamp
+                market.candleSticks = new Map([[interval, candles]]);
             }
         }
         const start = new Date();

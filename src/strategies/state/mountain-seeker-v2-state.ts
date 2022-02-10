@@ -1,6 +1,6 @@
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { TradingState } from "./trading-state";
-import { TOHLCV } from "../../models/market";
+import { TOHLCVF } from "../../models/market";
 
 
 export type MountainSeekerV2State = TradingState & {
@@ -16,16 +16,12 @@ export type MountainSeekerV2State = TradingState & {
     investedAmountOfBusd?: number;
     /** The amount in BUSD that was retrieved at the end of the trade */
     retrievedAmountOfBusd?: number;
-    /** The number of open positions */
-    openOrders?: number;
     /** The market price percent change last 24h */
     marketPercentChangeLast24h?: number;
     /** Last 5 candlesticks percentage variations */
     last5CandleSticksPercentageVariations?: Array<number>;
     /** Last 5 candlesticks */
-    last5CandleSticks?: Array<TOHLCV>;
-    /** Indicates whether the trading ended without problems */
-    endedWithoutErrors?: boolean;
+    last5CandleSticks?: Array<TOHLCVF>;
     /** The maximum possible percentage gain */
     runUp?: number;
     /** The maximum possible loss of the trade (without taking into account the max loss %) */
@@ -37,7 +33,7 @@ export type MountainSeekerV2State = TradingState & {
     /** Key is the name of the market, value is the date of the last finished trade.
      * This will allow to implement a logic to wait x amount of time between consecutive trades on
      * same market */
-    marketLastTradeDate?: Map<string, Date>
+    marketLastTradeDate?: Map<string, Date>; // TODO: does not work if server restarts
     /** Percent profit of previous trade */
-    profitOfPreviousTrade?: number;
+    profitOfPreviousTrade?: number; // TODO: does not work if server restarts
 }
