@@ -26,7 +26,7 @@ export class EmailService {
         });
     }
 
-    public async sendEmail(subject: string, emailText: string): Promise<void> {
+    public async sendEmail(to: string, subject: string, emailText: string): Promise<void> {
         if (!this.configService.isSimulation()) {
             let retries = 5;
             let errorMessage;
@@ -34,7 +34,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        to: process.env.ADMIN_MAIL, // list of receivers
                         subject: subject,
                         text: emailText
                     });
@@ -67,7 +67,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        to: process.env.ADMIN_MAIL, // list of receivers
                         subject: `Trading started on ${market.symbol} (${strategy.customName})`,
                         text: emailText
                     });
@@ -110,7 +110,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: process.env.RECEIVER_EMAIL_ADDRESS, // list of receivers
+                        to: process.env.ADMIN_MAIL, // list of receivers
                         subject: `Trading finished on ${market!.symbol} (${plusPrefix}${state.profitPercent}%, ${plusPrefix}${state.profitMoney} ${market.originAsset}) (${strategy.customName})`,
                         text: emailText
                     });

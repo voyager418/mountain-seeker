@@ -1,15 +1,15 @@
 import { TradingStrategy } from "../enums/trading-strategy.enum";
-import { TradingPlatform } from "../enums/trading-platform.enum";
 
 /**
  * Information about the trading strategy
  */
 export type StrategyDetails<T> = {
     type: TradingStrategy;
-    platform: TradingPlatform;
     customName?: string;
     /** Strategy config which is a union of a custom config T and a base config */
     config: T & BaseStrategyConfig;
+    /** Any custom parameters used by the strategy. For analysis purposes */
+    metadata?: any;
 }
 
 export type BaseStrategyConfig = {

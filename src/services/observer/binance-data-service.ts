@@ -63,18 +63,20 @@ export class BinanceDataService implements Subject {
             // to add markets to a DB
             // this.markets.forEach(market => this.repository.putMarket(market));
         } catch (e) {
-            log.error(`Error occurred while fetching data from Binance : ${e}`)
+            log.error(`Error occurred while fetching data from Binance : ${e}. Stacktrace: ${(e as any).stack}`)
         }
     }
 
+
     registerObserver(observer: BaseStrategy): void {
-        // TODO remove if
-        // TODO what if same account calls this multiple times?
-        if (!this.configService.isSimulation()) {
+        if (this.configService.isSimulation() && this.observers.length < 1) { // if simulation then add only 1 strategy
             this.observers.push(observer);
             return;
         }
-        if (this.observers.length < 1) { // if simulation then add only 1 strategy
+        // only 1 strategy can run per account
+        if (!this.configService.isSimulation() &&
+            !this.observers.some(o => (o.getState().accountEmail === observer.getState().accountEmail) &&
+            o.getState().accountEmail !== "simulation")) {
             this.observers.push(observer);
         }
     }

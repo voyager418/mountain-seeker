@@ -1,4 +1,4 @@
-import { Market, TOHLCV } from "../src/models/market";
+import { Market, TOHLCVF } from "../src/models/market";
 import { Order } from "../src/models/order";
 import * as fs from 'fs';
 import * as ccxt from "ccxt";
@@ -133,7 +133,7 @@ export class TestHelper {
         const firstMarket = markets[0];
 
         const candleSticks = JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.CANDLESTICKS,
-            "utf8")) as Array<TOHLCV>;
+            "utf8")) as Array<TOHLCVF>;
         const candleSticksPercentVariations = JSON.parse(fs.readFileSync(this.CURRENT_DIRECTORY_PATH + this.CANDLESTICKS_PERCENT_VARIATIONS,
             "utf8")) as Array<number>;
 

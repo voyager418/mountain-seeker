@@ -1,6 +1,5 @@
 import { StrategyDetails } from "../models/strategy-details";
 import { TradingStrategy } from "../enums/trading-strategy.enum";
-import { TradingPlatform } from "../enums/trading-platform.enum";
 import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
 import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-config";
@@ -16,7 +15,6 @@ import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 export class TradingService {
 
     private strategy: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         customName: "strat1-15-15", // based on 15min candlesticks and takes a decision every 15min
         config: {
@@ -33,7 +31,6 @@ export class TradingService {
     }
 
     private strategy4: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         customName: "strat4-5-5", // based on 5min candlesticks and takes a decision every 5min
         config: {
@@ -50,7 +47,6 @@ export class TradingService {
     }
 
     private strategy5: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         customName: "strat5-15-30", // based on 15min candlesticks and takes a decision every 15min
         config: {
@@ -67,7 +63,6 @@ export class TradingService {
     }
 
     private strategy8: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         customName: "strat8-5-10", // based on 5min candlesticks and takes a decision every 5min
         config: {
@@ -84,7 +79,6 @@ export class TradingService {
     }
 
     private strategy9: StrategyDetails<MountainSeekerV2Config> = {
-        platform: TradingPlatform.BINANCE,
         type: TradingStrategy.MSV2,
         customName: "strat9-30-30", // based on 5min candlesticks and takes a decision every 30min
         config: {
@@ -101,7 +95,7 @@ export class TradingService {
     }
 
     private account: Account = {
-        email: process.env.RECEIVER_EMAIL_ADDRESS!,
+        email: "simulation",
         maxMoneyAmount: 1000,
         apiKey: process.env.BINANCE_API_KEY,
         apiSecret: process.env.BINANCE_API_SECRET,
