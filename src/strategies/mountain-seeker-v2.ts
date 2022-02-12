@@ -73,7 +73,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
                 log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${(e as any).stack}`);
-                await this.emailService.sendEmail(this.strategy!.config.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
+                await this.emailService.sendEmail(this.account.email === "simulation" ? process.env.ADMIN_EMAIL! : this.account.email,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
                         account: this.account.email,
@@ -242,7 +242,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 const selectorResult: SelectorResult | undefined = this.marketSelector.isMarketEligible(this.state, market, activeStrategy);
                 if (selectorResult) {
                     log.debug("Added potential market %O with interval %O for strategy %O", market.symbol,
-                        this.strategy!.config.candleStickInterval, selectorResult.strategyCustomName);
+                        selectorResult.interval, selectorResult.strategyCustomName);
                     potentialMarkets.push(selectorResult);
                 }
             }
