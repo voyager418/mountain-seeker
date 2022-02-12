@@ -20,6 +20,7 @@ describe("Binance connector", () => {
     let configService: ConfigService;
     let binanceInstance: binance;
     const account: Account = {
+        activeStrategies: [],
         email: "",
         maxMoneyAmount: 1000,
         apiKey: 'api key',

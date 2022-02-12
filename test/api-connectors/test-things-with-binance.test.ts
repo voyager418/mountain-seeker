@@ -24,6 +24,7 @@ describe("Test things with Binance", () => {
     let binanceInstance: binance;
     let squeezeIndicator: SqueezeIndicator;
     const account: Account = {
+        activeStrategies: [],
         email: "",
         maxMoneyAmount: 1000,
         apiKey: 'api key',
