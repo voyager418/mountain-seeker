@@ -285,6 +285,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategyDetails!.metadata.maxVariation = marketWithLowestVariation.maxVariation;
         this.strategyDetails!.metadata.edgeVariation = marketWithLowestVariation.edgeVariation;
         this.strategyDetails!.metadata.volumeRatio = marketWithLowestVariation.volumeRatio;
+        if (marketWithLowestVariation.earlyStart) {
+            this.state.last5CandleSticksPercentageVariations?.push(0)
+            this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
+        }
         // TODO add :  this.strategyDetails?.customName = marketWithLowestVariation. ...
         return marketWithLowestVariation.market;
     }

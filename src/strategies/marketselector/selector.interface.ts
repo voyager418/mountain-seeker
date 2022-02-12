@@ -16,5 +16,6 @@ export type SelectorResult = {
     interval: CandlestickInterval,
     maxVariation?: number,
     edgeVariation?: number,
-    volumeRatio?: number
+    volumeRatio?: number,
+    earlyStart?: boolean;
 }

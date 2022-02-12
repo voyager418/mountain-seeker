@@ -128,7 +128,7 @@ export class SelectBy5min {
         if (past) {
             log.debug("past");
         }
-        return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5] };
+        return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: future };
     }
 
     static isADecisionMinute(minute: number) {
