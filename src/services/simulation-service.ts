@@ -111,8 +111,8 @@ export class SimulationService {
             const account: Account = {
                 email: "simulation",
                 maxMoneyAmount: 1000,
-                apiKey: "key",
-                apiSecret: "secret",
+                apiKey: process.env.BINANCE_API_KEY,
+                apiSecret: process.env.BINANCE_API_SECRET,
                 mailPreferences: {
                     onNewTrade: true,
                     onEndTrade: true
