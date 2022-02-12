@@ -150,9 +150,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.marketSymbol = this.market.symbol;
         this.printMarketDetails(this.market);
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
-        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(this.market,
-            this.state.selectedCandleStickInterval!).slice(-5);
-        this.state.last5CandleSticks = getCandleSticksByInterval(this.market, this.state.selectedCandleStickInterval!).slice(-5);
         log.info("Selected market %O", this.market.symbol);
 
         // 2. Fetch wallet balance and compute amount of BUSD to invest
@@ -285,6 +282,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategyDetails!.metadata.maxVariation = marketWithLowestVariation.maxVariation;
         this.strategyDetails!.metadata.edgeVariation = marketWithLowestVariation.edgeVariation;
         this.strategyDetails!.metadata.volumeRatio = marketWithLowestVariation.volumeRatio;
+        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(marketWithLowestVariation.market,
+            this.state.selectedCandleStickInterval!).slice(-5);
+        this.state.last5CandleSticks = getCandleSticksByInterval(marketWithLowestVariation.market, this.state.selectedCandleStickInterval!).slice(-5);
         if (marketWithLowestVariation.earlyStart) {
             this.state.last5CandleSticksPercentageVariations?.push(0)
             this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
