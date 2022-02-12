@@ -286,7 +286,9 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.selectedCandleStickInterval!).slice(-5);
         this.state.last5CandleSticks = getCandleSticksByInterval(marketWithLowestVariation.market, this.state.selectedCandleStickInterval!).slice(-5);
         if (marketWithLowestVariation.earlyStart) {
-            this.state.last5CandleSticksPercentageVariations?.push(0)
+            this.state.last5CandleSticksPercentageVariations.shift();
+            this.state.last5CandleSticksPercentageVariations?.push(0);
+            this.state.last5CandleSticks.shift();
             this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
         }
         // TODO add :  this.strategyDetails?.customName = marketWithLowestVariation. ...
