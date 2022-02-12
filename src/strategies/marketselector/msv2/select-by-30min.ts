@@ -12,7 +12,7 @@ export class SelectBy30min {
     private static readonly DECISION_MINUTES = [0, 30];
 
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, shouldValidateDates?: boolean): SelectorResult | undefined {
+        candleSticksPercentageVariations: Array<number>, strategyCustomName: string, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -116,7 +116,7 @@ export class SelectBy30min {
         if (past) {
             log.debug("past");
         }
-        return { market, interval: this.INTERVAL, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: future };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: future };
     }
 
     static isADecisionMinute(minute: number) {

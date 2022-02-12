@@ -1,4 +1,4 @@
-import { BaseStrategyConfig } from "../../models/strategy-details";
+import { BaseStrategyConfig } from "../../models/strategy";
 import { Currency } from "../../enums/trading-currencies.enum";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 

@@ -1,4 +1,3 @@
-import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { TradingState } from "./trading-state";
 import { TOHLCVF } from "../../models/market";
 
@@ -28,8 +27,6 @@ export type MountainSeekerV2State = TradingState & {
     drawDown?: number;
     /** Amount of Y that was bought */
     amountOfYBought?: number;
-    /** The candlestick interval that is being used by a strategy */
-    selectedCandleStickInterval?: CandlestickInterval;
     /** Key is the name of the market, value is the date of the last finished trade.
      * This will allow to implement a logic to wait x amount of time between consecutive trades on
      * same market */

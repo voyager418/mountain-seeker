@@ -1,7 +1,7 @@
 /**
  * Represents trading progress state and statistics
  */
-import { StrategyDetails } from "../../models/strategy-details";
+import { Strategy } from "../../models/strategy";
 import { MountainSeekerV2Config } from "../config/mountain-seeker-v2-config";
 
 export type TradingState = {
@@ -12,5 +12,5 @@ export type TradingState = {
     /** The market where the trading is happening */
     marketSymbol?: string;
     /** All details of the strategy that was used */
-    strategyDetails?: StrategyDetails<MountainSeekerV2Config>;
+    strategyDetails?: Strategy<MountainSeekerV2Config>;
 }

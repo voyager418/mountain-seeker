@@ -2,7 +2,7 @@ import log from "../logging/log.instance";
 import { ConfigService } from "./config-service";
 import { singleton } from "tsyringe";
 import { Market } from "../models/market";
-import { StrategyDetails } from "../models/strategy-details";
+import { Strategy } from "../models/strategy";
 import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
@@ -49,7 +49,7 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendInitialEmail(account: Account, strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
+    public async sendInitialEmail(account: Account, strategy: Strategy<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
         averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation() && account.mailPreferences.onNewTrade) {
             let emailText = "Portefeuille initial :\n";
@@ -82,7 +82,7 @@ export class EmailService {
         return Promise.resolve();
     }
 
-    public async sendFinalMail(account: Account, strategy: StrategyDetails<any>, state: MountainSeekerV2State, market: Market,
+    public async sendFinalMail(account: Account, strategy: Strategy<any>, state: MountainSeekerV2State, market: Market,
         investedAmount: number, lastOrder: Order, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation() && account.mailPreferences.onEndTrade) {

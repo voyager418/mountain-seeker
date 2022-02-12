@@ -1,4 +1,4 @@
-import { BaseStrategyConfig } from "../../models/strategy-details";
+import { BaseStrategyConfig } from "../../models/strategy";
 import { Currency } from "../../enums/trading-currencies.enum";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 
@@ -25,11 +25,8 @@ export type MountainSeekerV2Config = BaseStrategyConfig & {
      * in last 24 hours. Can be negative */
     minimumPercentFor24hVariation?: number;
 
-    /** Intervals (e.g. '1m', '15m', '1h' ...) that will be used for selecting a market and their config */
-    activeCandleStickIntervals?: Map<CandlestickInterval, TradingLoopConfig>;
-
-    /** Minimum trading volume of origin asset last 24h*/
-    minimumTradingVolumeLast24h?: number;
+    candleStickInterval: CandlestickInterval;
+    tradingLoopConfig: TradingLoopConfig;
 }
 
 /** This configuration can be different for each candlestick interval */

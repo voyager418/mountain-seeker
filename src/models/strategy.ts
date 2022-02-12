@@ -3,9 +3,9 @@ import { TradingStrategy } from "../enums/trading-strategy.enum";
 /**
  * Information about the trading strategy
  */
-export type StrategyDetails<T> = {
+export type Strategy<T> = {
     type: TradingStrategy;
-    customName?: string;
+    customName: "strat1-15-15" | "strat4-5-5" | "strat5-15-30" | "strat8-5-10" | "strat9-30-30" | string;
     /** Strategy config which is a union of a custom config T and a base config */
     config: T & BaseStrategyConfig;
     /** Any custom parameters used by the strategy. For analysis purposes */

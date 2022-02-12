@@ -1,3 +1,5 @@
+import { Strategy } from "./strategy";
+import { Currency } from "../enums/trading-currencies.enum";
 
 /**
  * Represents user's trading account
@@ -16,5 +18,12 @@ export type Account = {
     mailPreferences: {
         onNewTrade?: boolean;
         onEndTrade?: boolean;
+    }
+    activeStrategies: Array<Strategy<any>>;
+    runningState?: {
+        strategy: Strategy<any>;
+        amountOfTargetAssetThatWasBought: number
+        marketOriginAsset: Currency,
+        marketTargetAsset: string
     }
 }

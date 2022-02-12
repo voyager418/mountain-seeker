@@ -1,7 +1,7 @@
 import { BaseStrategy } from "./base-strategy.interface";
 import { Account } from "../models/account";
 import log from '../logging/log.instance';
-import { BaseStrategyConfig, StrategyDetails } from "../models/strategy-details";
+import { Strategy } from "../models/strategy";
 import { BinanceConnector } from "../api-connectors/binance-connector";
 import { getCandleSticksByInterval, getCandleSticksPercentageVariationsByInterval, Market } from "../models/market";
 import { Currency } from "../enums/trading-currencies.enum";
@@ -11,8 +11,6 @@ import { Order } from "../models/order";
 import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
 import { injectable } from "tsyringe";
-import { CandlestickInterval } from "../enums/candlestick-interval.enum";
-import * as _ from "lodash";
 import { BinanceDataService } from "../services/observer/binance-data-service";
 import { MountainSeekerV2Config, TradingLoopConfig } from "./config/mountain-seeker-v2-config";
 import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
@@ -30,11 +28,10 @@ export class MountainSeekerV2 implements BaseStrategy {
     /** If a loss of -7% or less is reached it means that something went wrong, and we abort everything */
     private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
 
-    private account: Account = { email: '', maxMoneyAmount: 0, mailPreferences: {} };
+    private account: Account = { email: '', maxMoneyAmount: 0, mailPreferences: {}, activeStrategies: [] };
     private state: MountainSeekerV2State = { id: "", accountEmail: "" };
-    private strategyDetails: StrategyDetails<any> | undefined;
+    private strategy: Strategy<MountainSeekerV2Config> | undefined;
     private markets: Array<Market> = [];
-    private config: MountainSeekerV2Config & BaseStrategyConfig = { maxMoneyToTrade: -1 };
     private market?: Market;
     private initialWalletBalance?: Map<string, number>;
     private amountOfTargetAssetThatWasBought?: number;
@@ -54,14 +51,12 @@ export class MountainSeekerV2 implements BaseStrategy {
         return this.state;
     }
 
-    public setup(account: Account, strategyDetails: StrategyDetails<MountainSeekerV2Config>): MountainSeekerV2 {
-        log.debug(`Adding new strategy ${JSON.stringify(strategyDetails)}`);
+    public setup(account: Account): MountainSeekerV2 {
         this.account = account;
         this.binanceConnector.setup(account);
-        this.strategyDetails = { ...strategyDetails, metadata: {} };
-        this.config = { ...strategyDetails.config };
         this.state.accountEmail = this.account.email;
-        this.initDefaultConfig(this.strategyDetails);
+        this.state.marketLastTradeDate = new Map<string, Date>();
+        this.state.profitOfPreviousTrade = 0;
         this.binanceDataService.registerObserver(this);
         return this;
     }
@@ -78,11 +73,11 @@ export class MountainSeekerV2 implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
                 log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${(e as any).stack}`);
-                await this.emailService.sendEmail(this.config.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
+                await this.emailService.sendEmail(this.strategy!.config.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
                         account: this.account.email,
-                        strategyDetails: this.strategyDetails,
+                        strategyDetails: this.state.strategyDetails,
                         uniqueID: this.state.id
                     }, GlobalUtils.replacer, 4));
             }
@@ -92,14 +87,14 @@ export class MountainSeekerV2 implements BaseStrategy {
     private prepareForNextTrade(): void {
         if (this.state.marketSymbol) {
             const profit = this.state.profitPercent;
-            if (!this.config.simulation! && profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+            if (!this.strategy!.config.simulation! && profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss: ${this.state.profitPercent}%`);
             }
-            if (!this.config.simulation! &&
+            if (!this.strategy!.config.simulation! &&
                 profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss during last two trades. Previous: ${this.state.profitOfPreviousTrade}%, current: ${profit}%`);
             }
-            if (!this.config.autoRestart) {
+            if (!this.strategy!.config.autoRestart) {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
@@ -107,30 +102,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state = { id: "", accountEmail: this.account.email, profitOfPreviousTrade: profit, marketLastTradeDate: this.state.marketLastTradeDate }; // resetting the state after a trade
             this.amountOfTargetAssetThatWasBought = undefined;
             this.market = undefined;
-        }
-    }
-
-    /**
-     * Set default config values
-     */
-    private initDefaultConfig(strategyDetails: StrategyDetails<MountainSeekerV2Config>) {
-        this.state.marketLastTradeDate = new Map<string, Date>();
-        this.state.profitOfPreviousTrade = 0;
-        if (!strategyDetails.config.authorizedCurrencies) {
-            this.config.authorizedCurrencies = [Currency.BUSD];
-        }
-        if (!strategyDetails.config.activeCandleStickIntervals) {
-            const configFor15min: TradingLoopConfig = {
-                secondsToSleepAfterTheBuy: 900, // 15min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 5
-            };
-            this.config.activeCandleStickIntervals = new Map([
-                [CandlestickInterval.FIFTEEN_MINUTES, configFor15min]
-            ]);
-        }
-        if (!strategyDetails.config.minimumPercentFor24hVariation) {
-            this.config.minimumPercentFor24hVariation = -1000;
         }
     }
 
@@ -146,7 +117,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             return Promise.resolve();
         }
 
-        log.debug(`Using config : ${JSON.stringify(this.strategyDetails, GlobalUtils.replacer)}`);
+        log.debug(`Using config : ${JSON.stringify(this.strategy, GlobalUtils.replacer)}`);
         this.state.marketSymbol = this.market.symbol;
         this.printMarketDetails(this.market);
         this.state.marketPercentChangeLast24h = this.market.percentChangeLast24h;
@@ -160,9 +131,16 @@ export class MountainSeekerV2 implements BaseStrategy {
         // 3. First BUY MARKET order to buy market.targetAsset
         const buyOrder = await this.createFirstMarketBuyOrder(busdAmountToInvest).catch(e => Promise.reject(e));
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
-        const tradingLoopConfig = this.config.activeCandleStickIntervals!.get(this.state.selectedCandleStickInterval!)!;
-        this.emailService.sendInitialEmail(this.account, this.strategyDetails!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
+        const tradingLoopConfig = this.strategy!.config.tradingLoopConfig;
+        this.emailService.sendInitialEmail(this.account, this.strategy!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
             this.initialWalletBalance!).then().catch(e => log.error(e));
+        this.account.runningState =  {
+            strategy: this.strategy!,
+            amountOfTargetAssetThatWasBought: buyOrder.filled,
+            marketOriginAsset: this.market.originAsset,
+            marketTargetAsset: this.market.targetAsset
+        };
+        this.dynamoDbRepository.updateAccount(this.account);
 
         // 4. Trading loop
         await this.runTradingLoop(buyOrder, tradingLoopConfig);
@@ -206,7 +184,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         log.debug("Finishing trading...");
         const sellOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset,
             this.market!.targetAsset, firstBuyOrder.filled, true, 5,
-            undefined, this.config.simulation).catch(e => Promise.reject(e));
+            undefined, this.strategy!.config.simulation).catch(e => Promise.reject(e));
 
         this.state.retrievedAmountOfBusd = sellOrder!.amountOfOriginAsset!;
         this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
@@ -215,20 +193,20 @@ export class MountainSeekerV2 implements BaseStrategy {
         const endWalletBalance = await this.binanceConnector.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
-        await this.emailService.sendFinalMail(this.account, this.strategyDetails!, this.state, this.market!,
+        await this.emailService.sendFinalMail(this.account, this.strategy!, this.state, this.market!,
             firstBuyOrder.amountOfOriginAsset!, sellOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
         const finalLog = `Final percent change : ${this.state.profitPercent}
             | State : ${JSON.stringify(this.state)}
             | Account : ${JSON.stringify(this.account.email)} 
-            | Strategy : ${JSON.stringify(this.strategyDetails)}
+            | Strategy : ${JSON.stringify(this.strategy)}
             | Market : ${JSON.stringify(this.market)}
-            | maxVariation : ${this.strategyDetails!.metadata.maxVariation?.toFixed(2)}
-            | edgeVariation : ${this.strategyDetails!.metadata.edgeVariation?.toFixed(2)} 
-            | volumeRatio : ${this.strategyDetails!.metadata.volumeRatio?.toFixed(2)}
+            | maxVariation : ${this.strategy!.metadata?.maxVariation?.toFixed(2)}
+            | edgeVariation : ${this.strategy!.metadata?.edgeVariation?.toFixed(2)} 
+            | volumeRatio : ${this.strategy!.metadata?.volumeRatio?.toFixed(2)}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
-
-        this.state.strategyDetails = this.strategyDetails;
+        this.account.runningState = undefined;
+        this.dynamoDbRepository.updateAccount(this.account);
         this.dynamoDbRepository.addState(this.state);
         return Promise.resolve();
     }
@@ -245,7 +223,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             return Promise.reject(errorMessage);
         }
         const buyOrder = await this.binanceConnector.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
-            moneyAmountToInvest, true, 5, this.config.simulation).catch(e => Promise.reject(e));
+            moneyAmountToInvest, true, 5, this.strategy!.config.simulation).catch(e => Promise.reject(e));
         this.state.investedAmountOfBusd = buyOrder.amountOfOriginAsset;
         return buyOrder;
     }
@@ -255,16 +233,16 @@ export class MountainSeekerV2 implements BaseStrategy {
      */
     private async selectMarketForTrading(): Promise<Market | undefined> {
         if (this.configService.isSimulation()) {
-            this.state.selectedCandleStickInterval = Array.from(this.config.activeCandleStickIntervals!.keys())[0];
+            this.strategy = this.account.activeStrategies[0];
             return this.markets[0];
         }
         const potentialMarkets: Array<SelectorResult> = [];
         for (const market of this.markets) {
-            for (const interval of _.intersection(market.candleStickIntervals,
-                Array.from(this.config.activeCandleStickIntervals!.keys()))) {
-                const selectorResult = this.marketSelector.isMarketEligible(this.state, market, interval);
+            for (const activeStrategy of this.account.activeStrategies) {
+                const selectorResult: SelectorResult | undefined = this.marketSelector.isMarketEligible(this.state, market, activeStrategy);
                 if (selectorResult) {
-                    log.debug("Added potential market %O with interval %O", market.symbol, interval);
+                    log.debug("Added potential market %O with interval %O for strategy %O", market.symbol,
+                        this.strategy!.config.candleStickInterval, selectorResult.strategyCustomName);
                     potentialMarkets.push(selectorResult);
                 }
             }
@@ -275,32 +253,34 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
 
         // TODO select the best among the found ones
-        const marketWithLowestVariation = potentialMarkets.reduce((prev, current) =>
+        const selectionResult = potentialMarkets.reduce((prev, current) =>
             (prev.maxVariation! < current.maxVariation! ? prev : current));
 
-        this.state.selectedCandleStickInterval = marketWithLowestVariation.interval;
-        this.strategyDetails!.metadata.maxVariation = marketWithLowestVariation.maxVariation;
-        this.strategyDetails!.metadata.edgeVariation = marketWithLowestVariation.edgeVariation;
-        this.strategyDetails!.metadata.volumeRatio = marketWithLowestVariation.volumeRatio;
-        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(marketWithLowestVariation.market,
-            this.state.selectedCandleStickInterval!).slice(-5);
-        this.state.last5CandleSticks = getCandleSticksByInterval(marketWithLowestVariation.market, this.state.selectedCandleStickInterval!).slice(-5);
-        if (marketWithLowestVariation.earlyStart) {
+        this.strategy = this.account.activeStrategies.find(s => selectionResult.strategyCustomName.startsWith(s.customName))!;
+        this.strategy.customName = selectionResult.strategyCustomName;
+        this.strategy!.metadata.maxVariation = selectionResult.maxVariation;
+        this.strategy!.metadata.edgeVariation = selectionResult.edgeVariation;
+        this.strategy!.metadata.volumeRatio = selectionResult.volumeRatio;
+        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
+            this.strategy.config.candleStickInterval!).slice(-5);
+        this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, this.strategy.config.candleStickInterval!).slice(-5);
+        this.state.strategyDetails = this.strategy;
+
+        if (selectionResult.earlyStart) {
             this.state.last5CandleSticksPercentageVariations.shift();
             this.state.last5CandleSticksPercentageVariations?.push(0);
             this.state.last5CandleSticks.shift();
             this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
         }
-        // TODO add :  this.strategyDetails?.customName = marketWithLowestVariation. ...
-        return marketWithLowestVariation.market;
+        return selectionResult.market;
     }
 
     /**
      * @return All potentially interesting markets after filtering based on various criteria
      */
     private getFilteredMarkets(): Array<Market> {
-        this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, this.config.authorizedCurrencies);
-        this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.config.ignoredMarkets);
+        this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, [Currency.BUSD]);
+        // this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.strategy!.config.ignoredMarkets);
         this.markets = StrategyUtils.filterBLVT(this.markets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
         return this.markets;
@@ -322,7 +302,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * and the max money to trade)
      */
     private computeAmountToInvest(availableAmountOfBusd: number): number {
-        return Math.min(availableAmountOfBusd, this.config.maxMoneyToTrade, this.account.maxMoneyAmount);
+        return Math.min(availableAmountOfBusd, this.strategy!.config.maxMoneyToTrade, this.account.maxMoneyAmount);
     }
 
     /**
@@ -335,7 +315,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             try {
                 sellMarketOrder = await this.binanceConnector.createMarketSellOrder(this.market!.originAsset, this.market!.targetAsset,
                     this.amountOfTargetAssetThatWasBought, true, 3,
-                    undefined, this.config.simulation);
+                    undefined, this.strategy!.config.simulation);
             } catch (e) {
                 log.error(`Error while creating market sell order : ${JSON.stringify(e)}`);
             }
@@ -347,7 +327,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                     try {
                         sellMarketOrder = await this.binanceConnector.createMarketOrder(this.market!.originAsset!,
                             this.market!.targetAsset, "sell", decreasedAmount,
-                            true, 3, undefined, undefined, this.config.simulation);
+                            true, 3, undefined, undefined, this.strategy!.config.simulation);
                         if (sellMarketOrder) {
                             break;
                         }
