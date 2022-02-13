@@ -72,7 +72,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 await this.abort();
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
-                log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${(e as any).stack}`);
+                log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${JSON.stringify((e as any).stack)}`);
                 await this.emailService.sendEmail(this.account.email === "simulation" ? process.env.ADMIN_EMAIL! : this.account.email,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
@@ -258,9 +258,10 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         this.strategy = this.account.activeStrategies.find(s => selectionResult.strategyCustomName.startsWith(s.customName))!;
         this.strategy.customName = selectionResult.strategyCustomName;
-        this.strategy!.metadata.maxVariation = selectionResult.maxVariation;
-        this.strategy!.metadata.edgeVariation = selectionResult.edgeVariation;
-        this.strategy!.metadata.volumeRatio = selectionResult.volumeRatio;
+        this.strategy.metadata = {};
+        this.strategy.metadata.maxVariation = selectionResult.maxVariation;
+        this.strategy.metadata.edgeVariation = selectionResult.edgeVariation;
+        this.strategy.metadata.volumeRatio = selectionResult.volumeRatio;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
             this.strategy.config.candleStickInterval!).slice(-5);
         this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, this.strategy.config.candleStickInterval!).slice(-5);

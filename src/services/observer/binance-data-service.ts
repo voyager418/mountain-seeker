@@ -63,7 +63,7 @@ export class BinanceDataService implements Subject {
             // to add markets to a DB
             // this.markets.forEach(market => this.repository.putMarket(market));
         } catch (e) {
-            log.error(`Error occurred while fetching data from Binance : ${e}. Stacktrace: ${(e as any).stack}`)
+            log.error(`Error occurred while fetching data from Binance : ${e}. Stacktrace: ${JSON.stringify((e as any).stack)}`)
         }
     }
 
