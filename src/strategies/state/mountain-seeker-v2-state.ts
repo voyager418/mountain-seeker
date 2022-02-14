@@ -33,4 +33,5 @@ export type MountainSeekerV2State = TradingState & {
     marketLastTradeDate?: Map<string, Date>; // TODO: does not work if server restarts
     /** Percent profit of previous trade */
     profitOfPreviousTrade?: number; // TODO: does not work if server restarts
+    endDate?: string;
 }

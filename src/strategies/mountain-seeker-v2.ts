@@ -86,6 +86,10 @@ export class MountainSeekerV2 implements BaseStrategy {
 
     private prepareForNextTrade(): void {
         if (this.state.marketSymbol) {
+            this.account.runningState = undefined;
+            this.dynamoDbRepository.updateAccount(this.account);
+            this.dynamoDbRepository.addState(this.state);
+
             const profit = this.state.profitPercent;
             if (!this.strategy!.config.simulation! && profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss: ${this.state.profitPercent}%`);
@@ -189,6 +193,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.retrievedAmountOfBusd = sellOrder!.amountOfOriginAsset!;
         this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
         this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
+        this.state.endDate = sellOrder.datetime;
 
         const endWalletBalance = await this.binanceConnector.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
             .catch(e => Promise.reject(e));
@@ -205,9 +210,6 @@ export class MountainSeekerV2 implements BaseStrategy {
             | volumeRatio : ${this.strategy!.metadata?.volumeRatio?.toFixed(2)}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
-        this.account.runningState = undefined;
-        this.dynamoDbRepository.updateAccount(this.account);
-        this.dynamoDbRepository.addState(this.state);
         return Promise.resolve();
     }
 
