@@ -32,7 +32,7 @@ export class GlobalUtils {
         const currentDate = new Date();
         let belgianHours = currentDate.toLocaleTimeString("fr-BE", { timeZone: "Europe/Brussels" });
         belgianHours = belgianHours.substr(0, belgianHours.indexOf(':'));
-        currentDate.setHours(Number(belgianHours)); // to convert amazon time to belgian
+        currentDate.setHours(Number(belgianHours) + 1); // to convert amazon time to belgian
         return currentDate;
     }
 }
