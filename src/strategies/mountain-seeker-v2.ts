@@ -258,15 +258,15 @@ export class MountainSeekerV2 implements BaseStrategy {
         const selectionResult = potentialMarkets.reduce((prev, current) =>
             (prev.maxVariation! < current.maxVariation! ? prev : current));
 
-        this.strategy = this.account.activeStrategies.find(s => selectionResult.strategyCustomName.startsWith(s.customName))!;
+        this.strategy = this.account.activeStrategies.find(s => selectionResult.strategyCustomName === s.customName)!;
         this.strategy.customName = selectionResult.strategyCustomName;
         this.strategy.metadata = {};
         this.strategy.metadata.maxVariation = selectionResult.maxVariation;
         this.strategy.metadata.edgeVariation = selectionResult.edgeVariation;
         this.strategy.metadata.volumeRatio = selectionResult.volumeRatio;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
-            this.strategy.config.candleStickInterval!).slice(-5);
-        this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, this.strategy.config.candleStickInterval!).slice(-5);
+            selectionResult.interval).slice(-5);
+        this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, selectionResult.interval).slice(-5);
         this.state.strategyDetails = this.strategy;
 
         if (selectionResult.earlyStart) {

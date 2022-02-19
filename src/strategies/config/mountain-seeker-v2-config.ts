@@ -1,6 +1,5 @@
 import { BaseStrategyConfig } from "../../models/strategy";
 import { Currency } from "../../enums/trading-currencies.enum";
-import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 
 export type MountainSeekerV2Config = BaseStrategyConfig & {
     /** The maximum amount of money (in USDT) that a strategy is allowed to use for trading. */
@@ -25,7 +24,6 @@ export type MountainSeekerV2Config = BaseStrategyConfig & {
      * in last 24 hours. Can be negative */
     minimumPercentFor24hVariation?: number;
 
-    candleStickInterval: CandlestickInterval;
     tradingLoopConfig: TradingLoopConfig;
 }
 

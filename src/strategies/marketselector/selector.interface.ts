@@ -1,6 +1,6 @@
 import { Market } from "../../models/market";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
-import { Strategy } from "../../models/strategy";
+import { Strategy, StrategyName } from "../../models/strategy";
 
 /**
  * Interface for selecting a market (like a custom indicator)
@@ -15,7 +15,7 @@ export interface Selector {
 export type SelectorResult = {
     market: Market,
     interval: CandlestickInterval,
-    strategyCustomName: string,
+    strategyCustomName: StrategyName,
     maxVariation?: number,
     edgeVariation?: number,
     volumeRatio?: number,

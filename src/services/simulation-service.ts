@@ -5,7 +5,6 @@ import { container, singleton } from "tsyringe";
 import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-config";
 import { BinanceDataService } from "./observer/binance-data-service";
 import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
-import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 
 /**
@@ -16,12 +15,11 @@ export class SimulationService {
 
     private strategy: Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
-        customName: "stdrat1-15-15", // based on 15min candlesticks and takes a decision every 15min
+        customName: "strat1-15-15", // based on 15min candlesticks and takes a decision every 15min
         config: {
             maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
-            candleStickInterval: CandlestickInterval.FIFTEEN_MINUTES,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 900, // 15min
                 stopTradingMaxPercentLoss: -4.8,
@@ -37,7 +35,6 @@ export class SimulationService {
             maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
-            candleStickInterval: CandlestickInterval.FIVE_MINUTES,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 300, // 5min
                 stopTradingMaxPercentLoss: -4.8,
@@ -53,7 +50,6 @@ export class SimulationService {
             maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
-            candleStickInterval: CandlestickInterval.FIFTEEN_MINUTES,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
@@ -69,7 +65,6 @@ export class SimulationService {
             maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
-            candleStickInterval: CandlestickInterval.FIVE_MINUTES,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 600, // 10min
                 stopTradingMaxPercentLoss: -4.8,
@@ -85,25 +80,12 @@ export class SimulationService {
             maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
-            candleStickInterval: CandlestickInterval.THIRTY_MINUTES,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2
             }
         }
-    }
-
-    private account: Account = {
-        email: "simulation",
-        maxMoneyAmount: 1000,
-        apiKey: process.env.BINANCE_API_KEY,
-        apiSecret: process.env.BINANCE_API_SECRET,
-        mailPreferences: {
-            onNewTrade: true,
-            onEndTrade: true
-        },
-        activeStrategies: [this.strategy9]
     }
 
     public startSimulations(): void {

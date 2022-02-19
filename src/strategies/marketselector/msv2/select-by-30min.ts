@@ -6,13 +6,14 @@ import { NumberUtils } from "../../../utils/number-utils";
 import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { cloneDeep } from 'lodash';
 import log from "../../../logging/log.instance";
+import { StrategyName } from "../../../models/strategy";
 
 export class SelectBy30min {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
     private static readonly DECISION_MINUTES = [0, 30];
 
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: string, shouldValidateDates?: boolean): SelectorResult | undefined {
+        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {

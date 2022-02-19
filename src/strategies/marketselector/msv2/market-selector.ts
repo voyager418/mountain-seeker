@@ -17,39 +17,45 @@ export class MarketSelector implements Selector {
 
     public isMarketEligible(state: MountainSeekerV2State, market: Market, strategy: Strategy<MountainSeekerV2Config>): SelectorResult | undefined {
         let shouldSelect;
-        const interval = strategy.config.candleStickInterval;
-        switch (interval) {
-        case CandlestickInterval.FIVE_MINUTES:
-            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, strategy.customName, true);
+        switch (strategy.customName) {
+        case "strat4-5-5":
+        case "strat8-5-10":
+            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
             break;
-        case CandlestickInterval.FIFTEEN_MINUTES:
-            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, strategy.customName, true);
+        case "strat1-15-15":
+        case "strat5-15-30":
+            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!, strategy.customName, true);
             break;
-        case CandlestickInterval.THIRTY_MINUTES:
-            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(interval)!, market.candleSticksPercentageVariations.get(interval)!, strategy.customName, true);
+        case "strat9-30-30":
+            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
         default:
-            log.error(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
+            log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
         }
         if (!shouldSelect) {
             return undefined
         }
 
-        const candleSticksExceptLast = StrategyUtils.getCandleSticksExceptLast(market, interval)
-        const candleSticksPercentageVariationsExceptLast = StrategyUtils.getCandleSticksPercentVariationsExceptLast(market, interval);
+        const candleSticksExceptLast = StrategyUtils.getCandleSticksExceptLast(market, shouldSelect.interval)
+        const candleSticksPercentageVariationsExceptLast = StrategyUtils.getCandleSticksPercentVariationsExceptLast(market, shouldSelect.interval);
         let previousShouldSelect;
-        switch (interval) {
-        case CandlestickInterval.FIVE_MINUTES:
+        switch (strategy.customName) {
+        case "strat4-5-5":
+        case "strat8-5-10":
             previousShouldSelect = SelectBy5min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
-        case CandlestickInterval.FIFTEEN_MINUTES:
+        case "strat1-15-15":
+        case "strat5-15-30":
             previousShouldSelect = SelectBy15min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName,);
             break;
-        case CandlestickInterval.THIRTY_MINUTES:
+        case "strat9-30-30":
             previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName,);
             break;
         default:
-            log.error(`Unable to select a market due to unknown or unhandled candlestick interval : ${interval}`);
+            log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
         }
 
         if (!previousShouldSelect) {

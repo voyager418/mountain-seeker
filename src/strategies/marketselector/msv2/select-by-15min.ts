@@ -6,13 +6,14 @@ import { NumberUtils } from "../../../utils/number-utils";
 import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { cloneDeep } from 'lodash';
 import log from "../../../logging/log.instance";
+import { StrategyName } from "../../../models/strategy";
 
 export class SelectBy15min {
     private static readonly INTERVAL = CandlestickInterval.FIFTEEN_MINUTES;
     private static readonly DECISION_MINUTES = [0, 15, 30, 45];
 
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: string, shouldValidateDates?: boolean): SelectorResult | undefined {
+        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -71,6 +72,7 @@ export class SelectBy15min {
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
+        // TODO compare with 11 instead of 20
         const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2);
         const twentyCandlesticksExcept5 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 5, -5); // except the last 5
         const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept5);
