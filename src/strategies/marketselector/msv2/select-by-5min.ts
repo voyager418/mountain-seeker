@@ -28,8 +28,6 @@ export class SelectBy5min {
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
-        let future = false;
-        let popped = false;
 
         // allowed to start 15 seconds earlier or 40 seconds late
         if (shouldValidateDates) {
@@ -47,7 +45,6 @@ export class SelectBy5min {
 
             if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
                 timeIsOk = true;
-                future = true;
             }
 
             if (!timeIsOk && this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
@@ -61,8 +58,7 @@ export class SelectBy5min {
 
             // to be able to use same indexes when starting earlier than defined minutes
             // because if we start earlier, there is no c0
-            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())) {
-                popped = true;
+            if (past) {
                 candlesticksCopy.pop();
                 candleSticksPercentageVariationsCopy.pop();
             }
@@ -120,16 +116,11 @@ export class SelectBy5min {
         if (edgeVariation > 5) {
             return undefined;
         }
-        if (popped) {
-            log.debug("popped");
-        }
-        if (future) {
-            log.debug("future");
-        }
+
         if (past) {
-            log.debug("past");
+            log.debug("Late selection");
         }
-        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: future };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past };
     }
 
     static isADecisionMinute(minute: number) {

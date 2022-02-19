@@ -28,7 +28,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     /** If a loss of -7% or less is reached it means that something went wrong, and we abort everything */
     private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
 
-    private account: Account = { email: '', maxMoneyAmount: 0, mailPreferences: {}, activeStrategies: [] };
+    private account: Account = { apiKey: "", apiSecret: "", isActive: true, email: "", maxMoneyAmount: 0, mailPreferences: {}, activeStrategies: [] };
     private state: MountainSeekerV2State = { id: "", accountEmail: "" };
     private strategy: Strategy<MountainSeekerV2Config> | undefined;
     private markets: Array<Market> = [];

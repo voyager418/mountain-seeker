@@ -52,14 +52,14 @@ export class EmailService {
     public async sendInitialEmail(account: Account, strategy: Strategy<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
         averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation() && account.mailPreferences.onNewTrade) {
-            let emailText = "Portefeuille initial :\n";
+            let emailText = "Portefeuille initial:\n";
             for (const [key, value] of initialWalletBalance) {
-                emailText += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + ": " + value + "\n";
             }
-            emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            emailText += "Prix moyen d'achat : " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
-            emailText += `Stratégie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
-            emailText += `Unique ID : ${state.id}\n`;
+            emailText += "\nSomme investie: " + investedAmount + " " + market.originAsset + "\n";
+            emailText += "Prix moyen d'achat: " + NumberUtils.truncateNumber(averageFilledPrice, market.pricePrecision!) + " " + market.originAsset + "\n";
+            emailText += `Stratégie: ${strategy.type + (strategy.customName ? "-" + strategy.customName: "")}\n`;
+            emailText += `Unique ID: ${state.id}\n`;
 
             let retries = 5;
             let errorMessage;
@@ -86,23 +86,23 @@ export class EmailService {
         investedAmount: number, lastOrder: Order, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>): Promise<void> {
         if (!this.configService.isSimulation() && account.mailPreferences.onEndTrade) {
-            let emailText = "Portefeuille initial :\n";
+            let emailText = "Portefeuille initial:\n";
             for (const [key, value] of initialWalletBalance) {
-                emailText += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + ": " + value + "\n";
             }
-            emailText += "Portefeuille final :\n";
+            emailText += "Portefeuille final:\n";
             for (const [key, value] of endWalletBalance) {
-                emailText += "    " + key + " : " + value + "\n";
+                emailText += "    " + key + ": " + value + "\n";
             }
-            const plusPrefix = state.profitPercent! > 0 ? '+' : "";
-            emailText += "\nSomme investie : " + investedAmount + " " + market.originAsset + "\n";
-            emailText += "Somme récupérée : " + state.retrievedAmountOfBusd + " " + market.originAsset + "\n";
-            emailText += `Changement : ${plusPrefix}${state.profitPercent}%\n`;
-            emailText += `Run-up : ${state.runUp}%\n`;
-            emailText += `Drawdown : ${state.drawDown}%\n`;
-            emailText += `Date de fin : ${lastOrder.datetime}\n`;
-            emailText += `Stratégie : ${strategy.type + (strategy.customName ? "-" + strategy.customName : "")}\n`;
-            emailText += `Unique ID : ${state.id}\n`;
+            const plusPrefix = state.profitPercent! > 0 ? '+': "";
+            emailText += "\nSomme investie: " + investedAmount + " " + market.originAsset + "\n";
+            emailText += "Somme récupérée: " + state.retrievedAmountOfBusd + " " + market.originAsset + "\n";
+            emailText += `Changement: ${plusPrefix}${state.profitPercent}%\n`;
+            emailText += `Run-up: ${state.runUp}%\n`;
+            emailText += `Drawdown: ${state.drawDown}%\n`;
+            emailText += `Date de fin: ${lastOrder.datetime}\n`;
+            emailText += `Stratégie: ${strategy.type + (strategy.customName ? "-" + strategy.customName: "")}\n`;
+            emailText += `Unique ID: ${state.id}\n`;
 
             let retries = 5;
             let errorMessage;
