@@ -12,6 +12,3 @@ aws:
 
 database:
   url: 'http://localhost:8000'
-
-#todo
-resumeStrategiesOnRedeploy: true

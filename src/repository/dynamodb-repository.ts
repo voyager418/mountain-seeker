@@ -5,6 +5,7 @@ import { AWSError, DynamoDB } from "aws-sdk";
 const AWS = require("aws-sdk");
 import { Account } from "../models/account";
 import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
+import { DocumentClient } from "aws-sdk/lib/dynamodb/document_client";
 
 /**
  * Repository responsible to write data to and read data from the DynamoDB database
@@ -12,7 +13,7 @@ import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-st
 @singleton()
 export class DynamodbRepository {
     private readonly db;
-    private readonly documentClient;
+    private readonly documentClient: DocumentClient;
 
     constructor(private configService: ConfigService) {
         AWS.config.update({
@@ -26,7 +27,7 @@ export class DynamodbRepository {
         }
     }
 
-    public updateAccount(account: Account): void {
+    public async updateAccount(account: Account): Promise<void> {
         const params = {
             TableName: "Accounts",
             Item: {
@@ -34,13 +35,35 @@ export class DynamodbRepository {
                 account
             }
         };
-        this.documentClient.put(params, (err: AWSError) => {
-            if (err) {
-                log.error(`Unable to add item: ${JSON.stringify(err)}`);
-            } else {
-                log.debug("Updated account %O", account.email);
+        await this.documentClient.put(params).promise();
+        log.debug("Updated account %O", account.email);
+        return Promise.resolve();
+    }
+
+    public async getAllAccounts(): Promise<Array<Account>> {
+        const accounts: Array<Account> = [];
+        const params = {
+            TableName: "Accounts"
+        };
+        const data = await this.documentClient.scan(params).promise();
+        if (data && data.Items) {
+            data.Items.forEach(item => accounts.push(<Account> item.account));
+        }
+        return accounts;
+    }
+
+    public async getAccount(email: string): Promise<Promise<Account> | undefined> {
+        const params = {
+            TableName: "Accounts",
+            Key: {
+                email
             }
-        });
+        };
+        const data = await this.documentClient.get(params).promise();
+        if (data.Item) {
+            return data.Item.account;
+        }
+        return undefined;
     }
 
     public addState(state: MountainSeekerV2State): void {

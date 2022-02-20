@@ -4,6 +4,7 @@ const CONFIG = require('config').server;
 import log from './logging/log.instance';
 import { TradingService } from "./services/trading-service";
 import { container } from "tsyringe";
+import { SellService } from "./services/sell-service";
 import { SimulationService } from "./services/simulation-service";
 
 
@@ -27,8 +28,14 @@ server.get('/status', (req, res) =>  {
 
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);
-
-    container.resolve(SimulationService).startSimulations();
+    container.resolve(SellService).sellUnfinishedTrades()
+        .then((accounts) => {
+            container.resolve(TradingService).resumeTrading(accounts);
+            container.resolve(SimulationService).startSimulations();
+        })
+        .catch((error) => {
+            throw new Error(error);
+        });
 });
 
 

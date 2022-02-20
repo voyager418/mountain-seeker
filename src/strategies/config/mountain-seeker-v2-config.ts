@@ -2,9 +2,6 @@ import { BaseStrategyConfig } from "../../models/strategy";
 import { Currency } from "../../enums/trading-currencies.enum";
 
 export type MountainSeekerV2Config = BaseStrategyConfig & {
-    /** The maximum amount of money (in USDT) that a strategy is allowed to use for trading. */
-    maxMoneyToTrade: number;
-
     /** Markets that will be filtered out and never be selected.
      * It is an array of market symbols, for example : ["BNB/EUR", ...] */
     ignoredMarkets?: Array<string>;

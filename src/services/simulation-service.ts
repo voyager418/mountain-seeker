@@ -1,6 +1,6 @@
 import { Strategy } from "../models/strategy";
 import { TradingStrategy } from "../enums/trading-strategy.enum";
-import { Account } from "../models/account";
+import { Account, Emails } from "../models/account";
 import { container, singleton } from "tsyringe";
 import { MountainSeekerV2Config } from "../strategies/config/mountain-seeker-v2-config";
 import { BinanceDataService } from "./observer/binance-data-service";
@@ -17,7 +17,6 @@ export class SimulationService {
         type: TradingStrategy.MSV2,
         customName: "strat1-15-15", // based on 15min candlesticks and takes a decision every 15min
         config: {
-            maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
             tradingLoopConfig: {
@@ -32,7 +31,6 @@ export class SimulationService {
         type: TradingStrategy.MSV2,
         customName: "strat4-5-5", // based on 5min candlesticks and takes a decision every 5min
         config: {
-            maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
             tradingLoopConfig: {
@@ -47,7 +45,6 @@ export class SimulationService {
         type: TradingStrategy.MSV2,
         customName: "strat5-15-30", // based on 15min candlesticks and takes a decision every 15min
         config: {
-            maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
             tradingLoopConfig: {
@@ -62,7 +59,6 @@ export class SimulationService {
         type: TradingStrategy.MSV2,
         customName: "strat8-5-10", // based on 5min candlesticks and takes a decision every 5min
         config: {
-            maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
             tradingLoopConfig: {
@@ -77,7 +73,6 @@ export class SimulationService {
         type: TradingStrategy.MSV2,
         customName: "strat9-30-30", // based on 5min candlesticks and takes a decision every 30min
         config: {
-            maxMoneyToTrade: 25,
             autoRestart: true,
             simulation: true,
             tradingLoopConfig: {
@@ -91,7 +86,7 @@ export class SimulationService {
     public startSimulations(): void {
         for (const strategy of [this.strategy, this.strategy4, this.strategy5, this.strategy8, this.strategy9]) {
             const account: Account = {
-                email: "simulation",
+                email: Emails.simulation,
                 maxMoneyAmount: 1000,
                 apiKey: process.env.BINANCE_API_KEY!,
                 apiSecret: process.env.BINANCE_API_SECRET!,

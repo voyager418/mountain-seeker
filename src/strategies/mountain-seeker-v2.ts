@@ -1,5 +1,5 @@
 import { BaseStrategy } from "./base-strategy.interface";
-import { Account } from "../models/account";
+import { Account, Emails } from "../models/account";
 import log from '../logging/log.instance';
 import { Strategy } from "../models/strategy";
 import { BinanceConnector } from "../api-connectors/binance-connector";
@@ -67,13 +67,13 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.id = sessionID;
             try {
                 await this.run();
-                this.prepareForNextTrade();
+                await this.prepareForNextTrade();
             } catch (e) {
                 await this.abort();
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
                 log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${JSON.stringify((e as any).stack)}`);
-                await this.emailService.sendEmail(this.account.email === "simulation" ? process.env.ADMIN_EMAIL! : this.account.email,
+                await this.emailService.sendEmail(this.account.email === Emails.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
                         account: this.account.email,
@@ -84,10 +84,10 @@ export class MountainSeekerV2 implements BaseStrategy {
         }
     }
 
-    private prepareForNextTrade(): void {
+    private async prepareForNextTrade(): Promise<void> {
         if (this.state.marketSymbol) {
             this.account.runningState = undefined;
-            this.dynamoDbRepository.updateAccount(this.account);
+            await this.dynamoDbRepository.updateAccount(this.account);
             this.dynamoDbRepository.addState(this.state);
 
             const profit = this.state.profitPercent;
@@ -107,6 +107,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.amountOfTargetAssetThatWasBought = undefined;
             this.market = undefined;
         }
+        return Promise.resolve();
     }
 
     public async run(): Promise<void> {
@@ -119,6 +120,21 @@ export class MountainSeekerV2 implements BaseStrategy {
                 log.debug("No market was found");
             }
             return Promise.resolve();
+        }
+
+        if (this.account.email !== Emails.simulation) {
+            const updatedAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+            if (updatedAccount && !updatedAccount.isActive) {
+                log.info(`Market was found but trading was disabled for the account ${updatedAccount.email}`);
+                this.binanceDataService.removeObserver(this);
+                return Promise.resolve();
+            }
+            if (updatedAccount && updatedAccount.isActive) {
+                // In case some parameters were changed for the account.
+                // If active strategies were changed, it will be taken into account after 1 trade, this
+                // is to avoid reading from DB too often
+                this.account = updatedAccount;
+            }
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategy, GlobalUtils.replacer)}`);
@@ -137,14 +153,14 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.amountOfTargetAssetThatWasBought = buyOrder.filled;
         const tradingLoopConfig = this.strategy!.config.tradingLoopConfig;
         this.emailService.sendInitialEmail(this.account, this.strategy!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
-            this.initialWalletBalance!).then().catch(e => log.error(e));
+            this.initialWalletBalance!).catch(e => log.error(e));
         this.account.runningState =  {
             strategy: this.strategy!,
             amountOfTargetAssetThatWasBought: buyOrder.filled,
             marketOriginAsset: this.market.originAsset,
             marketTargetAsset: this.market.targetAsset
         };
-        this.dynamoDbRepository.updateAccount(this.account);
+        this.dynamoDbRepository.updateAccount(this.account).catch(e => log.error(e));
 
         // 4. Trading loop
         await this.runTradingLoop(buyOrder, tradingLoopConfig);
@@ -305,7 +321,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * and the max money to trade)
      */
     private computeAmountToInvest(availableAmountOfBusd: number): number {
-        return Math.min(availableAmountOfBusd, this.strategy!.config.maxMoneyToTrade, this.account.maxMoneyAmount);
+        return Math.min(availableAmountOfBusd, this.account.maxMoneyAmount);
     }
 
     /**

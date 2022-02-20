@@ -27,3 +27,7 @@ export type Account = {
         marketTargetAsset: string
     }
 }
+
+export enum Emails {
+    simulation = "simulation"
+}
