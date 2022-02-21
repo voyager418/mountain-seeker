@@ -8,7 +8,7 @@ import { cloneDeep } from 'lodash';
 import log from "../../../logging/log.instance";
 import { StrategyName } from "../../../models/strategy";
 
-export class SelectBy30min {
+export class Strat93030ReleaseSelector {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
     private static readonly DECISION_MINUTES = [0, 30];
 
@@ -66,6 +66,7 @@ export class SelectBy30min {
 
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
+        const volumeRatio = c1[5] / c2[5];
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
         const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2); // the 2 that had a big variation
@@ -105,13 +106,26 @@ export class SelectBy30min {
             return undefined;
         }
 
+        // aws log insights conditions
+        const shouldSelect =
+            // (c1_variation / c2_variation <= 3 and volume_ratio <= 12 and volume_ratio >= 5 and chg_24h <= 20 and edge_variation <= 5 and BUSD_volume_last_24h >= 600000)
+            (c1Variation/c2Variation <= 3 && volumeRatio <= 12 && volumeRatio >= 5 && market.percentChangeLast24h! <= 20 && edgeVariation <= 5 && market.originAssetVolumeLast24h! >= 600000)
+            // or (c1_variation / c2_variation <= 3 and max_variation <= 5 and edge_variation <= 2.5 and volume_ratio <= 4 and volume_ratio >= 1.5)
+            || (c1Variation/c2Variation <= 3 && maxVariation <= 5 && edgeVariation <= 2.5 && volumeRatio <= 4 && volumeRatio >= 1.5)
+            // or (c1_variation / c2_variation <= 5 and volume_ratio <= 11 and max_variation <= 5 and c2_variation < c1_variation and c1_variation >= 6 and chg_24h <= 22 and c1_max_var_ratio >= 1.6)
+            || (c1Variation/c2Variation <= 5 && volumeRatio <= 11 && maxVariation <= 5 && c2Variation < c1Variation && c1Variation >= 6 && market.percentChangeLast24h! <= 22 && c1Variation/maxVariation >= 1.6)
+            // or (c1_max_var_ratio >= 1.7 and volume_ratio <= 10 and edge_variation <= 5)
+            || (c1Variation/maxVariation >= 1.7 && volumeRatio <= 10 && edgeVariation <= 5);
+
+        if (!shouldSelect) {
+            return undefined;
+        }
+
         if (past) {
             log.debug("Late selection");
         }
 
-        log.debug(`Edge variation between ${twentyCandlesticksExcept5[0][4]} & ${twentyCandlesticksExcept5[twentyCandlesticksExcept5.length - 1][4]}`);
-        log.debug(`twentyCandlesticksExcept5: ${JSON.stringify(twentyCandlesticksExcept5)}`);
-        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio, earlyStart: !past };
     }
 
     static isADecisionMinute(minute: number): boolean {

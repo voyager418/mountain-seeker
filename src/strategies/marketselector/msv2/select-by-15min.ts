@@ -116,7 +116,7 @@ export class SelectBy15min {
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past };
     }
 
-    static isADecisionMinute(minute: number) {
+    static isADecisionMinute(minute: number): boolean {
         return this.DECISION_MINUTES.indexOf(minute) !== -1;
     }
 }

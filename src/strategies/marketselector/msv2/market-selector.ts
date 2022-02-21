@@ -10,6 +10,7 @@ import { SelectBy30min } from "./select-by-30min";
 import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { Strategy } from "../../../models/strategy";
 import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
+import { Strat93030ReleaseSelector } from "./strat9-30-30-release-selector";
 
 
 @singleton()
@@ -32,6 +33,11 @@ export class MarketSelector implements Selector {
             shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
+
+        case "strat9-30-30-release":
+            shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
         }
@@ -49,10 +55,14 @@ export class MarketSelector implements Selector {
             break;
         case "strat1-15-15":
         case "strat5-15-30":
-            previousShouldSelect = SelectBy15min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName,);
+            previousShouldSelect = SelectBy15min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
         case "strat9-30-30":
-            previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName,);
+            previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            break;
+
+        case "strat9-30-30-release":
+            previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);

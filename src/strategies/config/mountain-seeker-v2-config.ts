@@ -36,6 +36,9 @@ export type TradingLoopConfig = {
 
     /** Amount of seconds to sleep in the loop to monitor the price */
     priceWatchInterval: number;
+
+    /** Take profit in percent */
+    takeProfit?: number;
 }
 
 export class Strategies {
@@ -109,6 +112,20 @@ export class Strategies {
         }
     }
 
+    static readonly strat9_30_30_release : Strategy<MountainSeekerV2Config> = {
+        type: TradingStrategy.MSV2,
+        customName: "strat9-30-30-release",
+        config: {
+            autoRestart: false,
+            tradingLoopConfig: {
+                secondsToSleepAfterTheBuy: 1800, // 30min
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2,
+                takeProfit: 11.2
+            }
+        }
+    }
+
     public static getStrategy(customName: StrategyName): Strategy<MountainSeekerV2Config> {
         switch (customName) {
         case "strat1-15-15":
@@ -121,6 +138,8 @@ export class Strategies {
             return Strategies.strat8_5_10;
         case "strat9-30-30":
             return Strategies.strat9_30_30;
+        case "strat9-30-30-release":
+            return Strategies.strat9_30_30_release;
         default:
             throw new Error("Strategy not found");
         }

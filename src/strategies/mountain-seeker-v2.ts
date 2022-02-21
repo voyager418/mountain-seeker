@@ -197,6 +197,10 @@ export class MountainSeekerV2 implements BaseStrategy {
                 log.debug(`Price change is too low ${priceChange}% ! Stop price is ${stopLossPrice} while the current is ${marketUnitPrice}`);
                 break;
             }
+            if(tradingLoopConfig.takeProfit && priceChange >= tradingLoopConfig.takeProfit) {
+                log.debug(`Taking profit at ${priceChange}% with current price ${marketUnitPrice}`);
+                break;
+            }
         }
         return Promise.resolve();
     }
