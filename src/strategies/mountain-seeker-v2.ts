@@ -12,7 +12,7 @@ import { EmailService } from "../services/email-service";
 import { ConfigService } from "../services/config-service";
 import { injectable } from "tsyringe";
 import { BinanceDataService } from "../services/observer/binance-data-service";
-import { MountainSeekerV2Config, TradingLoopConfig } from "./config/mountain-seeker-v2-config";
+import { MountainSeekerV2Config, Strategies, TradingLoopConfig } from "./config/mountain-seeker-v2-config";
 import { MountainSeekerV2State } from "./state/mountain-seeker-v2-state";
 import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
@@ -87,7 +87,8 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async prepareForNextTrade(): Promise<void> {
         if (this.state.marketSymbol) {
             this.account.runningState = undefined;
-            await this.dynamoDbRepository.updateAccount(this.account);
+            const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+            await this.dynamoDbRepository.updateAccount({ ... oldAccount!, runningState: undefined });
             this.dynamoDbRepository.addState(this.state);
 
             const profit = this.state.profitPercent;
@@ -251,13 +252,13 @@ export class MountainSeekerV2 implements BaseStrategy {
      */
     private async selectMarketForTrading(): Promise<Market | undefined> {
         if (this.configService.isSimulation()) {
-            this.strategy = this.account.activeStrategies[0];
+            this.strategy = Strategies.getStrategy(this.account.activeStrategies[0]);
             return this.markets[0];
         }
         const potentialMarkets: Array<SelectorResult> = [];
         for (const market of this.markets) {
             for (const activeStrategy of this.account.activeStrategies) {
-                const selectorResult: SelectorResult | undefined = this.marketSelector.isMarketEligible(this.state, market, activeStrategy);
+                const selectorResult: SelectorResult | undefined = this.marketSelector.isMarketEligible(this.state, market, Strategies.getStrategy(activeStrategy));
                 if (selectorResult) {
                     log.debug("Added potential market %O with interval %O for strategy %O", market.symbol,
                         selectorResult.interval, selectorResult.strategyCustomName);
@@ -274,7 +275,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const selectionResult = potentialMarkets.reduce((prev, current) =>
             (prev.maxVariation! < current.maxVariation! ? prev : current));
 
-        this.strategy = this.account.activeStrategies.find(s => selectionResult.strategyCustomName === s.customName)!;
+        this.strategy = Strategies.getStrategy(this.account.activeStrategies.find(strategyName => selectionResult.strategyCustomName === strategyName)!);
         this.strategy.customName = selectionResult.strategyCustomName;
         this.strategy.metadata = {};
         this.strategy.metadata.maxVariation = selectionResult.maxVariation;

@@ -61,6 +61,7 @@ export class DynamodbRepository {
         };
         const data = await this.documentClient.get(params).promise();
         if (data.Item) {
+            log.debug(`Fetched account ${data.Item.account.email}`);
             return data.Item.account;
         }
         return undefined;

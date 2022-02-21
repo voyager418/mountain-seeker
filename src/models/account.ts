@@ -1,4 +1,4 @@
-import { Strategy } from "./strategy";
+import { Strategy, StrategyName } from "./strategy";
 import { Currency } from "../enums/trading-currencies.enum";
 
 /**
@@ -19,7 +19,7 @@ export type Account = {
         onNewTrade?: boolean;
         onEndTrade?: boolean;
     }
-    activeStrategies: Array<Strategy<any>>;
+    activeStrategies: Array<StrategyName>;
     runningState?: {
         strategy: Strategy<any>;
         amountOfTargetAssetThatWasBought: number
