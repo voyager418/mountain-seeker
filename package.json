@@ -13,7 +13,7 @@
     "test-with-coverage": "jest --coverage",
     "eslint": "eslint src/",
     "compile": "tsc",
-    "compress": "npm run compile && npm run eslint && npm run test && sh ./compress_to_zip.sh MS.zip",
+    "compress": "npm run compile && npm run eslint && npm run test && sh scripts/compress_to_zip.sh MS.zip",
     "no-master-commit": "no-master-commits -b master"
   },
   "pre-commit": [

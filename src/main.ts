@@ -16,7 +16,7 @@ server.get('/', (req, res) =>  {
     res.send('Server is up');
 });
 
-server.get('/stop', (req, res) =>  {
+server.get('/stop/all', (req, res) =>  {
     const tradingService = container.resolve(TradingService);
     res.send(tradingService.stopTrading());
 });
