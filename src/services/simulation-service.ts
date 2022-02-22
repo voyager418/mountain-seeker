@@ -21,7 +21,7 @@ export class SimulationService {
                 apiSecret: process.env.BINANCE_API_SECRET!,
                 isActive: true,
                 mailPreferences: {
-                    onNewTrade: true,
+                    onNewTrade: false,
                     onEndTrade: true
                 },
                 activeStrategies: [strategy]

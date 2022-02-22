@@ -1,5 +1,5 @@
 import { BaseStrategy } from "./base-strategy.interface";
-import { Account, Emails } from "../models/account";
+import { Account, AccountStats, Emails } from "../models/account";
 import log from '../logging/log.instance';
 import { Strategy } from "../models/strategy";
 import { BinanceConnector } from "../api-connectors/binance-connector";
@@ -73,7 +73,7 @@ export class MountainSeekerV2 implements BaseStrategy {
                 this.binanceDataService.removeObserver(this);
                 const error = new Error(e as any);
                 log.error(`Trading was aborted due to an error: ${e}. Stacktrace: ${JSON.stringify((e as any).stack)}`);
-                await this.emailService.sendEmail(this.account.email === Emails.simulation ? process.env.ADMIN_EMAIL! : this.account.email,
+                await this.emailService.sendEmail(this.account,
                     "Trading stopped...", JSON.stringify({
                         error: error.message,
                         account: this.account.email,
@@ -87,8 +87,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async prepareForNextTrade(): Promise<void> {
         if (this.state.marketSymbol) {
             this.account.runningState = undefined;
-            const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
-            await this.dynamoDbRepository.updateAccount({ ... oldAccount!, runningState: undefined });
+            await this.prepareAccountForNextTrade();
             this.dynamoDbRepository.addState(this.state);
 
             const profit = this.state.profitPercent;
@@ -109,6 +108,30 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.market = undefined;
         }
         return Promise.resolve();
+    }
+
+    /**
+     * Updates stats and resets running state
+     */
+    private async prepareAccountForNextTrade(): Promise<void> {
+        const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+        let stats: AccountStats | undefined = oldAccount?.stats;
+        if (!stats) {
+            stats = {
+                cumulativeProfitPercent: 0,
+                cumulativeProfitBUSD: 0,
+                wins: 0,
+                losses: 0
+            }
+        }
+        stats.cumulativeProfitPercent += this.state.profitPercent!;
+        stats.cumulativeProfitBUSD += this.state.profitMoney!;
+        if (this.state.profitPercent! > 0) {
+            stats.wins += 1;
+        } else {
+            stats.losses += 1;
+        }
+        return this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined });
     }
 
     public async run(): Promise<void> {

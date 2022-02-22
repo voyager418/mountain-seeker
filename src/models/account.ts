@@ -18,16 +18,24 @@ export type Account = {
     mailPreferences: {
         onNewTrade?: boolean;
         onEndTrade?: boolean;
-    }
+    };
     activeStrategies: Array<StrategyName>;
     runningState?: {
         strategy: Strategy<any>;
         amountOfTargetAssetThatWasBought: number
         marketOriginAsset: Currency,
         marketTargetAsset: string
-    }
+    };
+    stats?: AccountStats;
 }
 
 export enum Emails {
     simulation = "simulation"
+}
+
+export type AccountStats = {
+    cumulativeProfitPercent: number;
+    cumulativeProfitBUSD: number;
+    wins: number;
+    losses: number;
 }
