@@ -6,6 +6,7 @@ stop_endpoint=$aws_host/stop/all
 echo "Stopping all strategies..."
 echo "Executing GET request to $stop_endpoint"
 stop_result=$(curl -s -H "Accept: application/json" -H "Content-Type: application/json" $stop_endpoint)
+sleep 5
 echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo "Response $stop_result"
 echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
