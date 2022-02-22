@@ -116,7 +116,7 @@ export class Strategies {
         type: TradingStrategy.MSV2,
         customName: "strat9-30-30-release",
         config: {
-            autoRestart: false,
+            autoRestart: true,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
