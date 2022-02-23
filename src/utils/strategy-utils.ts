@@ -4,6 +4,7 @@ import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import assert from "assert";
 import log from '../logging/log.instance';
 import { NumberUtils } from "./number-utils";
+import { cloneDeep } from "lodash";
 
 /**
  * Utility class for strategies package
@@ -291,13 +292,13 @@ export class StrategyUtils {
     }
 
     static getCandleSticksExceptLast(market: Market, interval: CandlestickInterval) : Array<TOHLCVF> {
-        const candleSticksExceptLast = [...market.candleSticks.get(interval)!];
+        const candleSticksExceptLast = cloneDeep(market.candleSticks.get(interval)!);
         candleSticksExceptLast.pop();
         return candleSticksExceptLast;
     }
 
     static getCandleSticksPercentVariationsExceptLast(market: Market, interval: CandlestickInterval) : Array<number> {
-        const candleSticksPercentageVariationsExceptLast = [...market.candleSticksPercentageVariations.get(interval)!];
+        const candleSticksPercentageVariationsExceptLast = cloneDeep(market.candleSticksPercentageVariations.get(interval)!);
         candleSticksPercentageVariationsExceptLast.pop();
         return candleSticksPercentageVariationsExceptLast;
     }

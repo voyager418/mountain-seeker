@@ -47,6 +47,11 @@ export class MarketSelector implements Selector {
 
         const candleSticksExceptLast = StrategyUtils.getCandleSticksExceptLast(market, shouldSelect.interval)
         const candleSticksPercentageVariationsExceptLast = StrategyUtils.getCandleSticksPercentVariationsExceptLast(market, shouldSelect.interval);
+        if (!shouldSelect.earlyStart) {
+            // if we start late then we have to remove 2 candles in total
+            candleSticksExceptLast.pop();
+            candleSticksPercentageVariationsExceptLast.pop();
+        }
         let previousShouldSelect;
         switch (strategy.customName) {
         case "strat4-5-5":
