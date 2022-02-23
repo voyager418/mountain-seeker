@@ -12,6 +12,12 @@ export class SelectBy30min {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
     private static readonly DECISION_MINUTES = [0, 30];
 
+    /**
+     *      . <-- current new candle c0, but in case the decision is taken earlier c0 does not exist
+     *     | <-- big variation (c1) with a big volume (v1)
+     *    | <-- big variation (c2)
+     * _ _<-- small variations (c3 & c4)
+     */
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
         candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
