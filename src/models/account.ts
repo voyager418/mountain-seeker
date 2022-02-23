@@ -30,7 +30,7 @@ export type Account = {
 }
 
 export enum Emails {
-    simulation = "simulation"
+    SIMULATION = "simulation"
 }
 
 export type AccountStats = {

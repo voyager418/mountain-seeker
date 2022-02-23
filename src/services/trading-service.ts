@@ -28,7 +28,7 @@ export class TradingService {
      */
     public resumeTrading(accounts: Array<Account>): void {
         for (const account of accounts) {
-            if (account.isActive && account.email !== Emails.simulation &&
+            if (account.isActive && account.email !== Emails.SIMULATION &&
                 account.activeStrategies.length > 0 && !account.runningState) {
                 container.resolve(MountainSeekerV2).setup(account);
             } else {

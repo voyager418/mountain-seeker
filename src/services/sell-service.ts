@@ -19,7 +19,7 @@ export class SellService {
         const accounts = await this.dynamodbRepository.getAllAccounts();
         let error = false;
         for (const account of accounts) {
-            if (account.isActive && account.runningState && account.email !== Emails.simulation) {
+            if (account.isActive && account.runningState && account.email !== Emails.SIMULATION) {
                 log.info(`Account ${account.email} has unfinished trade: ${JSON.stringify(account.runningState)}`);
                 this.binanceConnector.setup(account);
                 try {

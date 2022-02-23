@@ -34,7 +34,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.simulation ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: subject,
                         text: emailText
                     });
@@ -67,7 +67,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.simulation ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: `Trading started on ${market.symbol} (${strategy.customName})`,
                         text: emailText
                     });
@@ -110,7 +110,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.simulation ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: `Trading finished on ${market!.symbol} (${plusPrefix}${state.profitPercent}%, ${plusPrefix}${state.profitMoney} ${market.originAsset}) (${strategy.customName})`,
                         text: emailText
                     });

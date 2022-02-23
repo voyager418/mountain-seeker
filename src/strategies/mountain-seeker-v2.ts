@@ -110,30 +110,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         return Promise.resolve();
     }
 
-    /**
-     * Updates stats and resets running state
-     */
-    private async prepareAccountForNextTrade(): Promise<void> {
-        const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
-        let stats: AccountStats | undefined = oldAccount?.stats;
-        if (!stats) {
-            stats = {
-                cumulativeProfitPercent: 0,
-                cumulativeProfitBUSD: 0,
-                wins: 0,
-                losses: 0
-            }
-        }
-        stats.cumulativeProfitPercent += this.state.profitPercent!;
-        stats.cumulativeProfitBUSD += this.state.profitMoney!;
-        if (this.state.profitPercent! > 0) {
-            stats.wins += 1;
-        } else {
-            stats.losses += 1;
-        }
-        return this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined });
-    }
-
     public async run(): Promise<void> {
         // 1. Filter and select market
         this.markets = this.getFilteredMarkets();
@@ -146,19 +122,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             return Promise.resolve();
         }
 
-        if (this.account.email !== Emails.simulation) {
-            const updatedAccount = await this.dynamoDbRepository.getAccount(this.account.email);
-            if (updatedAccount && !updatedAccount.isActive) {
-                log.info(`Market was found but trading was disabled for the account ${updatedAccount.email}`);
-                this.binanceDataService.removeObserver(this);
-                return Promise.resolve();
-            }
-            if (updatedAccount && updatedAccount.isActive) {
-                // In case some parameters were changed for the account.
-                // If active strategies were changed, it will be taken into account after 1 trade, this
-                // is to avoid reading from DB too often
-                this.account = updatedAccount;
-            }
+        if (!await this.refreshAccount()) {
+            return Promise.resolve();
         }
 
         log.debug(`Using config : ${JSON.stringify(this.strategy, GlobalUtils.replacer)}`);
@@ -393,5 +358,57 @@ export class MountainSeekerV2 implements BaseStrategy {
         } catch (e) {
             log.warn(`Failed to get market details ${e}`);
         }
+    }
+
+    /**
+     * Updates stats and resets running state
+     */
+    private async prepareAccountForNextTrade(): Promise<void> {
+        const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+        let stats: AccountStats | undefined = oldAccount?.stats;
+        if (!stats) {
+            stats = {
+                cumulativeProfitPercent: 0,
+                cumulativeProfitBUSD: 0,
+                wins: 0,
+                losses: 0
+            }
+        }
+        stats.cumulativeProfitPercent += this.state.profitPercent!;
+        stats.cumulativeProfitBUSD += this.state.profitMoney!;
+        if (this.state.profitPercent! > 0) {
+            stats.wins += 1;
+        } else {
+            stats.losses += 1;
+        }
+        return this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined });
+    }
+
+    /**
+     * Refreshes account from DB.
+     * If it is a simulation account then the active strategies defined in DB are ignored
+     * @return `false` if the account is not active anymore
+     */
+    private async refreshAccount(): Promise<boolean> {
+        const updatedAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+        if (updatedAccount && !updatedAccount.isActive) {
+            log.info(`Market was found but trading was disabled for the account ${updatedAccount.email}`);
+            this.binanceDataService.removeObserver(this);
+            return false;
+        }
+        if (updatedAccount && updatedAccount.isActive) {
+            // In case some parameters were changed for the account.
+            // If active strategies were changed, it will be taken into account after 1 trade, this
+            // is to avoid reading from DB too often
+
+            // the next "if" is needed because a simulation account mimics multiple accounts with different strategies
+            // so we should not overwrite active strategies
+            if (this.account.email === Emails.SIMULATION) {
+                this.account = { ...updatedAccount, activeStrategies: this.account.activeStrategies };
+            } else {
+                this.account = updatedAccount;
+            }
+        }
+        return true;
     }
 }

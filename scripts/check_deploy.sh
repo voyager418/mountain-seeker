@@ -10,10 +10,10 @@ echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 echo "Response $stop_result"
 echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
-#if [[ ! $stop_result =~ "removed" ]]; then
-#  echo "Something went wrong"
-#  exit 1
-#fi
+if [[ ! $stop_result =~ "removed" ]]; then
+  echo "Something went wrong"
+  exit 1
+fi
 
 # grep -o -E "\d+" matches all the numbers
 # so if input is {"running":0,"total":5} it will print 2 lines : 0 and 5

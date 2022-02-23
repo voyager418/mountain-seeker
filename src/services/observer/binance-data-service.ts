@@ -78,7 +78,7 @@ export class BinanceDataService implements Subject {
         // only 1 strategy can run per account, except if it is a simulation
         if (!this.configService.isSimulation() &&
             !this.observers.some(o => (o.getState().accountEmail === observer.getState().accountEmail) &&
-            o.getState().accountEmail !== Emails.simulation)) {
+            o.getState().accountEmail !== Emails.SIMULATION)) {
             this.observers.push(observer);
             log.info(`Added ${observer.getState().accountEmail} account for trading`);
         }
