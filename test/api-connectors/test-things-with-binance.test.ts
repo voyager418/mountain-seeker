@@ -61,7 +61,7 @@ describe("Test things with Binance", () => {
         // console.log(order);
 
         // make buy market order with amount
-        // const order = await binanceConnector.createMarketOrder(Currency.USDT, "BTCUP", "buy", 63);
+        // const order = await binanceConnector.createMarketBuyOrder(Currency.BUSD, "FLOW", 30);
         // console.log(order);
 
         // get wallet balance

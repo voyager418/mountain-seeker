@@ -15,15 +15,7 @@ export class BinanceUtils {
      * @param secret Binance API secret
      */
     static generateURL(urlBasePath: string, query: string, secret: string): string {
-        const currentDate = new Date();
-        const UTCDate = new Date(currentDate.getUTCFullYear(),
-            currentDate.getUTCMonth(),
-            currentDate.getUTCDate(),
-            currentDate.getUTCHours(),
-            currentDate.getUTCMinutes(),
-            currentDate.getUTCSeconds()
-        );
-        const queryString = `${query}&timestamp=${UTCDate.getTime()}`;
+        const queryString = `${query}&timestamp=${Date.now()}`; // do not change date timezone otherwise it will not work
         const urlPath = `${urlBasePath}?${queryString}`;
         const signature = hmacSHA256(queryString, secret).toString();
         return `${urlPath}&signature=${signature}`;
