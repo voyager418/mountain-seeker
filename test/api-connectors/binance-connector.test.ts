@@ -372,7 +372,7 @@ describe("Binance connector", () => {
                 // assert
                 expect(e).toEqual("Failed to execute buy market order on market BNB/EUR");
                 expect(axios.post).toHaveBeenCalledWith(
-                    "https://api.binance.com/api/v3/order?symbol=BNBEUR&side=BUY&type=MARKET&quoteOrderQty=25&timestamp=1600034400000&signature=d4bbfa7c90879b92174976b266fc183413c3bb4923a4d285a8f24f5a7acd2878",
+                    "https://api.binance.com/api/v3/order?symbol=BNBEUR&side=BUY&type=MARKET&quoteOrderQty=25&timestamp=1600027200000&signature=33cfa9ab24c870c1b03aebe3cb6baddfab0c315464866e88855ecca0ce46be4f",
                     undefined,
                     { "headers": { "Content-Type": "application/json", "X-MBX-APIKEY": account.apiKey } }
                 );
