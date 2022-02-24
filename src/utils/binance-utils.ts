@@ -94,7 +94,7 @@ export class BinanceUtils {
     static toBelgianDateTime(date: string): string {
         try {
             const res = new Date(date);
-            res.setHours(res.getHours() + 2);
+            res.setHours(res.getHours() + 1);
             return res.toISOString();
         } catch (e) {
             return date;

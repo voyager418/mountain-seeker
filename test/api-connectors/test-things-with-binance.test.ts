@@ -30,6 +30,8 @@ describe("Test things with Binance", () => {
         maxMoneyAmount: 1000,
         apiKey: 'api key',
         apiSecret: 'api secret',
+        // apiKey: process.env.BINANCE_API_KEY!,
+        // apiSecret: process.env.BINANCE_API_SECRET!,
         mailPreferences: {}
     }
 
@@ -52,7 +54,7 @@ describe("Test things with Binance", () => {
         // console.log(`${JSON.stringify(binanceConnector.getBinanceInstance().markets["BTCDOWN/USDT"], GlobalUtils.replacer, 4)}`);
 
         // get order
-        // const order = await binanceConnector.getOrder("260287326", Currency.USDT, "BNBUP", "123", OrderType.MARKET);
+        // const order = await binanceConnector.getOrder("37694665", Currency.BUSD, "HNT", "123", OrderType.MARKET);
 
         // make buy market order with price
         // const order = await binanceConnector.createMarketBuyOrder(Currency.USDT, "BNBUP", 40, true);

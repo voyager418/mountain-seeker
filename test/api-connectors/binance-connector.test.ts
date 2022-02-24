@@ -249,7 +249,7 @@ describe("Binance connector", () => {
                 originAsset: "EUR",
                 targetAsset: "BNB",
                 type: "MARKET",
-                datetime: "2021-05-27T13:39:24.641Z",
+                datetime: "2021-05-27T12:39:24.641Z",
                 info : {
                     fills: [
                         {
@@ -335,7 +335,7 @@ describe("Binance connector", () => {
                 originAsset: "EUR",
                 targetAsset: "BTC",
                 type: "MARKET",
-                datetime: "2021-09-26T12:42:12.185Z",
+                datetime: "2021-09-26T11:42:12.185Z",
                 info : {
                     fills: [
                         {
@@ -358,7 +358,7 @@ describe("Binance connector", () => {
         });
 
         // TODO this test fails in github
-        xtest("Should retry when order creation fails and retries are set", async() => {
+        test("Should retry when order creation fails and retries are set", async() => {
             // arrange
             mockdate.set(new Date('14 Sep 2020 00:00:00'));
             binanceConnector.getUnitPrice = jest.fn(() => Promise.resolve(310));
@@ -421,7 +421,7 @@ describe("Binance connector", () => {
                 originAsset: "EUR",
                 targetAsset: "BNB",
                 type: "STOP_LIMIT",
-                datetime: "2021-05-27T13:39:24.641Z",
+                datetime: "2021-05-27T12:39:24.641Z",
                 info : {
                     status: "FILLED",
                     type: "STOP_LOSS_LIMIT",
@@ -469,7 +469,7 @@ describe("Binance connector", () => {
                 average: 40727.25,
                 amountOfOriginAsset: 34.583544339999996,
                 status: "closed",
-                datetime: "2021-10-01T12:44:24.935Z",
+                datetime: "2021-10-01T11:44:24.935Z",
                 info: {
                     symbol: "BTCEUR",
                     orderId: "1217145293",
