@@ -6,6 +6,7 @@ import { TradingService } from "./services/trading-service";
 import { container } from "tsyringe";
 import { SellService } from "./services/sell-service";
 import { SimulationService } from "./services/simulation-service";
+import { strategyRoutes } from "./controller/strategy.controller";
 
 
 const server = express();
@@ -25,6 +26,8 @@ server.get('/status', (req, res) =>  {
     const tradingService = container.resolve(TradingService);
     res.send(tradingService.getStatus());
 });
+
+server.use(strategyRoutes);
 
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);

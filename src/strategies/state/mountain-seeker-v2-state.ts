@@ -30,7 +30,7 @@ export type MountainSeekerV2State = TradingState & {
     /** Key is the name of the market, value is the date of the last finished trade.
      * This will allow to implement a logic to wait x amount of time between consecutive trades on
      * same market */
-    marketLastTradeDate?: Map<string, Date>; // TODO: does not work if server restarts
+    marketLastTradeDate?: Map<string, Date>;
     /** Percent profit of previous trade */
     profitOfPreviousTrade?: number; // TODO: does not work if server restarts
     endDate?: string;

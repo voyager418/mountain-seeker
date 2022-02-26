@@ -27,7 +27,7 @@ export class DynamodbRepository {
         }
     }
 
-    public async updateAccount(account: Account): Promise<void> {
+    public async updateAccount(account: Account): Promise<Account> {
         const params = {
             TableName: "Accounts",
             Item: {
@@ -37,7 +37,7 @@ export class DynamodbRepository {
         };
         await this.documentClient.put(params).promise();
         log.debug("Updated account %O", account.email);
-        return Promise.resolve();
+        return Promise.resolve(account); // TODO return database response instead
     }
 
     public async getAllAccounts(): Promise<Array<Account>> {

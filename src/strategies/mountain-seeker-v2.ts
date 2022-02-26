@@ -87,7 +87,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async prepareForNextTrade(): Promise<void> {
         if (this.state.marketSymbol) {
             this.account.runningState = undefined;
-            await this.prepareAccountForNextTrade();
+            const updatedAccount = await this.prepareAccountForNextTrade();
             this.dynamoDbRepository.addState(this.state);
 
             const profit = this.state.profitPercent;
@@ -98,11 +98,11 @@ export class MountainSeekerV2 implements BaseStrategy {
                 profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
                 throw new Error(`Aborting due to a big loss during last two trades. Previous: ${this.state.profitOfPreviousTrade}%, current: ${profit}%`);
             }
-            if (!this.strategy!.config.autoRestart) {
+            if (!updatedAccount.activeStrategies.some(strat => Strategies.getStrategy(strat).config.autoRestart)) {
                 this.binanceDataService.removeObserver(this);
                 return;
             }
-            this.state.marketLastTradeDate!.set(this.state.marketSymbol, new Date());
+            this.state.marketLastTradeDate!.set(this.state.marketSymbol + this.strategy?.customName, new Date());
             this.state = { id: "", accountEmail: this.account.email, profitOfPreviousTrade: profit, marketLastTradeDate: this.state.marketLastTradeDate }; // resetting the state after a trade
             this.amountOfTargetAssetThatWasBought = undefined;
             this.market = undefined;
@@ -363,8 +363,8 @@ export class MountainSeekerV2 implements BaseStrategy {
     /**
      * Updates stats and resets running state
      */
-    private async prepareAccountForNextTrade(): Promise<void> {
-        const oldAccount = await this.dynamoDbRepository.getAccount(this.account.email);
+    private async prepareAccountForNextTrade(): Promise<Account> {
+        const oldAccount = (await this.dynamoDbRepository.getAccount(this.account.email))!;
         let stats: AccountStats | undefined = oldAccount?.stats;
         if (!stats) {
             stats = {
@@ -381,7 +381,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         } else {
             stats.losses += 1;
         }
-        return this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined });
+        let newStrategies = oldAccount.activeStrategies;
+        if (!this.strategy!.config.autoRestart && oldAccount.activeStrategies && oldAccount.activeStrategies.length > 1) {
+            newStrategies = oldAccount.activeStrategies.filter(strat => strat !== this.strategy?.customName);
+        }
+        return await this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined, activeStrategies: newStrategies });
     }
 
     /**

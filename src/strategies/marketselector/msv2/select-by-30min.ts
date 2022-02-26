@@ -21,7 +21,7 @@ export class SelectBy30min {
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
         candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
-        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol);
+        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
             return undefined;
         }

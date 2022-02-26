@@ -11,6 +11,7 @@ import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { Strategy } from "../../../models/strategy";
 import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
 import { Strat93030ReleaseSelector } from "./strat9-30-30-release-selector";
+import { Strat8510ReleaseSelector } from "./strat8-5-10-release-selector";
 
 
 @singleton()
@@ -37,6 +38,10 @@ export class MarketSelector implements Selector {
         case "strat9-30-30-release":
             shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            break;
+        case "strat8-5-10-release":
+            shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
@@ -68,6 +73,9 @@ export class MarketSelector implements Selector {
 
         case "strat9-30-30-release":
             previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            break;
+        case "strat8-5-10-release":
+            previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
