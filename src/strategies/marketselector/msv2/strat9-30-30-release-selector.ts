@@ -127,6 +127,17 @@ export class Strat93030ReleaseSelector {
             return undefined;
         }
 
+        log.debug(`c1Variation/c2Variation = ${c1Variation/c2Variation},
+            volumeRatio = ${volumeRatio},
+            maxVariation = ${maxVariation},
+            edgeVariation = ${edgeVariation},
+            market.percentChangeLast24h = ${market.percentChangeLast24h},
+            market.originAssetVolumeLast24h = ${market.originAssetVolumeLast24h!},
+            c1Variation = ${c1Variation},
+            c2Variation = ${c2Variation},
+            c1Variation/maxVariation = ${c1Variation/maxVariation}
+        `);
+
         if (past) {
             log.debug("Late selection");
         }
