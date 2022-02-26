@@ -116,8 +116,8 @@ export class Strat93030ReleaseSelector {
         const shouldSelect =
             // (c1_variation / c2_variation <= 3 and volume_ratio <= 12 and volume_ratio >= 5 and chg_24h <= 20 and edge_variation <= 5 and BUSD_volume_last_24h >= 600000 and chg_24h >= 0)
             (c1Variation/c2Variation <= 3 && volumeRatio <= 12 && volumeRatio >= 5 && market.percentChangeLast24h! <= 20 && edgeVariation <= 5 && market.originAssetVolumeLast24h! >= 600000 && market.percentChangeLast24h! >= 0)
-            // or (c1_variation / c2_variation <= 3 and max_variation <= 5 and edge_variation <= 2.5 and volume_ratio <= 4 and volume_ratio >= 1.5)
-            || (c1Variation/c2Variation <= 3 && maxVariation <= 5 && edgeVariation <= 2.5 && volumeRatio <= 4 && volumeRatio >= 1.5)
+            // or (c1_variation / c2_variation <= 3 and c1_variation / c2_variation >= 1.5 and max_variation <= 5 and edge_variation <= 2.5 and volume_ratio <= 4 and volume_ratio >= 1.5)
+            || (c1Variation/c2Variation <= 3 && c1Variation/c2Variation >= 1.5 && maxVariation <= 5 && edgeVariation <= 2.5 && volumeRatio <= 4 && volumeRatio >= 1.5)
             // or (c1_variation / c2_variation <= 5 and volume_ratio <= 11 and max_variation <= 5 and c2_variation < c1_variation and c1_variation >= 6 and chg_24h <= 22 and c1_max_var_ratio >= 1.6)
             || (c1Variation/c2Variation <= 5 && volumeRatio <= 11 && maxVariation <= 5 && c2Variation < c1Variation && c1Variation >= 6 && market.percentChangeLast24h! <= 22 && c1Variation/maxVariation >= 1.6)
             // or (c1_max_var_ratio >= 1.7 and volume_ratio <= 10 and edge_variation <= 5)
