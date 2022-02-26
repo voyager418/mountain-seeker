@@ -210,7 +210,7 @@ export class BinanceConnector {
             await axios.post(url, undefined, { headers: this.headers });
             success = true;
         } catch (e) {
-            log.warn(`Error after HTTP call when converting small amounts: ${JSON.stringify(e)}`);
+            log.warn(`Error after HTTP call when converting small amounts: ${JSON.stringify((e as any).response?.data)}. Full exception: ${JSON.stringify(e)}`);
         }
         return Promise.resolve(success);
     }
@@ -339,7 +339,7 @@ export class BinanceConnector {
                 redeemOrder = await axios.post(url, undefined, { headers: this.headers });
                 log.debug(`Response received for redeem BLVT : ${JSON.stringify(redeemOrder.data)}`)
             } catch (e) {
-                log.error(`Error when redeeming BLVT: ${JSON.stringify(e)}`);
+                log.error(`Error when redeeming BLVT: ${JSON.stringify((e as any).response?.data)}. Full exception: ${JSON.stringify(e)}`);
             }
 
             if (redeemOrder && redeemOrder.status === 200) {
@@ -416,7 +416,7 @@ export class BinanceConnector {
         try {
             binanceOrder = await axios.post(url, undefined, { headers: this.headers });
         } catch (e) {
-            log.error(`Error when creating market buy order: ${JSON.stringify(e)}`);
+            log.error(`Error when creating market buy order: ${JSON.stringify((e as any).response?.data)}. Full exception: ${JSON.stringify(e)}`);
         }
 
         if (binanceOrder && binanceOrder.status === 200) {

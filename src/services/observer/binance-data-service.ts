@@ -87,6 +87,7 @@ export class BinanceDataService implements Subject {
     removeObserver(observer: BaseStrategy): void {
         const index = this.observers.indexOf(observer, 0);
         if (index > -1) {
+            log.info(`Removing observer ${observer.getState().accountEmail}`);
             this.observers.splice(index, 1);
         }
     }
