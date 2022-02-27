@@ -387,7 +387,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (!this.strategy!.config.autoRestart && oldAccount.activeStrategies && oldAccount.activeStrategies.length > 1) {
             newStrategies = oldAccount.activeStrategies.filter(strat => strat !== this.strategy?.customName);
         }
-        return await this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined, activeStrategies: newStrategies });
+        return this.dynamoDbRepository.updateAccount({ ... oldAccount!, stats, runningState: undefined, activeStrategies: newStrategies });
     }
 
     /**
