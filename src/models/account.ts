@@ -38,4 +38,5 @@ export type AccountStats = {
     cumulativeProfitBUSD: number;
     wins: number;
     losses: number;
+    profitable: number;
 }

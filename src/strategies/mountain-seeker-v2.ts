@@ -371,7 +371,8 @@ export class MountainSeekerV2 implements BaseStrategy {
                 cumulativeProfitPercent: 0,
                 cumulativeProfitBUSD: 0,
                 wins: 0,
-                losses: 0
+                losses: 0,
+                profitable: 0
             }
         }
         stats.cumulativeProfitPercent += this.state.profitPercent!;
@@ -381,6 +382,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         } else {
             stats.losses += 1;
         }
+        stats.profitable = stats.losses === 0 ? 100 : (stats.wins === 0 ? 0 : 100 - (stats.losses/(stats.wins + stats.losses) * 100));
         let newStrategies = oldAccount.activeStrategies;
         if (!this.strategy!.config.autoRestart && oldAccount.activeStrategies && oldAccount.activeStrategies.length > 1) {
             newStrategies = oldAccount.activeStrategies.filter(strat => strat !== this.strategy?.customName);
