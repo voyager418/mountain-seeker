@@ -88,8 +88,48 @@ export class DynamodbRepository {
         });
     }
 
+    public async getUserStats(email: string): Promise<Array<any> | undefined> {
+        const params = {
+            ExpressionAttributeValues: {
+                ':accountEmail' : email
+            },
+            ExpressionAttributeNames: {
+                "#trading_state": "state"
+            },
+            FilterExpression: '#trading_state.accountEmail = :accountEmail',
+            ProjectionExpression: '#trading_state.profitPercent, #trading_state.strategyDetails.customName',
+            TableName: 'TradingStates'
+        };
+        const data = await this.documentClient.scan(params).promise();
+        if (data.Items) {
+            const resultArray: MountainSeekerV2State[] = [];
+            const res: any[] = [];
+            data.Items.forEach(function (item) {
+                resultArray.push(item.state)
+            });
+            const uniqueStrategies = [...new Set(resultArray.map(item => item.strategyDetails!.customName))];
+            for (const strategy of uniqueStrategies) {
+                const resultsByStrategy = resultArray.filter(strat => strat.strategyDetails!.customName === strategy);
+                const profit = resultsByStrategy.map(state => state.profitPercent)
+                    .reduce((sum, current) => sum! + current!, 0);
+                const wins = resultsByStrategy.filter(state => state.profitPercent! > 0).length;
+                const losses = resultsByStrategy.length - wins;
+                const profitable = losses === 0 ? 100 : (wins === 0 ? 0 : 100 - (losses/(wins + losses) * 100));
+                res.push({
+                    strategy,
+                    profit,
+                    wins,
+                    losses,
+                    profitable
+                });
+            }
+            return res;
+        }
+        return undefined;
+    }
+
     private createLocalAccountTable() {
-        if(!this.configService.isSimulation()) {
+        if(!this.configService.isSimulation() || AWS.config.endpoint.startsWith("https")) {
             return;
         }
         this.db.deleteTable({ TableName: "Accounts" }, (err: any, data: any) => {

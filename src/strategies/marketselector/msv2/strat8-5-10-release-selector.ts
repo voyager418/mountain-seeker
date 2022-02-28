@@ -19,7 +19,7 @@ export class Strat8510ReleaseSelector {
      * _ _<-- small variations (c3 & c4)
      */
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
+        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, withoutLastCandle?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -36,7 +36,7 @@ export class Strat8510ReleaseSelector {
         let past = false;
 
         // allowed to start 15 seconds earlier or 40 seconds late
-        if (shouldValidateDates) {
+        if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
                 // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds
@@ -125,7 +125,7 @@ export class Strat8510ReleaseSelector {
             return undefined;
         }
 
-        if (shouldValidateDates) {
+        if (withoutLastCandle) {
             // aws log insights conditions
             const shouldSelect =
                 // (c1_variation <= 4 and max_variation <= 1.5 and chg_24h <= 15 and BUSD_volume_last_24h >= 550000 and c2_variation >= 1.4 and c2_variation <= 5 and volume_ratio <= 8)
