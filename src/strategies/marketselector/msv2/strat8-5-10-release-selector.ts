@@ -125,33 +125,35 @@ export class Strat8510ReleaseSelector {
             return undefined;
         }
 
-        // aws log insights conditions
-        const shouldSelect =
-            // (c1_variation <= 4 and max_variation <= 1.5 and chg_24h <= 15 and BUSD_volume_last_24h >= 550000 and c2_variation >= 1.4 and c2_variation <= 5 and volume_ratio <= 8)
-            (c1Variation <= 4 && maxVariation <= 1.5 && market.percentChangeLast24h! <= 15 && market.originAssetVolumeLast24h! >= 550000 && c2Variation >= 1.4 && c2Variation <= 5 && volumeRatio <= 8)
-            // (edge_variation <= 1 and max_variation <= 1.5 and max_variation > 1 and BUSD_volume_last_24h >= 600000 and volume_ratio <= 8 and c2_variation >= 1.7)
-            || (edgeVariation <= 1 && maxVariation <= 1.5 && maxVariation > 1 && market.originAssetVolumeLast24h! >= 600000 && volumeRatio <= 8 && c2Variation >= 1.7)
-            // (max_variation <= 3 and max_variation >= 1 and edge_variation <= 1 and volume_ratio <= 8 and chg_24h <= 15 and volume_ratio >= 2.6 and c1_variation >= 2.5)
-            || (maxVariation <= 3 && maxVariation >= 1 && edgeVariation <= 1 && volumeRatio <= 8 && market.percentChangeLast24h! <= 15 && volumeRatio >= 2.6 && c1Variation >= 2.5)
-            // (c1_max_var_ratio >= 2.5 and volume_ratio >= 2 and volume_ratio <= 3 and edge_variation <= 2 and c1_variation >= 1.8)
-            || (c1MaxVarRatio >= 2.5 && volumeRatio >= 2 && volumeRatio <= 3 && edgeVariation <= 2 && c1Variation >= 1.8)
-            // (max_variation <= 3 and max_variation >= 1 and edge_variation <= 1 and volume_ratio <= 12 and chg_24h <= 15 and chg_24h > 2 and volume_ratio >= 2.9)
-            || (maxVariation <= 3 && maxVariation >= 1 && edgeVariation <= 1 && volumeRatio <= 12 && market.percentChangeLast24h! <= 15 && market.percentChangeLast24h! > 2 && volumeRatio >= 2.9)
+        if (shouldValidateDates) {
+            // aws log insights conditions
+            const shouldSelect =
+                // (c1_variation <= 4 and max_variation <= 1.5 and chg_24h <= 15 and BUSD_volume_last_24h >= 550000 and c2_variation >= 1.4 and c2_variation <= 5 and volume_ratio <= 8)
+                (c1Variation <= 4 && maxVariation <= 1.5 && market.percentChangeLast24h! <= 15 && market.originAssetVolumeLast24h! >= 550000 && c2Variation >= 1.4 && c2Variation <= 5 && volumeRatio <= 8)
+                // (edge_variation <= 1 and max_variation <= 1.5 and max_variation > 1 and BUSD_volume_last_24h >= 600000 and volume_ratio <= 8 and c2_variation >= 1.7)
+                || (edgeVariation <= 1 && maxVariation <= 1.5 && maxVariation > 1 && market.originAssetVolumeLast24h! >= 600000 && volumeRatio <= 8 && c2Variation >= 1.7)
+                // (max_variation <= 3 and max_variation >= 1 and edge_variation <= 1 and volume_ratio <= 8 and chg_24h <= 15 and volume_ratio >= 2.6 and c1_variation >= 2.5)
+                || (maxVariation <= 3 && maxVariation >= 1 && edgeVariation <= 1 && volumeRatio <= 8 && market.percentChangeLast24h! <= 15 && volumeRatio >= 2.6 && c1Variation >= 2.5)
+                // (c1_max_var_ratio >= 2.5 and volume_ratio >= 2 and volume_ratio <= 3 and edge_variation <= 2 and c1_variation >= 1.8)
+                || (c1MaxVarRatio >= 2.5 && volumeRatio >= 2 && volumeRatio <= 3 && edgeVariation <= 2 && c1Variation >= 1.8)
+                // (max_variation <= 3 and max_variation >= 1 and edge_variation <= 1 and volume_ratio <= 12 and chg_24h <= 15 and chg_24h > 2 and volume_ratio >= 2.9)
+                || (maxVariation <= 3 && maxVariation >= 1 && edgeVariation <= 1 && volumeRatio <= 12 && market.percentChangeLast24h! <= 15 && market.percentChangeLast24h! > 2 && volumeRatio >= 2.9)
 
-        if (!shouldSelect) {
-            return undefined;
+            if (!shouldSelect) {
+                return undefined;
+            }
+
+            log.debug(`c1Variation/c2Variation = ${c1Variation / c2Variation},
+                volumeRatio = ${volumeRatio},
+                maxVariation = ${maxVariation},
+                edgeVariation = ${edgeVariation},
+                market.percentChangeLast24h = ${market.percentChangeLast24h},
+                market.originAssetVolumeLast24h = ${market.originAssetVolumeLast24h!},
+                c1Variation = ${c1Variation},
+                c2Variation = ${c2Variation},
+                c1MaxVarRatio = ${c1MaxVarRatio}
+            `);
         }
-
-        log.debug(`c1Variation/c2Variation = ${c1Variation/c2Variation},
-            volumeRatio = ${volumeRatio},
-            maxVariation = ${maxVariation},
-            edgeVariation = ${edgeVariation},
-            market.percentChangeLast24h = ${market.percentChangeLast24h},
-            market.originAssetVolumeLast24h = ${market.originAssetVolumeLast24h!},
-            c1Variation = ${c1Variation},
-            c2Variation = ${c2Variation},
-            c1MaxVarRatio = ${c1MaxVarRatio}
-        `);
 
         if (past) {
             log.debug("Late selection");
