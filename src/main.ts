@@ -22,6 +22,17 @@ server.get('/stop/all', (req, res) =>  {
     res.send(tradingService.stopTrading());
 });
 
+server.get('/start/all', (req, res) =>  {
+    container.resolve(SellService).sellUnfinishedTrades()
+        .then((accounts) => {
+            container.resolve(TradingService).resumeTrading(accounts);
+            container.resolve(SimulationService).startSimulations();
+        })
+        .catch((error) => {
+            throw new Error(error);
+        });
+});
+
 server.get('/status', (req, res) =>  {
     const tradingService = container.resolve(TradingService);
     res.send(tradingService.getStatus());
