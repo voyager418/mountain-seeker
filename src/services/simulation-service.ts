@@ -12,7 +12,8 @@ import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
 export class SimulationService {
 
     public startSimulations(): void {
-        const simulationStrategies: Array<StrategyName> = ["strat1-15-15", "strat4-5-5", "strat5-15-30", "strat8-5-10", "strat9-30-30"];
+        const simulationStrategies: Array<StrategyName> = ["strat1-15-15", "strat4-5-5", "strat5-15-30",
+            "strat8-5-10", "strat9-30-30", "strat10-5-5", "strat10-5-10"];
         for (const strategy of simulationStrategies) {
             const account: Account = {
                 email: Emails.SIMULATION,
