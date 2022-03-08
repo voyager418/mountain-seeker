@@ -98,6 +98,34 @@ export class Strategies {
         }
     }
 
+    static readonly strat10_5_5 : Strategy<MountainSeekerV2Config> = {
+        type: TradingStrategy.MSV2,
+        customName: "strat10-5-5", // based on 5min candlesticks and takes a decision every 5min
+        config: {
+            autoRestart: true,
+            simulation: true,
+            tradingLoopConfig: {
+                secondsToSleepAfterTheBuy: 300, // 5min
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2
+            }
+        }
+    }
+
+    static readonly strat10_5_10 : Strategy<MountainSeekerV2Config> = {
+        type: TradingStrategy.MSV2,
+        customName: "strat10-5-10", // based on 5min candlesticks and takes a decision every 5min
+        config: {
+            autoRestart: true,
+            simulation: true,
+            tradingLoopConfig: {
+                secondsToSleepAfterTheBuy: 600, // 10min
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 2
+            }
+        }
+    }
+
     static readonly strat9_30_30 : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
         customName: "strat9-30-30", // based on 5min candlesticks and takes a decision every 30min
@@ -152,6 +180,10 @@ export class Strategies {
             return Strategies.strat8_5_10;
         case "strat9-30-30":
             return Strategies.strat9_30_30;
+        case "strat10-5-5":
+            return Strategies.strat10_5_5;
+        case "strat10-5-10":
+            return Strategies.strat10_5_10;
         case "strat9-30-30-release":
             return Strategies.strat9_30_30_release;
         case "strat8-5-10-release":
