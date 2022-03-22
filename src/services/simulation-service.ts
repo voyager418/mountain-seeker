@@ -23,7 +23,7 @@ export class SimulationService {
                 isActive: true,
                 mailPreferences: {
                     onNewTrade: false,
-                    onEndTrade: !(strategy == "strat10-5-5" || strategy == "strat10-5-10")
+                    onEndTrade: strategy === "strat9-30-30"
                 },
                 activeStrategies: [strategy]
             }
