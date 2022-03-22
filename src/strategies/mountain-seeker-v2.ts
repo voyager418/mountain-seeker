@@ -26,7 +26,8 @@ import { DynamodbRepository } from "../repository/dynamodb-repository";
 @injectable()
 export class MountainSeekerV2 implements BaseStrategy {
     /** If a loss of -7% or less is reached it means that something went wrong, and we abort everything */
-    private static MAX_LOSS_TO_ABORT_EXECUTION = -7;
+    private static CURRENT_TRADE_MAX_LOSS = -7;
+    private static LAST_TWO_TRADES_MAX_LOSS = -10;
 
     private account: Account = { apiKey: "", apiSecret: "", isActive: true, email: "", maxMoneyAmount: 0, mailPreferences: {}, activeStrategies: [] };
     private state: MountainSeekerV2State = { id: "", accountEmail: "" };
@@ -91,11 +92,11 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.dynamoDbRepository.addState(this.state);
 
             const profit = this.state.profitPercent;
-            if (!this.strategy!.config.simulation! && profit && profit <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+            if (!this.strategy!.config.simulation! && profit && profit <= MountainSeekerV2.CURRENT_TRADE_MAX_LOSS) {
                 throw new Error(`Aborting due to a big loss: ${this.state.profitPercent}%`);
             }
             if (!this.strategy!.config.simulation! &&
-                profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.MAX_LOSS_TO_ABORT_EXECUTION) {
+                profit! + this.state.profitOfPreviousTrade! <= MountainSeekerV2.LAST_TWO_TRADES_MAX_LOSS) {
                 throw new Error(`Aborting due to a big loss during last two trades. Previous: ${this.state.profitOfPreviousTrade}%, current: ${profit}%`);
             }
             if (!updatedAccount.activeStrategies.some(strat => Strategies.getStrategy(strat).config.autoRestart)) {
@@ -143,7 +144,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const tradingLoopConfig = this.strategy!.config.tradingLoopConfig;
         this.emailService.sendInitialEmail(this.account, this.strategy!, this.state, this.market, buyOrder.amountOfOriginAsset!, buyOrder.average,
             this.initialWalletBalance!).catch(e => log.error(e));
-        this.account.runningState =  {
+        this.account.runningState = {
             strategy: this.strategy!,
             amountOfTargetAssetThatWasBought: buyOrder.filled,
             marketOriginAsset: this.market.originAsset,
@@ -410,7 +411,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             // the next "if" is needed because a simulation account mimics multiple accounts with different strategies
             // so we should not overwrite active strategies
             if (this.account.email === Emails.SIMULATION) {
-                this.account = { ...updatedAccount, activeStrategies: this.account.activeStrategies };
+                this.account = { ...updatedAccount, activeStrategies: this.account.activeStrategies, mailPreferences: this.account.mailPreferences };
             } else {
                 this.account = updatedAccount;
             }
