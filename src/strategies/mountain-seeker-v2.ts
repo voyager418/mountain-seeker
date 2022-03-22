@@ -218,6 +218,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             | maxVariation : ${this.strategy!.metadata?.maxVariation?.toFixed(2)}
             | edgeVariation : ${this.strategy!.metadata?.edgeVariation?.toFixed(2)} 
             | volumeRatio : ${this.strategy!.metadata?.volumeRatio?.toFixed(2)}
+            | volumeLast5h : ${this.strategy!.metadata?.BUSDVolumeLast5h?.toFixed(2)}
+            | volumeLast10h : ${this.strategy!.metadata?.BUSDVolumeLast10h?.toFixed(2)}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
         return Promise.resolve();
@@ -274,6 +276,8 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.maxVariation = selectionResult.maxVariation;
         this.strategy.metadata.edgeVariation = selectionResult.edgeVariation;
         this.strategy.metadata.volumeRatio = selectionResult.volumeRatio;
+        this.strategy.metadata.BUSDVolumeLast5h = selectionResult.BUSDVolumeLast5h;
+        this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
             selectionResult.interval).slice(-5);
         this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, selectionResult.interval).slice(-5);

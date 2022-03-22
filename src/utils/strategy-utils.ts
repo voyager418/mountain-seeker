@@ -302,4 +302,8 @@ export class StrategyUtils {
         candleSticksPercentageVariationsExceptLast.pop();
         return candleSticksPercentageVariationsExceptLast;
     }
+
+    static getOriginAssetVolume(candles: Array<TOHLCVF>): number {
+        return candles.map(candle => candle[1] * candle[6]!).reduce((sum, current) => sum + current, 0)!;
+    }
 }

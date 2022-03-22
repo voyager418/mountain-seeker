@@ -117,10 +117,14 @@ export class SelectBy15min {
             log.debug("Late selection");
         }
 
+        const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 20 - 1, -1)); // without counting v1
+        const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 40 - 1, -1));
+
         log.debug(`Edge variation between ${twentyCandlesticksExcept5[0][4]} & ${twentyCandlesticksExcept5[twentyCandlesticksExcept5.length - 1][4]}`);
         log.debug(`twentyCandlesticksExcept5: ${JSON.stringify(twentyCandlesticksExcept5)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
-        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
+            volumeRatio: c1[5] / c2[5], earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {
