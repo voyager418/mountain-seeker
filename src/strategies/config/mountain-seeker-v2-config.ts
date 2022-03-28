@@ -149,7 +149,7 @@ export class Strategies {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 2,
-                takeProfit: 11.2
+                takeProfit: 1.6
             }
         }
     }
