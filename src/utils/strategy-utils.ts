@@ -304,6 +304,6 @@ export class StrategyUtils {
     }
 
     static getOriginAssetVolume(candles: Array<TOHLCVF>): number {
-        return candles.map(candle => candle[1] * candle[6]!).reduce((sum, current) => sum + current, 0)!;
+        return candles.map(candle => candle[1] * candle[5]!).reduce((sum, current) => sum + current, 0)!;
     }
 }
