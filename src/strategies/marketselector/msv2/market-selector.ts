@@ -13,6 +13,7 @@ import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
 import { Strat93030ReleaseSelector } from "./strat9-30-30-release-selector";
 import { Strat8510ReleaseSelector } from "./strat8-5-10-release-selector";
 import { SelectBy5minV2 } from "./select-by-5min-v2";
+import { SelectBy30minV2 } from "./select-by-30min-v2";
 
 
 @singleton()
@@ -39,6 +40,10 @@ export class MarketSelector implements Selector {
         case "strat10-5-10":
             shouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            break;
+        case "strat11-30-30":
+            shouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
 
         case "strat9-30-30-release":
@@ -79,6 +84,9 @@ export class MarketSelector implements Selector {
         case "strat10-5-5":
         case "strat10-5-10":
             previousShouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            break;
+        case "strat11-30-30":
+            previousShouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
 
         case "strat9-30-30-release":

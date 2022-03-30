@@ -182,7 +182,7 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
             if (marketUnitPrice <= stopLossPrice) {
-                // if price dropped below stop loss order price and the stop loss order is still open
+                // if price dropped by tradingLoopConfig.stopTradingMaxPercentLoss %
                 log.debug(`Price change is too low ${priceChange}% ! Stop price is ${stopLossPrice} while the current is ${marketUnitPrice}`);
                 break;
             }
