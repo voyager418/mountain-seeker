@@ -1,7 +1,6 @@
 import log from "../../logging/log.instance";
 import { ConfigService } from "../config-service";
 import { singleton } from "tsyringe";
-// import { DynamodbRepository } from "../../repository/dynamodb-repository";
 import { BinanceConnector } from "../../api-connectors/binance-connector";
 import { CandlestickInterval } from "../../enums/candlestick-interval.enum";
 import { Market } from "../../models/market";
@@ -60,9 +59,6 @@ export class BinanceDataService implements Subject {
             if (this.allObserversAreRunning() || this.observers.length === 0) {
                 await GlobalUtils.sleep(840); // 14 min
             }
-
-            // to add markets to a DB
-            // this.markets.forEach(market => this.repository.putMarket(market));
         } catch (e) {
             log.error(`Error occurred while fetching data from Binance : ${e}. Stacktrace: ${JSON.stringify((e as any).stack)}`)
         }

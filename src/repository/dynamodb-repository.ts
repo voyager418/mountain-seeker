@@ -6,6 +6,7 @@ const AWS = require("aws-sdk");
 import { Account } from "../models/account";
 import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
 import { DocumentClient } from "aws-sdk/lib/dynamodb/document_client";
+import { TradingState } from "../strategies/state/trading-state";
 
 /**
  * Repository responsible to write data to and read data from the DynamoDB database
@@ -89,7 +90,7 @@ export class DynamodbRepository {
     }
 
     public async getUserStats(email: string): Promise<Array<any> | undefined> {
-        const params = {
+        let params: DynamoDB.DocumentClient.ScanInput = {
             ExpressionAttributeValues: {
                 ':accountEmail' : email
             },
@@ -97,35 +98,98 @@ export class DynamodbRepository {
                 "#trading_state": "state"
             },
             FilterExpression: '#trading_state.accountEmail = :accountEmail',
-            ProjectionExpression: '#trading_state.profitPercent, #trading_state.strategyDetails.customName',
+            ProjectionExpression: '#trading_state.profitPercent, #trading_state.profitMoney, #trading_state.strategyDetails.customName',
             TableName: 'TradingStates'
         };
-        const data = await this.documentClient.scan(params).promise();
-        if (data.Items) {
-            const resultArray: MountainSeekerV2State[] = [];
-            const res: any[] = [];
-            data.Items.forEach(function (item) {
+        const resultArray: MountainSeekerV2State[] = [];
+        const res: any[] = [];
+        let notFinished = true;
+        while (notFinished) {
+            const data = await this.documentClient.scan(params).promise();
+            if (!data || !data.Items) {
+                break
+            }
+            data.Items!.forEach(function (item) {
                 resultArray.push(item.state)
             });
-            const uniqueStrategies = [...new Set(resultArray.map(item => item.strategyDetails!.customName))];
-            for (const strategy of uniqueStrategies) {
-                const resultsByStrategy = resultArray.filter(strat => strat.strategyDetails!.customName === strategy);
-                const profit = resultsByStrategy.map(state => state.profitPercent)
-                    .reduce((sum, current) => sum! + current!, 0);
-                const wins = resultsByStrategy.filter(state => state.profitPercent! > 0).length;
-                const losses = resultsByStrategy.length - wins;
-                const profitable = losses === 0 ? 100 : (wins === 0 ? 0 : 100 - (losses/(wins + losses) * 100));
-                res.push({
-                    strategy,
-                    profit,
-                    wins,
-                    losses,
-                    profitable
-                });
+            notFinished = data.LastEvaluatedKey !== undefined;
+            params = { ...params,
+                ExclusiveStartKey: {
+                    "id": data.LastEvaluatedKey?.id
+                }
             }
-            return res;
         }
-        return undefined;
+        const uniqueStrategies = [...new Set(resultArray.map(item => item.strategyDetails!.customName))];
+        for (const strategy of uniqueStrategies) {
+            const resultsByStrategy = resultArray.filter(strat => strat.strategyDetails!.customName === strategy);
+            const cumulativeProfitPercent = resultsByStrategy.map(state => state.profitPercent)
+                .reduce((sum, current) => sum! + current!, 0)!
+                .toFixed(2);
+            const cumulativeProfitBUSD = resultsByStrategy.map(state => state.profitMoney)
+                .reduce((sum, current) => sum! + current!, 0);
+            const wins = resultsByStrategy.filter(state => state.profitPercent! > 0).length;
+            const losses = resultsByStrategy.length - wins;
+            const profitable = losses === 0 ? 100 : (wins === 0 ? 0 : 100 - (losses/(wins + losses) * 100));
+            res.push({
+                strategy,
+                cumulativeProfitPercent: cumulativeProfitPercent + "%",
+                cumulativeProfitBUSD: `${cumulativeProfitBUSD} BUSD`,
+                wins,
+                losses,
+                profitable: profitable.toFixed(2) + "%"
+            });
+        }
+        return res;
+    }
+
+    public async getTradingStates(email: string, startDate: string, endDate: string): Promise<Array<TradingState>> {
+        let params: DynamoDB.DocumentClient.ScanInput = {
+            ExpressionAttributeValues: {
+                ':accountEmail' : email,
+                ':startDate' : startDate,
+                ':endDate' : endDate
+            },
+            ExpressionAttributeNames: {
+                "#trading_state": "state"
+            },
+            FilterExpression: '#trading_state.accountEmail = :accountEmail and #trading_state.endDate between :startDate and :endDate',
+            TableName: 'TradingStates'
+        };
+        const resultArray: MountainSeekerV2State[] = [];
+        let notFinished = true;
+        while (notFinished) {
+            const data = await this.documentClient.scan(params).promise();
+            if (!data || !data.Items) {
+                break
+            }
+            data.Items!.forEach(function (item) {
+                resultArray.push(item.state)
+            });
+            notFinished = data.LastEvaluatedKey !== undefined;
+            params = { ...params,
+                ExclusiveStartKey: {
+                    "id": data.LastEvaluatedKey?.id
+                }
+            }
+        }
+        return resultArray;
+    }
+
+    public async deleteTradingStates(email: string, startDate: string, endDate: string): Promise<number> {
+        const itemsToDelete: Array<TradingState> = await this.getTradingStates(email, startDate, endDate);
+        let deleted = 0;
+        for (const item of itemsToDelete) {
+            const params: DynamoDB.DocumentClient.DeleteItemInput = {
+                TableName: 'TradingStates',
+                Key: {
+                    id : item.id
+                }
+            };
+            await this.documentClient.delete(params).promise();
+            deleted++;
+        }
+        log.debug(`Deleted ${deleted} states`);
+        return deleted;
     }
 
     private createLocalAccountTable() {

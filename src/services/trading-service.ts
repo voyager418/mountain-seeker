@@ -17,7 +17,7 @@ export class TradingService {
         return this.binanceDataService.removeIdleObservers();
     }
 
-    public getStatus(): any {
+    public getStatus(): { total: number, running: number } {
         const total = this.binanceDataService.getTotalObservers();
         const running = this.binanceDataService.getRunningObservers();
         return { total, running };
