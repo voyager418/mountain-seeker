@@ -14,6 +14,7 @@ import { adminRoutes } from "./controller/admin.controller";
 const server = express();
 const serverPort = CONFIG.port;
 const serverHost = CONFIG.host;
+server.use(express.json())
 server.use(adminRoutes);
 server.use(statisticsRoutes);
 
