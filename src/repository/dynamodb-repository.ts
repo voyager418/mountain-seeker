@@ -133,7 +133,7 @@ export class DynamodbRepository {
             res.push({
                 strategy,
                 totalProfitPercent: totalProfitPercent + "%",
-                totalProfitBUSD: `${totalProfitBUSD} BUSD`,
+                totalProfitBUSD: totalProfitBUSD?.toFixed(2) + " BUSD",
                 wins,
                 losses,
                 profitable: profitable.toFixed(2) + "%"

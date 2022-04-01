@@ -47,7 +47,7 @@ export class Strat93030ReleaseSelector {
             const dateInFuture = new Date();
             dateInFuture.setSeconds(dateInFuture.getSeconds() + 60);
             const dateInPast = new Date();
-            dateInPast.setSeconds(dateInPast.getSeconds() - 61);
+            dateInPast.setSeconds(dateInPast.getSeconds() - 11); // if the current time is 02:30:10, 11 seconds in past wasn't a decision minute so we might start
 
             if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
                 timeIsOk = true;

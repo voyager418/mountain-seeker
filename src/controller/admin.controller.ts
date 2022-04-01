@@ -38,8 +38,9 @@ adminRoutes.get('/status', (req, res) =>  {
     res.send(tradingService.getStatus());
 });
 
-adminRoutes.get('/tradingstates/get/all', async (req, res) =>  {
-    return res.status(200).json(await dynamodbRepository.getTradingStates("abc", "2022-02-01T01:49:51.714Z", "2022-03-25T20:49:51.714Z"));
+adminRoutes.post('/tradingstates/get/all', async (req, res) =>  {
+    const body = req.body;
+    return res.status(200).json(await dynamodbRepository.getTradingStates(body.email, body.startDate, body.endDate));
 });
 
 adminRoutes.get('/tradingstates/delete', async (req, res) =>  {
