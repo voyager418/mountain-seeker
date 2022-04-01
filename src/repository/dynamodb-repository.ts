@@ -122,18 +122,18 @@ export class DynamodbRepository {
         const uniqueStrategies = [...new Set(resultArray.map(item => item.strategyDetails!.customName))];
         for (const strategy of uniqueStrategies) {
             const resultsByStrategy = resultArray.filter(strat => strat.strategyDetails!.customName === strategy);
-            const cumulativeProfitPercent = resultsByStrategy.map(state => state.profitPercent)
+            const totalProfitPercent = resultsByStrategy.map(state => state.profitPercent)
                 .reduce((sum, current) => sum! + current!, 0)!
                 .toFixed(2);
-            const cumulativeProfitBUSD = resultsByStrategy.map(state => state.profitMoney)
+            const totalProfitBUSD = resultsByStrategy.map(state => state.profitMoney)
                 .reduce((sum, current) => sum! + current!, 0);
             const wins = resultsByStrategy.filter(state => state.profitPercent! > 0).length;
             const losses = resultsByStrategy.length - wins;
             const profitable = losses === 0 ? 100 : (wins === 0 ? 0 : 100 - (losses/(wins + losses) * 100));
             res.push({
                 strategy,
-                cumulativeProfitPercent: cumulativeProfitPercent + "%",
-                cumulativeProfitBUSD: `${cumulativeProfitBUSD} BUSD`,
+                totalProfitPercent: totalProfitPercent + "%",
+                totalProfitBUSD: `${totalProfitBUSD} BUSD`,
                 wins,
                 losses,
                 profitable: profitable.toFixed(2) + "%"

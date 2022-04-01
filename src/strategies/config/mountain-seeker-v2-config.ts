@@ -154,9 +154,9 @@ export class Strategies {
         }
     }
 
-    static readonly strat9_30_30_release : Strategy<MountainSeekerV2Config> = {
+    static readonly strat9_30_30_r : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
-        customName: "strat9-30-30-release",
+        customName: "strat9-30-30-r",
         config: {
             autoRestart: true,
             tradingLoopConfig: {
@@ -168,9 +168,9 @@ export class Strategies {
         }
     }
 
-    static readonly strat8_5_10_release : Strategy<MountainSeekerV2Config> = {
+    static readonly strat8_5_10_r : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
-        customName: "strat8-5-10-release",
+        customName: "strat8-5-10-r",
         config: {
             autoRestart: true,
             tradingLoopConfig: {
@@ -201,10 +201,10 @@ export class Strategies {
         case "strat11-30-30":
             return Strategies.strat11_30_30;
 
-        case "strat9-30-30-release":
-            return Strategies.strat9_30_30_release;
-        case "strat8-5-10-release":
-            return Strategies.strat8_5_10_release;
+        case "strat9-30-30-r":
+            return Strategies.strat9_30_30_r;
+        case "strat8-5-10-r":
+            return Strategies.strat8_5_10_r;
         default:
             throw new Error("Strategy not found");
         }

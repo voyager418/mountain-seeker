@@ -46,11 +46,11 @@ export class MarketSelector implements Selector {
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
 
-        case "strat9-30-30-release":
+        case "strat9-30-30-r":
             shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
-        case "strat8-5-10-release":
+        case "strat8-5-10-r":
             shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
             break;
@@ -89,10 +89,10 @@ export class MarketSelector implements Selector {
             previousShouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
 
-        case "strat9-30-30-release":
+        case "strat9-30-30-r":
             previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
-        case "strat8-5-10-release":
+        case "strat8-5-10-r":
             previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
         default:

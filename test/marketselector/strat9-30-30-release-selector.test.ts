@@ -24,7 +24,7 @@ describe("strat9-30-30 release selector", () => {
             targetAssetPrice: 0,
             percentChangeLast24h: 3
         };
-        const res = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candlesticks, candleSticksPercentageVariations, "strat9-30-30-release", true);
+        const res = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candlesticks, candleSticksPercentageVariations, "strat9-30-30-r", true);
         expect(res).toBeUndefined();
     });
 
