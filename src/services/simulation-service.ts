@@ -11,9 +11,11 @@ import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
 @singleton()
 export class SimulationService {
 
+    constructor(private binanceDataService: BinanceDataService) {}
+
     public startSimulations(): void {
         const simulationStrategies: Array<StrategyName> = ["strat1-15-15", "strat4-5-5", "strat5-15-30",
-            "strat8-5-10", "strat9-30-30", "strat10-5-5", "strat10-5-10", "strat11-30-30"];
+            "strat8-5-10", "strat9-30-30", "strat10-5-5", "strat10-5-10", "strat11-30-30", "strat12-30-30"];
         for (const strategy of simulationStrategies) {
             const account: Account = {
                 email: Emails.SIMULATION,
@@ -32,12 +34,12 @@ export class SimulationService {
     }
 
     public stopTrading(): any {
-        return container.resolve(BinanceDataService).removeIdleObservers();
+        return this.binanceDataService.removeIdleObservers();
     }
 
     public getStatus(): any {
-        const total = container.resolve(BinanceDataService).getTotalObservers();
-        const running = container.resolve(BinanceDataService).getRunningObservers();
+        const total = this.binanceDataService.getTotalObservers();
+        const running = this.binanceDataService.getRunningObservers();
         return { total, running };
     }
 }
