@@ -116,10 +116,13 @@ export class Strat93030ReleaseSelector {
         if (withoutLastCandle) {
             // aws log insights conditions
             const shouldSelect =
-                // volume_ratio >= 1.5 and volume_ratio < 20 and c1_variation >= 2 and c2_variation >= 3 and c1_max_var_ratio >= 1
-                // and (c1_variation / c2_variation >= 2 or c2_variation / c1_variation >= 1.5) and c3_variation < 4
-                volumeRatio >= 1.5 && volumeRatio < 20 && c1Variation >= 2 && c2Variation >= 3 && c1Variation / maxVariation >= 1
-                && (c1Variation / c2Variation >= 2 || c2Variation / c1Variation >= 1.5) && c3Variation < 4;
+                // volume_ratio >= 1.5 and volume_ratio < 20 and c1_variation >= 2
+                // and ((c2_variation >= 2 and c2_variation < 3 and volume_ratio >= 8 and c1_variation > 6)
+                // or (c2_variation >= 3))
+                // and c1_max_var_ratio >= 1 and (c1_variation / c2_variation >= 2 or c2_variation / c1_variation >= 1.5) and c3_variation < 4
+                volumeRatio >= 1.5 && volumeRatio < 20 && c1Variation >= 2 &&
+                ((c2Variation >= 2 && c2Variation < 3 && volumeRatio >= 8 && c1Variation > 6) || (c2Variation >= 3)) &&
+                c1Variation / maxVariation >= 1 && (c1Variation / c2Variation >= 2 || c2Variation / c1Variation >= 1.5) && c3Variation < 4;
             if (!shouldSelect) {
                 return undefined;
             }

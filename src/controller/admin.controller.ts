@@ -6,18 +6,18 @@ import { SellService } from "../services/sell-service";
 import { SimulationService } from "../services/simulation-service";
 export const adminRoutes = express.Router();
 const dynamodbRepository = container.resolve(DynamodbRepository);
+const tradingService = container.resolve(TradingService);
 
 adminRoutes.get('/', (req, res) =>  {
     res.send('Server is up');
 });
 
 adminRoutes.get('/stop/all', (req, res) =>  {
-    const tradingService = container.resolve(TradingService);
     res.send(tradingService.stopTrading());
 });
 
 adminRoutes.get('/start/all', (req, res) =>  {
-    const totalObservers = container.resolve(TradingService).getStatus().total;
+    const totalObservers = tradingService.getStatus().total;
     if (totalObservers > 0) {
         return res.status(400).json({
             message: `Start was skipped because there are ${totalObservers} active observers`
@@ -25,7 +25,7 @@ adminRoutes.get('/start/all', (req, res) =>  {
     }
     container.resolve(SellService).sellUnfinishedTrades()
         .then((accounts) => {
-            container.resolve(TradingService).resumeTrading(accounts);
+            tradingService.resumeTrading(accounts);
             container.resolve(SimulationService).startSimulations();
         })
         .catch((error) => {
@@ -34,7 +34,6 @@ adminRoutes.get('/start/all', (req, res) =>  {
 });
 
 adminRoutes.get('/status', (req, res) =>  {
-    const tradingService = container.resolve(TradingService);
     res.send(tradingService.getStatus());
 });
 

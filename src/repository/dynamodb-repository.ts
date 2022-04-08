@@ -70,8 +70,7 @@ export class DynamodbRepository {
 
     public addState(state: MountainSeekerV2State): void {
         if (this.configService.isSimulation()) {
-            state.drawDown = undefined;
-            state.runUp = undefined;
+            return;
         }
         const params = {
             TableName: "TradingStates",
@@ -102,7 +101,7 @@ export class DynamodbRepository {
             TableName: 'TradingStates'
         };
         const resultArray: MountainSeekerV2State[] = [];
-        const res: any[] = [];
+        const res = [];
         let notFinished = true;
         while (notFinished) {
             const data = await this.documentClient.scan(params).promise();
@@ -172,7 +171,8 @@ export class DynamodbRepository {
                 }
             }
         }
-        return resultArray;
+        // newest states in the beginning of the array
+        return resultArray.sort((s1, s2) => (s1.endDate! > s2.endDate! ? -1 : 1));
     }
 
     public async deleteTradingStates(email: string, startDate: string, endDate: string): Promise<number> {
