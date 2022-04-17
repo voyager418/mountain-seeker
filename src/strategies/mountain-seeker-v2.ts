@@ -268,7 +268,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
         // TODO select the best among the found ones
         const selectionResult = potentialMarkets.reduce((prev, current) =>
-            (prev.maxVariation! < current.maxVariation! ? prev : current));
+            (prev.c1MaxVarRatio! > current.c1MaxVarRatio! ? prev : current));
 
         this.strategy = Strategies.getStrategy(this.account.activeStrategies.find(strategyName => selectionResult.strategyCustomName === strategyName)!);
         this.strategy.customName = selectionResult.strategyCustomName;
@@ -276,6 +276,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.maxVariation = selectionResult.maxVariation;
         this.strategy.metadata.edgeVariation = selectionResult.edgeVariation;
         this.strategy.metadata.volumeRatio = selectionResult.volumeRatio;
+        this.strategy.metadata.c1MaxVarRatio = selectionResult.c1MaxVarRatio;
         this.strategy.metadata.BUSDVolumeLast5h = selectionResult.BUSDVolumeLast5h;
         this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,

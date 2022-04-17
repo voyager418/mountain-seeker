@@ -121,7 +121,7 @@ export class SelectBy30minV3 {
         log.debug(`sixCandlesticksExcept2: ${JSON.stringify(sixCandlesticksExcept2)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation,
-            edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+            edgeVariation, volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {

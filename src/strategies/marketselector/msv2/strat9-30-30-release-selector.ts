@@ -146,7 +146,7 @@ export class Strat93030ReleaseSelector {
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 10 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 20 - 1, -1));
 
-        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio, c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {

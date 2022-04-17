@@ -19,6 +19,7 @@ export type SelectorResult = {
     maxVariation?: number,
     edgeVariation?: number,
     volumeRatio?: number,
+    c1MaxVarRatio?: number,
     earlyStart?: boolean;
     BUSDVolumeLast5h?: number;
     BUSDVolumeLast10h?: number;
