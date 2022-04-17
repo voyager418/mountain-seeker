@@ -91,7 +91,7 @@ export class SelectBy30min {
         }
 
         // if before before last candle percent change is below minimal threshold
-        if (c2Variation < 2) {
+        if (c2Variation < 1.9) {
             return undefined;
         }
 
@@ -122,7 +122,7 @@ export class SelectBy30min {
         log.debug(`twentyCandlesticksExcept5: ${JSON.stringify(twentyCandlesticksExcept5)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation,
-            edgeVariation, volumeRatio: c1[5] / c2[5], earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+            edgeVariation, volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {
