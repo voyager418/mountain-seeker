@@ -8,7 +8,7 @@ import { cloneDeep } from 'lodash';
 import log from "../../../logging/log.instance";
 import { StrategyName } from "../../../models/strategy";
 
-export class SelectBy30minV3 {
+export class SelectBy30minV4 {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
     private static readonly DECISION_MINUTES = [0, 30];
 
@@ -99,8 +99,8 @@ export class SelectBy30minV3 {
             return undefined;
         }
 
-        // c2 close must be > c3..6 high
-        if (sixCandlesticksExcept2.some(candle => candle[2] > c2[4])) {
+        // c2 close must be > c3..6 close
+        if (sixCandlesticksExcept2.some(candle => candle[4] > c2[4])) {
             return undefined;
         }
 
