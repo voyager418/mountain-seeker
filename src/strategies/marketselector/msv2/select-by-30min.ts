@@ -19,7 +19,7 @@ export class SelectBy30min {
      * _ _<-- small variations (c3 & c4)
      */
     static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
+        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, withoutLastCandle?: boolean): SelectorResult | undefined {
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -35,8 +35,7 @@ export class SelectBy30min {
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
 
-        // allowed to start only 1 minute earlier or 1 minute late
-        if (shouldValidateDates) {
+        if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
                 // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds
@@ -45,9 +44,9 @@ export class SelectBy30min {
             }
             let timeIsOk = false;
             const dateInFuture = new Date();
-            dateInFuture.setSeconds(dateInFuture.getSeconds() + 60);
+            dateInFuture.setSeconds(dateInFuture.getSeconds() + 30); // allowed to start x seconds earlier
             const dateInPast = new Date();
-            dateInPast.setSeconds(dateInPast.getSeconds() - 11);
+            dateInPast.setSeconds(dateInPast.getSeconds() - 11); // allowed to start x seconds late
 
             if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
                 timeIsOk = true;

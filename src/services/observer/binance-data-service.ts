@@ -65,18 +65,18 @@ export class BinanceDataService implements Subject {
     }
 
 
-    registerObserver(observer: BaseStrategy): void {
+    registerObserver(newObserver: BaseStrategy): void {
         if (this.configService.isSimulation() && this.observers.length < 1) { // if simulation then add only 1 strategy
-            this.observers.push(observer);
-            log.info(`Added ${observer.getState().accountEmail} account for trading`);
+            this.observers.push(newObserver);
+            log.info(`Added ${newObserver.getState().accountEmail} account for trading`);
             return;
         }
-        // only 1 strategy can run per account, except if it is a simulation
+        // only 1 strategy can run per account, except if it is a simulation account
         if (!this.configService.isSimulation() &&
-            !this.observers.some(o => (o.getState().accountEmail === observer.getState().accountEmail) &&
-            o.getState().accountEmail !== Emails.SIMULATION)) {
-            this.observers.push(observer);
-            log.info(`Added ${observer.getState().accountEmail} account for trading`);
+            !this.observers.some(o =>
+                o.getState().accountEmail === newObserver.getState().accountEmail && o.getState().accountEmail !== Emails.SIMULATION)) {
+            this.observers.push(newObserver);
+            log.info(`Added ${newObserver.getState().accountEmail} account for trading`);
         }
     }
 

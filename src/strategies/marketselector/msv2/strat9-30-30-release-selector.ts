@@ -35,7 +35,6 @@ export class Strat93030ReleaseSelector {
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
 
-        // allowed to start only 1 minute earlier or 1 minute late
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
@@ -45,7 +44,7 @@ export class Strat93030ReleaseSelector {
             }
             let timeIsOk = false;
             const dateInFuture = new Date();
-            dateInFuture.setSeconds(dateInFuture.getSeconds() + 60);
+            dateInFuture.setSeconds(dateInFuture.getSeconds() + 30);
             const dateInPast = new Date();
             dateInPast.setSeconds(dateInPast.getSeconds() - 11); // if the current time is 02:30:10, 11 seconds in past wasn't a decision minute so we might start
 
