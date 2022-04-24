@@ -18,6 +18,7 @@ import { NumberUtils } from "../utils/number-utils";
 import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
 import { DynamodbRepository } from "../repository/dynamodb-repository";
+import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 
 /**
  * Mountain Seeker V2.
@@ -220,6 +221,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             | volumeRatio : ${this.strategy!.metadata?.volumeRatio?.toFixed(2)}
             | volumeLast5h : ${this.strategy!.metadata?.BUSDVolumeLast5h?.toFixed(2)}
             | volumeLast10h : ${this.strategy!.metadata?.BUSDVolumeLast10h?.toFixed(2)}
+            | last5minVariation : ${this.strategy!.metadata?.last5minVariation?.toFixed(2)}
+            | beforeLast5minVariation : ${this.strategy!.metadata?.beforeLast5minVariation?.toFixed(2)}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
         return Promise.resolve();
@@ -279,17 +282,24 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.c1MaxVarRatio = selectionResult.c1MaxVarRatio;
         this.strategy.metadata.BUSDVolumeLast5h = selectionResult.BUSDVolumeLast5h;
         this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
+        this.strategy.metadata.earlyStart = selectionResult.earlyStart;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
             selectionResult.interval).slice(-5);
         this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, selectionResult.interval).slice(-5);
-        this.state.strategyDetails = this.strategy;
 
+        const fiveMinCandleSticksPercentageVariations =  getCandleSticksPercentageVariationsByInterval(selectionResult.market,
+            CandlestickInterval.FIVE_MINUTES);
         if (selectionResult.earlyStart) {
             this.state.last5CandleSticksPercentageVariations.shift();
             this.state.last5CandleSticksPercentageVariations?.push(0);
             this.state.last5CandleSticks.shift();
             this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
+            fiveMinCandleSticksPercentageVariations.shift();
+            fiveMinCandleSticksPercentageVariations.reverse();
         }
+        this.strategy.metadata.last5minVariation = fiveMinCandleSticksPercentageVariations[0]; // if trading started at 29min, it's the variation between 25 & 29
+        this.strategy.metadata.beforeLast5minVariation = fiveMinCandleSticksPercentageVariations[1]; // 20 & 25
+        this.state.strategyDetails = this.strategy;
         return selectionResult.market;
     }
 
