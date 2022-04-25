@@ -221,8 +221,9 @@ export class MountainSeekerV2 implements BaseStrategy {
             | volumeRatio : ${this.strategy!.metadata?.volumeRatio?.toFixed(2)}
             | volumeLast5h : ${this.strategy!.metadata?.BUSDVolumeLast5h?.toFixed(2)}
             | volumeLast10h : ${this.strategy!.metadata?.BUSDVolumeLast10h?.toFixed(2)}
-            | last5minVariation : ${this.strategy!.metadata?.last5minVariation?.toFixed(2)}
-            | beforeLast5minVariation : ${this.strategy!.metadata?.beforeLast5minVariation?.toFixed(2)}
+            | c1FiveMinVariation : ${this.strategy!.metadata?.c1FiveMinVariation?.toFixed(2)}
+            | c2FiveMinVariation : ${this.strategy!.metadata?.c2FiveMinVariation?.toFixed(2)}
+            | c3FiveMinVariation : ${this.strategy!.metadata?.c3FiveMinVariation?.toFixed(2)}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
         return Promise.resolve();
@@ -297,8 +298,9 @@ export class MountainSeekerV2 implements BaseStrategy {
             fiveMinCandleSticksPercentageVariations.shift();
             fiveMinCandleSticksPercentageVariations.reverse();
         }
-        this.strategy.metadata.last5minVariation = fiveMinCandleSticksPercentageVariations[0]; // if trading started at 29min, it's the variation between 25 & 29
-        this.strategy.metadata.beforeLast5minVariation = fiveMinCandleSticksPercentageVariations[1]; // 20 & 25
+        this.strategy.metadata.c1FiveMinVariation = fiveMinCandleSticksPercentageVariations[0]; // if trading started at 29min, it's the variation between 25 & 29
+        this.strategy.metadata.c2FiveMinVariation = fiveMinCandleSticksPercentageVariations[1]; // 20 & 25
+        this.strategy.metadata.c3FiveMinVariation = fiveMinCandleSticksPercentageVariations[2];
         this.state.strategyDetails = this.strategy;
         return selectionResult.market;
     }
