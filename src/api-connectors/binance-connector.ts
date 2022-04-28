@@ -450,7 +450,7 @@ export class BinanceConnector {
     /**
      * Creates market sell order.
      *
-     * @param originAsset
+     * @param originAsset e.g. BUSD
      * @param targetAsset
      * @param amount If market is BNB/EUR then this represents the quantity of BNB to sell
      * @param awaitCompletion
@@ -496,7 +496,7 @@ export class BinanceConnector {
             filled: BinanceConnector.computeAmountOfFilledAsset(binanceOrder, binanceOrder.filled, OrderType.MARKET, "sell", targetAsset, binanceOrder.info?.fills),
             remaining: binanceOrder.remaining,
             average: binanceOrder.average!,
-            amountOfOriginAsset: binanceOrder.cost,
+            amountOfOriginAsset: BinanceConnector.computeAmountOfOriginAsset(binanceOrder, binanceOrder.remaining, OrderType.MARKET, "sell"),
             status: binanceOrder.status,
             originAsset,
             targetAsset,
