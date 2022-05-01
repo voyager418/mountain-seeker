@@ -871,7 +871,7 @@ export class BinanceConnector {
         }
         let amountOfOriginAsset = 0;
         for (const fill of fills) {
-            if (side === "buy" || fill.commissionAsset === Currency.BUSD.toString()) {
+            if (side === "buy" || fill.commissionAsset !== Currency.BUSD.toString()) {
                 // for BUY orders no need to deduce commission because we calculate the total
                 // amount of origin asset that was spent and it already includes the commission
                 amountOfOriginAsset += Number(fill.price) * Number(fill.qty);
