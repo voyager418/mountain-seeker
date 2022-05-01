@@ -169,8 +169,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.drawDown = Infinity;
         let priceChange;
         const endTradingDate = GlobalUtils.getCurrentBelgianDate();
+        const secondsToSleep = this.strategy!.metadata?.secondsToSleep ?? tradingLoopConfig.secondsToSleepAfterTheBuy;
         const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
-        endTradingDate.setSeconds(endTradingDate.getSeconds() + tradingLoopConfig.secondsToSleepAfterTheBuy);
+        endTradingDate.setSeconds(endTradingDate.getSeconds() + secondsToSleep);
 
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
             await GlobalUtils.sleep(tradingLoopConfig.priceWatchInterval);
@@ -284,6 +285,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.BUSDVolumeLast5h = selectionResult.BUSDVolumeLast5h;
         this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
         this.strategy.metadata.earlyStart = selectionResult.earlyStart;
+        this.strategy.metadata.secondsToSleep = selectionResult.secondsToSleep;
         this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
             selectionResult.interval).slice(-5);
         this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, selectionResult.interval).slice(-5);

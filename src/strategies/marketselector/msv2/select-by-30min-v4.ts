@@ -34,6 +34,7 @@ export class SelectBy30minV4 {
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
+        let secondsToSleep;
 
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
@@ -48,6 +49,7 @@ export class SelectBy30minV4 {
                 && [2, 32].indexOf(new Date().getMinutes()) > -1) {
                 timeIsOk = true;
                 past = true;
+                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds();
             }
 
             if (!timeIsOk) {
@@ -113,7 +115,8 @@ export class SelectBy30minV4 {
         log.debug(`sixCandlesticksExcept2: ${JSON.stringify(sixCandlesticksExcept2)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation,
-            edgeVariation, volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+            edgeVariation, volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past,
+            BUSDVolumeLast5h, BUSDVolumeLast10h, secondsToSleep };
     }
 
     static isADecisionMinute(minute: number): boolean {

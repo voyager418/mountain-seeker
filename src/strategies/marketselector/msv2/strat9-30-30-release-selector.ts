@@ -34,6 +34,7 @@ export class Strat93030ReleaseSelector {
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
+        let secondsToSleep;
 
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
@@ -48,6 +49,7 @@ export class Strat93030ReleaseSelector {
                 && [2, 32].indexOf(new Date().getMinutes()) > -1) {
                 timeIsOk = true;
                 past = true;
+                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds(); // will sell at 00 or 30
             }
 
             if (!timeIsOk) {
@@ -142,7 +144,9 @@ export class Strat93030ReleaseSelector {
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 10 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 20 - 1, -1));
 
-        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio, c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+        return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation, volumeRatio,
+            c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past,
+            BUSDVolumeLast5h, BUSDVolumeLast10h, secondsToSleep };
     }
 
     static isADecisionMinute(minute: number): boolean {
