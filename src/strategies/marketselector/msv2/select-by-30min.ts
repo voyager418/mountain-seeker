@@ -34,6 +34,7 @@ export class SelectBy30min {
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
+        let secondsToSleep;
 
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
@@ -43,18 +44,12 @@ export class SelectBy30min {
                 return undefined;
             }
             let timeIsOk = false;
-            const dateInFuture = new Date();
-            dateInFuture.setSeconds(dateInFuture.getSeconds() + 30); // allowed to start x seconds earlier
-            const dateInPast = new Date();
-            dateInPast.setSeconds(dateInPast.getSeconds() - 11); // allowed to start x seconds late
 
-            if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
-                timeIsOk = true;
-            }
-
-            if (!timeIsOk && this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
+            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())
+                && [2, 32].indexOf(new Date().getMinutes()) > -1) {
                 timeIsOk = true;
                 past = true;
+                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds();
             }
 
             if (!timeIsOk) {

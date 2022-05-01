@@ -43,16 +43,9 @@ export class Strat93030ReleaseSelector {
                 return undefined;
             }
             let timeIsOk = false;
-            const dateInFuture = new Date();
-            dateInFuture.setSeconds(dateInFuture.getSeconds() + 30);
-            const dateInPast = new Date();
-            dateInPast.setSeconds(dateInPast.getSeconds() - 11); // if the current time is 02:30:10, 11 seconds in past wasn't a decision minute so we might start
 
-            if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
-                timeIsOk = true;
-            }
-
-            if (!timeIsOk && this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && !this.isADecisionMinute(dateInPast.getMinutes())) {
+            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())
+                && [2, 32].indexOf(new Date().getMinutes()) > -1) {
                 timeIsOk = true;
                 past = true;
             }
