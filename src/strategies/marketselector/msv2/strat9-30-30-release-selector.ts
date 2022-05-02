@@ -10,7 +10,7 @@ import { StrategyName } from "../../../models/strategy";
 
 export class Strat93030ReleaseSelector {
     private static readonly INTERVAL = CandlestickInterval.THIRTY_MINUTES;
-    private static readonly DECISION_MINUTES = [0, 30];
+    private static readonly DECISION_MINUTES = [2, 32];
 
     /**
      *      . <-- current new candle c0, but in case the decision is taken earlier c0 does not exist
@@ -45,8 +45,7 @@ export class Strat93030ReleaseSelector {
             }
             let timeIsOk = false;
 
-            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())
-                && [2, 32].indexOf(new Date().getMinutes()) > -1) {
+            if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())) {
                 timeIsOk = true;
                 past = true;
                 secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds(); // will sell at 00 or 30
