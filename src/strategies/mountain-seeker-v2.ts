@@ -297,9 +297,13 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.last5CandleSticksPercentageVariations?.push(0);
             this.state.last5CandleSticks.shift();
             this.state.last5CandleSticks?.push([0, 0, 0, 0, 0, 0]);
+        } else {
+            fiveMinCandleSticksPercentageVariations.shift();
         }
-        this.strategy.metadata.c1FiveMinVariation = fiveMinCandleSticksPercentageVariations[0]; // if trading started at 29min, it's the variation between 25 & 29
-        this.strategy.metadata.c2FiveMinVariation = fiveMinCandleSticksPercentageVariations[1]; // 20 & 25
+        // c1FiveMinVariation: if trading started at 29min, it's the variation between 25 & 29
+        //                     but if started at 32, it's the variation between 25 & 30
+        this.strategy.metadata.c1FiveMinVariation = fiveMinCandleSticksPercentageVariations[0];
+        this.strategy.metadata.c2FiveMinVariation = fiveMinCandleSticksPercentageVariations[1];
         this.strategy.metadata.c3FiveMinVariation = fiveMinCandleSticksPercentageVariations[2];
         this.state.strategyDetails = this.strategy;
         return selectionResult.market;
