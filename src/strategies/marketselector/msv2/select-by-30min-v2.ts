@@ -48,7 +48,7 @@ export class SelectBy30minV2 {
             if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())) {
                 timeIsOk = true;
                 past = true;
-                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds();
+                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds() - 30;
             }
 
             if (!timeIsOk) {

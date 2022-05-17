@@ -48,7 +48,7 @@ export class Strat93030ReleaseSelector {
             if (this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes())) {
                 timeIsOk = true;
                 past = true;
-                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds(); // will sell at 00 or 30
+                secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds() - 30; // will sell at 59:30 or 29:30
             }
 
             if (!timeIsOk) {
