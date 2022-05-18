@@ -170,7 +170,9 @@ export class MountainSeekerV2 implements BaseStrategy {
         let priceChange;
         const endTradingDate = GlobalUtils.getCurrentBelgianDate();
         const secondsToSleep = this.strategy!.metadata?.secondsToSleep ?? tradingLoopConfig.secondsToSleepAfterTheBuy;
-        const stopLossPrice = NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
+        const isShort = this.strategy!.config.short;
+        const stopLossPrice = !isShort ? NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss) :
+            NumberUtils.increaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
         endTradingDate.setSeconds(endTradingDate.getSeconds() + secondsToSleep);
 
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
@@ -183,9 +185,14 @@ export class MountainSeekerV2 implements BaseStrategy {
             this.state.runUp = Math.max(this.state.runUp, priceChange);
             this.state.drawDown = Math.min(this.state.drawDown, priceChange);
 
-            if (marketUnitPrice <= stopLossPrice) {
+            if (!isShort && marketUnitPrice <= stopLossPrice) {
                 // if price dropped by tradingLoopConfig.stopTradingMaxPercentLoss %
                 log.debug(`Price change is too low ${priceChange}% ! Stop price is ${stopLossPrice} while the current is ${marketUnitPrice}`);
+                break;
+            }
+            if (isShort && marketUnitPrice >= stopLossPrice) {
+                // if price increased by tradingLoopConfig.stopTradingMaxPercentLoss %
+                log.debug(`Price change is too high ${priceChange}% ! Stop price is ${stopLossPrice} while the current is ${marketUnitPrice}`);
                 break;
             }
             if(tradingLoopConfig.takeProfit && priceChange >= tradingLoopConfig.takeProfit) {

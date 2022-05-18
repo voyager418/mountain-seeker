@@ -43,7 +43,7 @@ describe("Binance data service", () => {
             await binanceDataService.getMarketsFromBinance();
 
             // assert
-            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-3);
+            expect(binanceConnector.getMarketsBy24hrVariation).toHaveBeenCalledWith(-35);
             expect(binanceConnector.fetchCandlesticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
                 CandlestickInterval.DEFAULT, 400);
             expect(StrategyUtils.filterByMinimumAmountOfCandleSticks).toHaveBeenCalledWith(TestHelper.getMarketsWith30mCandleSticks(),
