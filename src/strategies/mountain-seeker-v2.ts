@@ -210,8 +210,12 @@ export class MountainSeekerV2 implements BaseStrategy {
             undefined, this.strategy!.config.simulation).catch(e => Promise.reject(e));
 
         this.state.retrievedAmountOfBusd = sellOrder!.amountOfOriginAsset!;
-        this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
-        this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
+        if (!this.strategy?.config.short) {
+            this.state.profitMoney = Number((this.state.retrievedAmountOfBusd! - this.state.investedAmountOfBusd!).toFixed(2));
+            this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.investedAmountOfBusd!, this.state.retrievedAmountOfBusd!).toFixed(2));
+        } else {
+            this.state.profitPercent = Number(NumberUtils.getPercentVariation(this.state.retrievedAmountOfBusd!, this.state.investedAmountOfBusd!).toFixed(2));
+        }
         this.state.endDate = sellOrder.datetime;
 
         const endWalletBalance = await this.binanceConnector.getBalance([Currency.BUSD.toString(), this.market!.targetAsset], 3, true)
