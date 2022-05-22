@@ -69,6 +69,7 @@ export class Strat93030ReleaseSelector {
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
         const c3Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 2);
+        const c4Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 3);
         const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2); // the 2 that had a big variation
         const twentyCandlesticksExcept5 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 5, -5);
         const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept5);
@@ -87,7 +88,7 @@ export class Strat93030ReleaseSelector {
         }
 
         // if before before last candle percent change is below minimal threshold
-        if (c2Variation < 2) {
+        if (c2Variation < 1.9) {
             return undefined;
         }
 
@@ -109,22 +110,25 @@ export class Strat93030ReleaseSelector {
 
         if (withoutLastCandle) {
             // aws log insights conditions
+
+            // volume_ratio >= 1.5 and volume_ratio < 17 and c1_variation >= 2 and c1_variation < 17 and c3_variation < 4
+            // and ((c2_variation >= 2 and c2_variation < 3 and ((volume_ratio >= 8 and c1_variation > 6) or (volume_ratio > 2 and c1_variation >= 5.6)))
+            // or (c2_variation >= 3))
+            // and ((c1_max_var_ratio >= 0.7 and c1_variation > c2_variation) or c1_max_var_ratio >= 1)
+            // and (c1_variation / c2_variation >= 2 or c2_variation / c1_variation >= 1.5)
+            // and (c3_variation + c4_variation) < 5
             const shouldSelect =
-                // volume_ratio >= 1.5 and volume_ratio < 20 and c1_variation >= 2 and c1_variation < 17 and c3_variation < 4
-                // and ((c2_variation >= 2 and c2_variation < 3 and ((volume_ratio >= 8 and c1_variation > 6) or (volume_ratio > 2 and c1_variation >= 5.6)))
-                // or (c2_variation >= 3))
-                // and ((c1_max_var_ratio >= 0.7 and c1_variation > c2_variation) or c1_max_var_ratio >= 1)
-                // and (c1_variation / c2_variation >= 2 or c2_variation / c1_variation >= 1.5)
-                volumeRatio >= 1.5 && volumeRatio < 20 && c1Variation >= 2 && c1Variation < 17 && c3Variation < 4 &&
+                volumeRatio >= 1.5 && volumeRatio < 17 && c1Variation >= 2 && c1Variation < 17 && c3Variation < 4 &&
                 ((c2Variation >= 2 && c2Variation < 3 && ((volumeRatio >= 8 && c1Variation > 6) || (volumeRatio > 2 && c1Variation >= 5.6))) ||
                     (c2Variation >= 3)) &&
                 ((c1MaxVarRatio >= 0.7 && c1Variation > c2Variation) || c1MaxVarRatio >= 1) &&
-                (c1Variation / c2Variation >= 2 || c2Variation / c1Variation >= 1.5);
+                (c1Variation / c2Variation >= 2 || c2Variation / c1Variation >= 1.5) &&
+                (c3Variation + c4Variation < 5);
             if (!shouldSelect) {
                 return undefined;
             }
 
-            log.debug(`c1Variation/c2Variation = ${c1Variation / c2Variation},
+            const variables = `c1Variation/c2Variation = ${c1Variation / c2Variation},
                 volumeRatio = ${volumeRatio},
                 maxVariation = ${maxVariation},
                 edgeVariation = ${edgeVariation},
@@ -132,8 +136,11 @@ export class Strat93030ReleaseSelector {
                 market.originAssetVolumeLast24h = ${market.originAssetVolumeLast24h!},
                 c1Variation = ${c1Variation},
                 c2Variation = ${c2Variation},
+                c3Variation = ${c3Variation},
+                c4Variation = ${c4Variation},
                 c1Variation/maxVariation = ${c1Variation / maxVariation}
-            `);
+            `;
+            log.debug(variables.replace(/(\r\n|\n|\r)/gm, ""));
         }
 
         if (past) {
