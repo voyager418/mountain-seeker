@@ -8,7 +8,7 @@ import { cloneDeep } from 'lodash';
 import log from '../../../logging/log.instance';
 import { StrategyName } from "../../../models/strategy";
 
-export class SelectBy5minV2 {
+export class SelectBy5minV3 {
     private static readonly INTERVAL = CandlestickInterval.FIVE_MINUTES;
     private static readonly DECISION_MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
@@ -74,10 +74,10 @@ export class SelectBy5minV2 {
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
-        const twentyCandlesticksExcept5 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 5, -5); // except the last 5
-        const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept5);
-        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticksExcept5[0][4],
-            twentyCandlesticksExcept5[twentyCandlesticksExcept5.length - 1][4]));
+        const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2); // except the last 2 (c1 & c2)
+        const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept2);
+        const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticksExcept2[0][4],
+            twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]));
 
         // if before last candle percent change is below minimal threshold
         if (c1Variation < 1.4) {
@@ -99,14 +99,14 @@ export class SelectBy5minV2 {
             return undefined;
         }
 
-        // c2 close must be > c6..26 high
-        if (twentyCandlesticksExcept5.some(candle => candle[2] > c2[4])) {
+        // c2 close must be > c3..20 high
+        if (twentyCandlesticksExcept2.some(candle => candle[2] > c2[4])) {
             return undefined;
         }
 
-        // v1 must be >= 1.2 * v6..26
+        // v1 must be >= 1.2 * v2..20
         if (c1[5] < 1.2 * c2[5] ||
-            twentyCandlesticksExcept5.some(candle => c1[5] < 1.2 * candle[5])) {
+            twentyCandlesticksExcept2.some(candle => c1[5] < 1.2 * candle[5])) {
             return undefined;
         }
 
@@ -128,8 +128,8 @@ export class SelectBy5minV2 {
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 60 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
 
-        log.debug(`Edge variation between ${twentyCandlesticksExcept5[0][4]} & ${twentyCandlesticksExcept5[twentyCandlesticksExcept5.length - 1][4]}`);
-        log.debug(`twentyCandlesticksExcept5: ${JSON.stringify(twentyCandlesticksExcept5)}`);
+        log.debug(`Edge variation between ${twentyCandlesticksExcept2[0][4]} & ${twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]}`);
+        log.debug(`twentyCandlesticksExcept2: ${JSON.stringify(twentyCandlesticksExcept2)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
             volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
