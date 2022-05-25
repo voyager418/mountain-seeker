@@ -113,6 +113,13 @@ export class StrategyUtils {
     }
 
     /**
+     * @return Markets which accept quote orders (you can say how much you want to spend)
+     */
+    static filterQuoteOrderMarkets(markets: Array<Market>): Array<Market> {
+        return markets.filter(market => market.quoteOrderQtyMarketAllowed);
+    }
+
+    /**
      * @return Markets that can accept at least `minimalPrecision` digits after the dot in the amounts
      * used in buy/sell orders
      */

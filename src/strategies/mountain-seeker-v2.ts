@@ -245,13 +245,6 @@ export class MountainSeekerV2 implements BaseStrategy {
      * If the market accepts quote price then it will create a BUY MARKET order by specifying how much we want to spend.
      */
     private async createFirstMarketBuyOrder(moneyAmountToInvest: number): Promise<Order> {
-        if (!this.market!.quoteOrderQtyMarketAllowed) {
-            // normally this should ever happen on non BLVT markets
-            // but if this happens in future we could for example use this.binanceConnector.createMarketOrder()
-            const errorMessage = `quoteOrderQtyMarketAllowed is not supported on market ${this.market?.symbol}`;
-            log.error(errorMessage);
-            return Promise.reject(errorMessage);
-        }
         const buyOrder = await this.binanceConnector.createMarketBuyOrder(this.market!.originAsset, this.market!.targetAsset,
             moneyAmountToInvest, true, 5, this.strategy!.config.simulation).catch(e => Promise.reject(e));
         this.state.investedAmountOfBusd = buyOrder.amountOfOriginAsset;
@@ -327,6 +320,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.markets = StrategyUtils.filterByAuthorizedCurrencies(this.markets, [Currency.BUSD]);
         // this.markets = StrategyUtils.filterByIgnoredMarkets(this.markets, this.strategy!.config.ignoredMarkets);
         this.markets = StrategyUtils.filterBLVT(this.markets);
+        this.markets = StrategyUtils.filterQuoteOrderMarkets(this.markets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
         return this.markets;
     }
