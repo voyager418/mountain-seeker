@@ -172,7 +172,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         const secondsToSleep = this.strategy!.metadata?.secondsToSleep ?? tradingLoopConfig.secondsToSleepAfterTheBuy;
         const isShort = this.strategy!.config.short;
         const stopLossPrice = !isShort ? NumberUtils.decreaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss) :
-            NumberUtils.increaseNumberByPercent(buyOrder.average, tradingLoopConfig.stopTradingMaxPercentLoss);
+            NumberUtils.increaseNumberByPercent(buyOrder.average, Math.abs(tradingLoopConfig.stopTradingMaxPercentLoss));
         endTradingDate.setSeconds(endTradingDate.getSeconds() + secondsToSleep);
 
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {

@@ -234,7 +234,6 @@ export class Strategies {
         config: {
             autoRestart: true,
             simulation: true,
-            short: true,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
