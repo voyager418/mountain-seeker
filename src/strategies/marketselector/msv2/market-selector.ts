@@ -18,6 +18,7 @@ import { SelectBy30minV3 } from "./select-by-30min-v3";
 import { SelectBy30minV4 } from "./select-by-30min-v4";
 import { SelectBy30minV5 } from "./select-by-30min-v5";
 import { SelectBy5minV3 } from "./select-by-5min-v3";
+import { SelectBy30minV6 } from "./select-by-30min-v6";
 
 
 @singleton()
@@ -65,6 +66,10 @@ export class MarketSelector implements Selector {
         case "strat15-5-10":
             shouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            break;
+        case "strat16-30-30":
+            shouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
+                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
 
         case "strat9-30-30-r":
@@ -121,6 +126,9 @@ export class MarketSelector implements Selector {
         case "strat15-5-5":
         case "strat15-5-10":
             previousShouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            break;
+        case "strat16-30-30":
+            previousShouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
 
         case "strat9-30-30-r":
