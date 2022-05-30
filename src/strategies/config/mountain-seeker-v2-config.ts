@@ -242,6 +242,20 @@ export class Strategies {
         }
     }
 
+    static readonly strat17_15_15 : Strategy<MountainSeekerV2Config> = {
+        type: TradingStrategy.MSV2,
+        customName: "strat17-15-15", // based on 15min candlesticks and takes a decision every 15min
+        config: {
+            autoRestart: true,
+            simulation: true,
+            tradingLoopConfig: {
+                secondsToSleepAfterTheBuy: 900, // 15min
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 10
+            }
+        }
+    }
+
 
 
     static readonly strat9_30_30_r : Strategy<MountainSeekerV2Config> = {
@@ -302,6 +316,8 @@ export class Strategies {
             return Strategies.strat15_5_10;
         case "strat16-30-30":
             return Strategies.strat16_30_30;
+        case "strat17-15-15":
+            return Strategies.strat17_15_15;
 
         case "strat9-30-30-r":
             return Strategies.strat9_30_30_r;
