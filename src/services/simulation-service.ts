@@ -16,7 +16,8 @@ export class SimulationService {
     public startSimulations(): void {
         const simulationStrategies: Array<StrategyName> = ["strat1-15-15", "strat4-5-5", "strat5-15-30",
             "strat8-5-10", "strat9-30-30", "strat10-5-5", "strat10-5-10", "strat11-30-30", "strat12-30-30",
-            "strat13-30-30", "strat14-30-30", "strat15-5-5", "strat15-5-10", "strat16-30-30", "strat17-15-15"];
+            "strat13-30-30", "strat14-30-30", "strat15-5-5", "strat15-5-10", "strat16-30-30", "strat17-15-15",
+            "strat18-5-5"];
         for (const strategy of simulationStrategies) {
             const account: Account = {
                 email: Emails.SIMULATION,

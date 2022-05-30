@@ -28,7 +28,7 @@ export class SelectBy15minV2 {
             return undefined;
         }
 
-        if (market.percentChangeLast24h! < -35) {
+        if (market.percentChangeLast24h! < -10) {
             return undefined;
         }
 
