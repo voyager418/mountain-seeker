@@ -78,6 +78,7 @@ export class MarketSelector implements Selector {
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
         case "strat18-5-5":
+        case "strat19-5-10":
             shouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
                 market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
             break;
@@ -144,6 +145,7 @@ export class MarketSelector implements Selector {
             previousShouldSelect = SelectBy15minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
         case "strat18-5-5":
+        case "strat19-5-10":
             previousShouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
             break;
 
