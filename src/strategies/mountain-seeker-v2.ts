@@ -19,6 +19,7 @@ import { MarketSelector } from "./marketselector/msv2/market-selector";
 import { SelectorResult } from "./marketselector/selector.interface";
 import { DynamodbRepository } from "../repository/dynamodb-repository";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
+import { cloneDeep } from "lodash";
 
 /**
  * Mountain Seeker V2.
@@ -290,12 +291,12 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
         this.strategy.metadata.earlyStart = selectionResult.earlyStart;
         this.strategy.metadata.secondsToSleep = selectionResult.secondsToSleep;
-        this.state.last5CandleSticksPercentageVariations = getCandleSticksPercentageVariationsByInterval(selectionResult.market,
-            selectionResult.interval).slice(-5);
-        this.state.last5CandleSticks = getCandleSticksByInterval(selectionResult.market, selectionResult.interval).slice(-5);
+        this.state.last5CandleSticksPercentageVariations = cloneDeep(getCandleSticksPercentageVariationsByInterval(selectionResult.market,
+            selectionResult.interval)).slice(-5);
+        this.state.last5CandleSticks = cloneDeep(getCandleSticksByInterval(selectionResult.market, selectionResult.interval)).slice(-5);
 
-        const fiveMinCandleSticksPercentageVariations =  getCandleSticksPercentageVariationsByInterval(selectionResult.market,
-            CandlestickInterval.FIVE_MINUTES).reverse();
+        const fiveMinCandleSticksPercentageVariations = cloneDeep(getCandleSticksPercentageVariationsByInterval(selectionResult.market,
+            CandlestickInterval.FIVE_MINUTES)).reverse();
         if (selectionResult.earlyStart) {
             this.state.last5CandleSticksPercentageVariations.shift();
             this.state.last5CandleSticksPercentageVariations?.push(0);
