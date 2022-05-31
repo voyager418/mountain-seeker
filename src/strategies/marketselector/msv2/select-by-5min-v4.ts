@@ -80,7 +80,7 @@ export class SelectBy5minV4 {
             twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]));
 
         // if before last candle percent change is below minimal threshold
-        if (c1Variation < 12) {
+        if (c1Variation < 8) {
             return undefined;
         }
 
