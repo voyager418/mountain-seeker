@@ -50,6 +50,9 @@ export class SelectBy15minV2 {
                 timeIsOk = true;
                 past = true;
                 secondsToSleep = (15 * 60) - (2 * 60) - new Date().getSeconds() - 30;
+                if (strategyCustomName.endsWith("30")) {
+                    secondsToSleep = (30 * 60) - (2 * 60) - new Date().getSeconds() - 30;
+                }
             }
 
             if (!timeIsOk) {

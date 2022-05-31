@@ -23,5 +23,5 @@ export type SelectorResult = {
     earlyStart?: boolean;
     BUSDVolumeLast5h?: number;
     BUSDVolumeLast10h?: number;
-    secondsToSleep?: number; // overrides the value defined in the config
+    secondsToSleep?: number; // has higher priority over the value defined in the config
 }
