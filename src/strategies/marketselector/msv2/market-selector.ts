@@ -1,6 +1,5 @@
 import { singleton } from "tsyringe";
 import { Selector, SelectorResult } from "../selector.interface";
-import { CandlestickInterval } from "../../../enums/candlestick-interval.enum";
 import { Market } from "../../../models/market";
 import { SelectBy5min } from "./select-by-5min";
 import log from '../../../logging/log.instance';
@@ -31,66 +30,52 @@ export class MarketSelector implements Selector {
         switch (strategy.customName) {
         case "strat4-5-5":
         case "strat8-5-10":
-            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy5min.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat1-15-15":
         case "strat5-15-30":
-            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIFTEEN_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.FIFTEEN_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy15min.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat9-30-30":
-            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat10-5-5":
         case "strat10-5-10":
-            shouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat11-30-30":
-            shouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat12-30-30":
-            shouldSelect = SelectBy30minV3.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30minV3.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat13-30-30":
-            shouldSelect = SelectBy30minV4.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30minV4.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat14-30-30":
-            shouldSelect = SelectBy30minV5.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30minV5.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat15-5-5":
         case "strat15-5-10":
-            shouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat16-30-30":
-            shouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat17-15-15":
         case "strat20-15-30":
-            shouldSelect = SelectBy15minV2.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy15minV2.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat18-5-5":
         case "strat19-5-10":
-            shouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, strategy.customName, true);
             break;
 
         case "strat9-30-30-r":
-            shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.THIRTY_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.THIRTY_MINUTES)!, strategy.customName, true);
+            shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat8-5-10-r":
-            shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!,
-                market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES)!, strategy.customName, true);
+            shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
@@ -110,52 +95,52 @@ export class MarketSelector implements Selector {
         switch (strategy.customName) {
         case "strat4-5-5":
         case "strat8-5-10":
-            previousShouldSelect = SelectBy5min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy5min.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat1-15-15":
         case "strat5-15-30":
-            previousShouldSelect = SelectBy15min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy15min.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat9-30-30":
-            previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat10-5-5":
         case "strat10-5-10":
-            previousShouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy5minV2.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat11-30-30":
-            previousShouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30minV2.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat12-30-30":
-            previousShouldSelect = SelectBy30minV3.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30minV3.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat13-30-30":
-            previousShouldSelect = SelectBy30minV4.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30minV4.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat14-30-30":
-            previousShouldSelect = SelectBy30minV5.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30minV5.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat15-5-5":
         case "strat15-5-10":
-            previousShouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy5minV3.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat16-30-30":
-            previousShouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy30minV6.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat17-15-15":
         case "strat20-15-30":
-            previousShouldSelect = SelectBy15minV2.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy15minV2.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat18-5-5":
         case "strat19-5-10":
-            previousShouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
 
         case "strat9-30-30-r":
-            previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat8-5-10-r":
-            previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, candleSticksExceptLast, candleSticksPercentageVariationsExceptLast, strategy.customName);
+            previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);

@@ -20,8 +20,12 @@ export class SelectBy5minV4 {
      *    | <-- big variation (c1)
      * _ _<-- small variations (c2 & c3)
      */
-    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
+    static shouldSelectMarket(state: MountainSeekerV2State, market: Market,
+        strategyCustomName: StrategyName, withoutLastCandle?: boolean, _candleSticks?: Array<TOHLCVF>,
+        _candleSticksPercentageVariations?: Array<number>): SelectorResult | undefined {
+        const candleSticks = _candleSticks ?? market.candleSticks.get(this.INTERVAL)!;
+        const candleSticksPercentageVariations = _candleSticksPercentageVariations ?? market.candleSticksPercentageVariations.get(this.INTERVAL)!;
+
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -37,7 +41,7 @@ export class SelectBy5minV4 {
         let past = false;
 
         // allowed to start 15 seconds earlier or 40 seconds late
-        if (shouldValidateDates) {
+        if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
                 // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds
@@ -94,6 +98,7 @@ export class SelectBy5minV4 {
         log.debug(`Edge variation between ${twentyCandlesticksExcept2[0][4]} & ${twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]}`);
         log.debug(`twentyCandlesticksExcept2: ${JSON.stringify(twentyCandlesticksExcept2)}`);
         log.debug(`Market: ${JSON.stringify(market.symbol)}`);
+        log.debug(`c1Variation: ${c1Variation}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
             volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }

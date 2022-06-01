@@ -18,8 +18,12 @@ export class SelectBy5minV3 {
      *    | <-- big variation (c2)
      * _ _<-- small variations (c3 & c4)
      */
-    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, shouldValidateDates?: boolean): SelectorResult | undefined {
+    static shouldSelectMarket(state: MountainSeekerV2State, market: Market,
+        strategyCustomName: StrategyName, withoutLastCandle?: boolean, _candleSticks?: Array<TOHLCVF>,
+        _candleSticksPercentageVariations?: Array<number>): SelectorResult | undefined {
+        const candleSticks = _candleSticks ?? market.candleSticks.get(this.INTERVAL)!;
+        const candleSticksPercentageVariations = _candleSticksPercentageVariations ?? market.candleSticksPercentageVariations.get(this.INTERVAL)!;
+
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
@@ -36,7 +40,7 @@ export class SelectBy5minV3 {
         let past = false;
 
         // allowed to start 15 seconds earlier or 40 seconds late
-        if (shouldValidateDates) {
+        if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
                 // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds

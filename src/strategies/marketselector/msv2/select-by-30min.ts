@@ -18,8 +18,12 @@ export class SelectBy30min {
      *    | <-- big variation (c2)
      * _ _<-- small variations (c3 & c4)
      */
-    static shouldSelectMarket(state: MountainSeekerV2State, market: Market, candleSticks: Array<TOHLCVF>,
-        candleSticksPercentageVariations: Array<number>, strategyCustomName: StrategyName, withoutLastCandle?: boolean): SelectorResult | undefined {
+    static shouldSelectMarket(state: MountainSeekerV2State, market: Market,
+        strategyCustomName: StrategyName, withoutLastCandle?: boolean, _candleSticks?: Array<TOHLCVF>,
+        _candleSticksPercentageVariations?: Array<number>): SelectorResult | undefined {
+        const candleSticks = _candleSticks ?? market.candleSticks.get(this.INTERVAL)!;
+        const candleSticksPercentageVariations = _candleSticksPercentageVariations ?? market.candleSticksPercentageVariations.get(this.INTERVAL)!;
+
         // should wait at least 1 hour for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
         if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {

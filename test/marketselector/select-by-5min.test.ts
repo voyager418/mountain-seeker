@@ -24,7 +24,7 @@ describe("strat4-5-5 selector", () => {
             targetAssetPrice: 0,
             percentChangeLast24h: 3
         };
-        const res = SelectBy5min.shouldSelectMarket(state, market, candlesticks, candleSticksPercentageVariations, "strat4-5-5");
+        const res = SelectBy5min.shouldSelectMarket(state, market, "strat4-5-5", false, candlesticks, candleSticksPercentageVariations);
         expect(res).toBeDefined();
         expect(res!.edgeVariation).toEqual(1.4471057884231495);
         expect(res!.maxVariation).toEqual(1.7946161515453547);
