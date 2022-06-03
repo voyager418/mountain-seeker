@@ -1,6 +1,6 @@
 #!/bin/bash
 
-aws_host=http://ms-env-2.eba-vmhpnm8k.eu-west-1.elasticbeanstalk.com
+aws_host=http://ms-env.eba-vmhpnm8k.eu-west-1.elasticbeanstalk.com
 stop_endpoint=$aws_host/stop/all
 
 echo "Stopping all strategies..."
