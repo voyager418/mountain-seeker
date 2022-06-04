@@ -313,4 +313,20 @@ export class StrategyUtils {
     static getOriginAssetVolume(candles: Array<TOHLCVF>): number {
         return candles.map(candle => candle[1] * candle[5]!).reduce((sum, current) => sum + current, 0)!;
     }
+
+    /**
+     * Removes markets that had a change of 0% at least 3 times in the last 50 five min candlesticks
+     */
+    static filterDeadMarkets(markets: Array<Market>): Array<Market> {
+        return markets.filter(market => {
+            let candleStickPercentVariations = market.candleSticksPercentageVariations.get(CandlestickInterval.FIVE_MINUTES);
+            if (!candleStickPercentVariations) {
+                log.warn(`Candlesticks with ${CandlestickInterval.FIVE_MINUTES} interval not found`);
+                return false;
+            }
+            candleStickPercentVariations = candleStickPercentVariations.slice(-50);
+            const zeroChangeOccurrences = candleStickPercentVariations.reduce((prev, current) => prev + (current === 0 ? 1 : 0), 0);
+            return zeroChangeOccurrences < 3;
+        });
+    }
 }

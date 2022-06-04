@@ -323,6 +323,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.markets = StrategyUtils.filterBLVT(this.markets);
         this.markets = StrategyUtils.filterQuoteOrderMarkets(this.markets);
         this.markets = StrategyUtils.filterByAmountPrecision(this.markets, 1); // when trading with big price amounts, this can maybe be removed
+        this.markets = StrategyUtils.filterDeadMarkets(this.markets);
         return this.markets;
     }
 
