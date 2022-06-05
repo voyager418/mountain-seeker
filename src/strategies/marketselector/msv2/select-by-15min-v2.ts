@@ -13,7 +13,7 @@ import { StrategyName } from "../../../models/strategy";
  */
 export class SelectBy15minV2 {
     private static readonly INTERVAL = CandlestickInterval.FIFTEEN_MINUTES;
-    private static readonly DECISION_MINUTES = [2, 32, 46, 17];
+    private static readonly DECISION_MINUTES = [2, 32, 47, 17];
 
     /**
      *     . <-- current new candle c0, but in case the decision is taken earlier c0 does not exist
