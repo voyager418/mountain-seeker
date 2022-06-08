@@ -333,6 +333,6 @@ export class StrategyUtils {
         }
         volumes = volumes.slice(-50);
         const zeroChangeOccurrences = volumes.reduce((prev, current) => prev + (current === 0 ? 1 : 0), 0);
-        return { isDead: zeroChangeOccurrences < 3, times: zeroChangeOccurrences };
+        return { isDead: zeroChangeOccurrences > 3, times: zeroChangeOccurrences };
     }
 }
