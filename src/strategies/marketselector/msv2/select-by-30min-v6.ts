@@ -26,9 +26,9 @@ export class SelectBy30minV6 {
         const candleSticks = _candleSticks ?? market.candleSticks.get(this.INTERVAL)!;
         const candleSticksPercentageVariations = _candleSticksPercentageVariations ?? market.candleSticksPercentageVariations.get(this.INTERVAL)!;
 
-        // should wait at least 1 hour for consecutive trades on same market
+        // should wait at least 30 minutes for consecutive trades on same market
         const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
-        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 1) {
+        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 0.5) {
             return undefined;
         }
 
