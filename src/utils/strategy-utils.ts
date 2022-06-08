@@ -318,20 +318,21 @@ export class StrategyUtils {
      * Removes markets that had a volume of 0% at least 3 times in the last 50 five min candlesticks
      */
     static filterDeadMarkets(markets: Array<Market>): Array<Market> {
-        return markets.filter(market => !this.isDeadMarket(market));
+        return markets.filter(market => !this.isDeadMarket(market).isDead);
     }
 
     /**
-     * @return `true` if there is not much activity on the market
+     * @return `isDead` boolean indicating if there is not much activity on the market and a
+     * `times` number indicating inactivity in range of last 50 five minute candles
      */
-    static isDeadMarket(market: Market): boolean {
+    static isDeadMarket(market: Market): {isDead: boolean, times: number} {
         let volumes = market.candleSticks.get(CandlestickInterval.FIVE_MINUTES)!.map(candle => candle[5]);
         if (!volumes) {
             log.warn(`Candlesticks with ${CandlestickInterval.FIVE_MINUTES} interval not found`);
-            return false;
+            return { isDead: false, times: -1 };
         }
         volumes = volumes.slice(-50);
         const zeroChangeOccurrences = volumes.reduce((prev, current) => prev + (current === 0 ? 1 : 0), 0);
-        return zeroChangeOccurrences < 3;
+        return { isDead: zeroChangeOccurrences < 3, times: zeroChangeOccurrences };
     }
 }
