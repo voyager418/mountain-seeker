@@ -26,16 +26,6 @@ export class SelectBy5minV4 {
         const candleSticks = _candleSticks ?? market.candleSticks.get(this.INTERVAL)!;
         const candleSticksPercentageVariations = _candleSticksPercentageVariations ?? market.candleSticksPercentageVariations.get(this.INTERVAL)!;
 
-        // should wait at least 30 minutes for consecutive trades on same market
-        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
-        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 0.5) {
-            return undefined;
-        }
-
-        if (market.percentChangeLast24h! < -10) {
-            return undefined;
-        }
-
         const candlesticksCopy = cloneDeep(candleSticks);
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
@@ -88,9 +78,22 @@ export class SelectBy5minV4 {
             return undefined;
         }
 
+        // should wait at least 30 minutes for consecutive trades on same market
+        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
+        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 0.5) {
+            log.debug(`Date is not Ok for ${market.symbol}. Last trade date was ${lastTradeDate}`)
+            return undefined;
+        }
+
+        if (market.percentChangeLast24h! < -10) {
+            log.debug(`Price change too low for ${market.symbol}`)
+            return undefined;
+        }
+
         if (past) {
             log.debug("Late selection");
         }
+
 
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 60 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
