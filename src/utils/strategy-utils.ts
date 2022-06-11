@@ -335,4 +335,8 @@ export class StrategyUtils {
         const zeroChangeOccurrences = volumes.reduce((prev, current) => prev + (current === 0 ? 1 : 0), 0);
         return { isDead: zeroChangeOccurrences > 3, times: zeroChangeOccurrences };
     }
+
+    static getSecondsDifferenceBetweenDates(currentDate: Date, pastDate: Date): number {
+        return Math.round((currentDate.getTime() - pastDate.getTime())/1000);
+    }
 }

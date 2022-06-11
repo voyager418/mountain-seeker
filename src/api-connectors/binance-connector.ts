@@ -16,6 +16,7 @@ import { RedeemOrder } from "../models/redeem-order";
 import { BinanceUtils } from "../utils/binance-utils";
 import { NumberUtils } from "../utils/number-utils";
 import { Account } from "../models/account";
+import { StrategyUtils } from "../utils/strategy-utils";
 
 const axios = require('axios').default;
 
@@ -826,7 +827,7 @@ export class BinanceConnector {
                 market.candleStickIntervals.push(interval);
                 const candles = await apiConnector.getCandlesticks(market.symbol, interval, numberOfCandleSticks, 10)
                     .catch(e => Promise.reject(e));
-                candles[candles.length - 1].push(new Date().getTime()); // the last candlestick contains additional fetching date timestamp
+                candles[candles.length - 1].push(BinanceConnector.getFetchingTimestamp(candles[candles.length - 1])); // the last candlestick contains additional fetching date timestamp
                 market.candleSticks = new Map([[interval, candles]]);
             }
         }
@@ -846,6 +847,26 @@ export class BinanceConnector {
             log.warn(`Fetching candlesticks took ${(stop.getTime() - start.getTime())/1000} seconds`);
         }
         progress.stop();
+    }
+
+    private static getFetchingTimestamp(lastCandlestick: TOHLCVF): number {
+        assert(CandlestickInterval.DEFAULT === CandlestickInterval.FIVE_MINUTES, "If the default interval is not 5min then this" +
+            "method has to be adapted");
+        const currentDate = new Date();
+        const secondsDifference = StrategyUtils.getSecondsDifferenceBetweenDates(currentDate, new Date(lastCandlestick[0]));
+        if (secondsDifference < 300) {
+            // if it was fetched between e.g. 0 and 4:59 then nothing to do
+        } else {
+            // if the candlestick timestamp starts at 0 minutes but it was fetched at 4:59 and now it's >= 5:00
+            // then we set the date to previous minute
+            // example 1: candlestick timestamp = 4:xx, currentDate = 5:00
+            // => currentDate.setSeconds(299 - 300) => currentDate.setSeconds(-1) => currentDate = 4:59
+
+            // example 2: candlestick timestamp = 4:xx, currentDate = 5:01
+            // => currentDate.setSeconds(299 - 301)) => currentDate.setSeconds(-2) => currentDate = 4:58
+            currentDate.setSeconds(299 - secondsDifference);
+        }
+        return currentDate.getTime();
     }
 
     /**

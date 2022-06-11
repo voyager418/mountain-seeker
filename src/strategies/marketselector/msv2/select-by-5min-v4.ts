@@ -33,11 +33,6 @@ export class SelectBy5minV4 {
         // allowed to start 15 seconds earlier or 40 seconds late
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
-            if (fetchingDateOfDefaultCandle.getSeconds() === 0) {
-                // because if the last candle was fetched at 59 seconds, it could be that the fetch date = 0 seconds
-                // and if that's the case then we have an incorrect perception of the situation
-                return undefined;
-            }
             let timeIsOk = false;
             const dateInFuture = new Date();
             dateInFuture.setSeconds(dateInFuture.getSeconds() + 15);
