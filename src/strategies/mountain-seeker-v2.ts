@@ -91,7 +91,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         if (this.state.marketSymbol) {
             this.account.runningState = undefined;
             const updatedAccount = await this.prepareAccountForNextTrade();
-            this.dynamoDbRepository.addState(this.state);
+            this.dynamoDbRepository.saveState(this.state);
 
             const profit = this.state.profitPercent;
             if (!this.strategy!.config.simulation! && profit && profit <= MountainSeekerV2.CURRENT_TRADE_MAX_LOSS) {
@@ -224,7 +224,6 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.state.endWalletBalance = JSON.stringify(Array.from(endWalletBalance.entries()));
         await this.emailService.sendFinalMail(this.account, this.strategy!, this.state, this.market!,
             firstBuyOrder.amountOfOriginAsset!, sellOrder, this.initialWalletBalance!, endWalletBalance).catch(e => log.error(e));
-        const isDeadResult = StrategyUtils.isDeadMarket(this.market!);
         const finalLog = `Final percent change : ${this.state.profitPercent}
             | State : ${JSON.stringify(this.state)}
             | Account : ${JSON.stringify(this.account.email)} 
@@ -238,8 +237,8 @@ export class MountainSeekerV2 implements BaseStrategy {
             | c1FiveMinVariation : ${this.strategy!.metadata?.c1FiveMinVariation?.toFixed(2)}
             | c2FiveMinVariation : ${this.strategy!.metadata?.c2FiveMinVariation?.toFixed(2)}
             | c3FiveMinVariation : ${this.strategy!.metadata?.c3FiveMinVariation?.toFixed(2)}
-            | isDeadMarket : ${isDeadResult.isDead}
-            | isDeadTimes : ${isDeadResult.times}
+            | isDeadMarket : ${this.strategy!.metadata?.isDeadMarket}
+            | isDeadTimes : ${this.strategy!.metadata?.isDeadTimes}
             |`;
         log.info(finalLog.replace(/(\r\n|\n|\r)/gm, "")); // so that it is printed on a single line in CloudWatch
         return Promise.resolve();
@@ -313,6 +312,11 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy.metadata.c1FiveMinVariation = fiveMinCandleSticksPercentageVariations[0];
         this.strategy.metadata.c2FiveMinVariation = fiveMinCandleSticksPercentageVariations[1];
         this.strategy.metadata.c3FiveMinVariation = fiveMinCandleSticksPercentageVariations[2];
+
+        const isDeadResult = StrategyUtils.isDeadMarket(selectionResult.market);
+        this.strategy.metadata.isDeadMarket = isDeadResult.isDead;
+        this.strategy.metadata.isDeadTimes = isDeadResult.times;
+
         this.state.strategyDetails = this.strategy;
         return selectionResult.market;
     }

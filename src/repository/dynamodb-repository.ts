@@ -68,7 +68,7 @@ export class DynamodbRepository {
         return undefined;
     }
 
-    public addState(state: MountainSeekerV2State): void {
+    public saveState(state: MountainSeekerV2State): void {
         if (this.configService.isSimulation()) {
             return;
         }
