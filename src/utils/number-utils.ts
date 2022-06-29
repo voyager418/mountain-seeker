@@ -13,9 +13,9 @@ export class NumberUtils {
             start = 0.00000001;
         }
         if (start <= end) {
-            return Math.abs(((end - start) / start) * 100);
+            return this.truncateNumber(Math.abs(((end - start) / start) * 100), 3);
         } else {
-            return -((start - end) / start) * 100;
+            return this.truncateNumber(-((start - end) / start) * 100, 3);
         }
     }
 

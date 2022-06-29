@@ -285,12 +285,12 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.strategy = Strategies.getStrategy(this.account.activeStrategies.find(strategyName => selectionResult.strategyCustomName === strategyName)!);
         this.strategy.customName = selectionResult.strategyCustomName;
         this.strategy.metadata = {};
-        this.strategy.metadata.maxVariation = selectionResult.maxVariation;
-        this.strategy.metadata.edgeVariation = selectionResult.edgeVariation;
-        this.strategy.metadata.volumeRatio = selectionResult.volumeRatio;
-        this.strategy.metadata.c1MaxVarRatio = selectionResult.c1MaxVarRatio;
-        this.strategy.metadata.BUSDVolumeLast5h = selectionResult.BUSDVolumeLast5h;
-        this.strategy.metadata.BUSDVolumeLast10h = selectionResult.BUSDVolumeLast10h;
+        this.strategy.metadata.maxVariation = NumberUtils.truncateNumber(selectionResult.maxVariation!, 3);
+        this.strategy.metadata.edgeVariation = NumberUtils.truncateNumber(selectionResult.edgeVariation!, 3);
+        this.strategy.metadata.volumeRatio = NumberUtils.truncateNumber(selectionResult.volumeRatio!, 3);
+        this.strategy.metadata.c1MaxVarRatio = NumberUtils.truncateNumber(selectionResult.c1MaxVarRatio!, 3);
+        this.strategy.metadata.BUSDVolumeLast5h = NumberUtils.truncateNumber(selectionResult.BUSDVolumeLast5h!, 3);
+        this.strategy.metadata.BUSDVolumeLast10h = NumberUtils.truncateNumber(selectionResult.BUSDVolumeLast10h!, 3);
         this.strategy.metadata.earlyStart = selectionResult.earlyStart;
         this.strategy.metadata.secondsToSleep = selectionResult.secondsToSleep;
         this.state.last5CandleSticksPercentageVariations = cloneDeep(getCandleSticksPercentageVariationsByInterval(selectionResult.market,

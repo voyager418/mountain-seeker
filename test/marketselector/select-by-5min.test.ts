@@ -26,8 +26,8 @@ describe("strat4-5-5 selector", () => {
         };
         const res = SelectBy5min.shouldSelectMarket(state, market, "strat4-5-5", false, candlesticks, candleSticksPercentageVariations);
         expect(res).toBeDefined();
-        expect(res!.edgeVariation).toEqual(1.4471057884231495);
-        expect(res!.maxVariation).toEqual(1.7946161515453547);
+        expect(res!.edgeVariation).toEqual(1.447);
+        expect(res!.maxVariation).toEqual(1.794);
         expect(res!.volumeRatio).toEqual(2.1635044866832946);
     });
 

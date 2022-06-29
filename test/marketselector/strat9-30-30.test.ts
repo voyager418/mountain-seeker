@@ -26,13 +26,13 @@ describe("strat9-30-30 selector", () => {
         };
         const res = SelectBy30min.shouldSelectMarket(state, market, "strat9-30-30", false, candlesticks, candleSticksPercentageVariations);
         expect(res).toBeDefined();
-        expect(res!.edgeVariation).toEqual(0.9703504043126664);
-        expect(res!.maxVariation).toEqual(3.9268423883808503);
+        expect(res!.edgeVariation).toEqual(0.970);
+        expect(res!.maxVariation).toEqual(3.926);
         expect(res!.volumeRatio).toEqual(6.281922864809773);
         expect(res!.BUSDVolumeLast5h).toEqual(510650.9174);
         expect(res!.BUSDVolumeLast10h).toEqual(918085.3452000001);
         expect(res!.interval).toEqual(CandlestickInterval.THIRTY_MINUTES);
-        expect(res!.c1MaxVarRatio).toEqual(0.7493863330429954);
+        expect(res!.c1MaxVarRatio).toEqual(0.7495471263032407);
     });
 
 });
