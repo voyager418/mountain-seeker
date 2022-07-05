@@ -14,7 +14,7 @@
     "eslint": "eslint src/",
     "compile": "tsc",
     "build-ui": "cd ui && npm run build && cd ..",
-    "compress": "npm run compile && npm run eslint && npm run test && npm run build-ui && sh scripts/compress_to_zip.sh MS.zip",
+    "compress": "sh scripts/compress_to_zip.sh MS.zip",
     "no-master-commit": "no-master-commits -b master"
   },
   "pre-commit": [
