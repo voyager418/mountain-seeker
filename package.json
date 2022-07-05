@@ -13,6 +13,7 @@
     "test-with-coverage": "jest --coverage",
     "eslint": "eslint src/",
     "compile": "tsc",
+    "install-ui": "cd ui && npm ci && cd ..",
     "build-ui": "cd ui && npm run build && cd ..",
     "compress": "sh scripts/compress_to_zip.sh MS.zip",
     "no-master-commit": "no-master-commits -b master"

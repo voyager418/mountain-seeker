@@ -24,6 +24,9 @@ jobs:
     - name: Run tests
       run: npm run test
 
+    - name: Install UI
+      run: npm run install-ui
+
     - name: Build UI
       run: npm run build-ui
 
