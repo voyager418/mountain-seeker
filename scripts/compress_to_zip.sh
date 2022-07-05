@@ -19,8 +19,8 @@ cp -a .ebextensions \
 		tsconfig.json \
 		tempFolder
 
-cd tempFolder && mkdir ui && cd ..
-cp -a ui/dist tempFolder/ui
+cd tempFolder/dist && mkdir ui && cd ../..
+cp -a ui/dist tempFolder/dist/ui
 
 cd tempFolder && zip -r ../"$fileName" ./* && cd ..
 

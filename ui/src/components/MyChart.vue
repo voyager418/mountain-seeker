@@ -6,15 +6,16 @@
 
     <v-row>
       <v-col>
-        <v-text-field label="Email" v-model="email"/>
-        <v-text-field label="Start date" v-model="startDate"/>
-        <v-text-field label="End date" v-model="endDate"/>
-        <v-text-field label="Strategy" v-model="strategyName"/>
-        <v-text-field label="Take profit" v-model.number="takeProfit"/>
-        <v-text-field label="Max drawdown" v-model.number="maxDrawdown"/>
+        <v-text-field label="Email" v-model="email" @input="getTradingHistory"/>
+        <v-text-field label="Start date" v-model="startDate" @input="getTradingHistory"/>
+        <v-text-field label="End date" v-model="endDate" @input="getTradingHistory"/>
+        <v-text-field label="Strategy" v-model="strategyName" @input="getTradingHistory"/>
+        <v-text-field label="Take profit" v-model.number="takeProfit" @input="getTradingHistory"/>
+        <v-text-field label="Max drawdown" v-model.number="maxDrawdown" @input="getTradingHistory"/>
         <v-checkbox
             v-model="findMaxProfit"
             label="find max profit "
+            @change="getTradingHistory"
         ></v-checkbox>
 
       </v-col>
@@ -26,6 +27,7 @@
             min="0"
             ticks
             v-model="volumeRatio"
+            @change="getTradingHistory"
         ></v-range-slider>
         <label>c1 variation {{ c1Variation }}</label>
         <v-range-slider
@@ -33,6 +35,7 @@
             min="5"
             ticks
             v-model="c1Variation"
+            @change="getTradingHistory"
         ></v-range-slider>
         <label>c2 variation {{ c2Variation }}</label>
         <v-range-slider
@@ -40,6 +43,7 @@
             min="-10"
             ticks
             v-model="c2Variation"
+            @change="getTradingHistory"
         ></v-range-slider>
       <label>chg 24h {{ chg24h }}</label>
         <v-range-slider
@@ -47,6 +51,7 @@
             min="-10"
             ticks
             v-model="chg24h"
+            @change="getTradingHistory"
         ></v-range-slider>
       <label>Volume BUSD 5h {{ volumeBUSD5h }}</label>
         <v-range-slider
@@ -54,6 +59,7 @@
             min="40000"
             step="5000"
             v-model="volumeBUSD5h"
+            @change="getTradingHistory"
         ></v-range-slider>
         <label>Edge variation {{ edgeVariation }}</label>
         <v-range-slider
@@ -61,6 +67,7 @@
             min="0"
             step="0.5"
             v-model="edgeVariation"
+            @change="getTradingHistory"
         ></v-range-slider>
         <label>Max variation {{ maxVariation }}</label>
         <v-range-slider
@@ -68,6 +75,7 @@
             min="0"
             step="0.5"
             v-model="maxVariation"
+            @change="getTradingHistory"
         ></v-range-slider>
         <label>c1 max var ratio {{ c1MaxVarRatio }}</label>
         <v-range-slider
@@ -75,19 +83,11 @@
             min="0"
             step="0.5"
             v-model="c1MaxVarRatio"
+            @change="getTradingHistory"
         ></v-range-slider>
       </v-col>
 
     </v-row>
-
-
-    <br>
-    <v-btn @click="getTradingHistory">Refresh</v-btn>
-    <form>
-      <!-- only call `vm.submit()` when the `key` is `Enter` -->
-      <input @keyup.enter="getTradingHistory" />
-
-    </form>
   </v-container>
 </template>
 
