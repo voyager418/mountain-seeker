@@ -17,6 +17,7 @@ cp -a .ebextensions \
 		package.json \
 		src \
 		tsconfig.json \
+		ui/dist \
 		tempFolder
 
 cd tempFolder && zip -r ../"$fileName" ./* && cd ..

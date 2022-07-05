@@ -12,11 +12,17 @@ import { adminRoutes } from "./controller/admin.controller";
 
 
 const server = express();
+const path = require('path');
 const serverPort = CONFIG.port;
 const serverHost = CONFIG.host;
 server.use(express.json())
 server.use(adminRoutes);
 server.use(statisticsRoutes);
+server.use(express.static(path.join(__dirname, '../ui/dist')));
+
+server.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../ui/dist/index.html'));
+});
 
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);

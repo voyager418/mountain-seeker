@@ -4,7 +4,7 @@ import { DynamodbRepository } from "../repository/dynamodb-repository";
 export const statisticsRoutes = express.Router();
 const dynamodbRepository = container.resolve(DynamodbRepository);
 
-statisticsRoutes.get("/stats", async (req: Request, res: Response) => {
+statisticsRoutes.get("/api/stats", async (req: Request, res: Response) => {
     const user = req.query?.user;
     if (!user) {
         return res.status(400).json({

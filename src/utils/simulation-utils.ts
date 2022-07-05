@@ -4,6 +4,7 @@ import { Currency } from "../enums/trading-currencies.enum";
 import { v4 as uuidv4 } from "uuid";
 import { NumberUtils } from "./number-utils";
 import { GlobalUtils } from "./global-utils";
+import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
 
 export class SimulationUtils {
 
@@ -99,4 +100,71 @@ export class SimulationUtils {
             type: OrderType.STOP_LIMIT
         };
     }
+
+    static appendSimulationTradingInfo(states: Array<MountainSeekerV2State>, payload: any):
+        {
+            statesInfo: any,
+            globalInfo: {
+                totalTrades: number
+            }
+        } {
+        const maxDrawdown = payload.maxDrawdown;
+        const takeProfit = payload.findMaxProfit ? this.findTakeProfitForMaxProfit(states, maxDrawdown) : payload.takeProfit;
+        const statesInfo = [];
+        let cumulativeProfitPercent = 0;
+        let nonProfitable = 0;
+        for (let i = 0; i < states.length; i++) {
+            if (takeProfit && states[i].runUp! >= takeProfit) {
+                cumulativeProfitPercent += takeProfit;
+            } else {
+                cumulativeProfitPercent += states[i].profitPercent!;
+                if (states[i].profitPercent! <= 0) {
+                    nonProfitable += 1;
+                }
+            }
+            statesInfo.push({
+                state: states[i],
+                simulationInfo: {
+                    cumulativeProfitPercent
+                }
+            })
+        }
+
+        const globalInfo = {
+            totalTrades: states.length,
+            totalProfit: NumberUtils.truncateNumber(cumulativeProfitPercent, 2),
+            profitable: NumberUtils.truncateNumber(100 - nonProfitable/states.length * 100, 2),
+            takeProfit: takeProfit
+        };
+
+        return {
+            statesInfo,
+            globalInfo
+        };
+    }
+
+    private static findTakeProfitForMaxProfit(states: Array<MountainSeekerV2State>, maxDrawdown: any): number {
+        let bestTakeProfit = 1;
+        let cumulativeProfitPercent = -10000;
+
+        for (let t = 1.0; t < 20; t += 0.1) {
+            let tempCumulativeProfitPercent = 0;
+            for (let i = 0; i < states.length; i++) {
+                if (states[i].runUp! >= t) {
+                    tempCumulativeProfitPercent += t;
+                } else {
+                    tempCumulativeProfitPercent += states[i].profitPercent!;
+                }
+
+                if (i == states.length - 1 && tempCumulativeProfitPercent > cumulativeProfitPercent) {
+                    bestTakeProfit = t;
+                    cumulativeProfitPercent = tempCumulativeProfitPercent;
+                }
+
+            }
+        }
+
+        return NumberUtils.truncateNumber(bestTakeProfit, 2);
+    }
+
 }

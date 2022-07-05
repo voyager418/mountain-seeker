@@ -141,17 +141,47 @@ export class DynamodbRepository {
         return res;
     }
 
-    public async getTradingStates(email: string, startDate: string, endDate: string): Promise<Array<TradingState>> {
+    public async getTradingStates(payload: any): Promise<Array<TradingState>> {
+        if (!payload.email || !payload.startDate || !payload.endDate || !payload.strategyName) {
+            return Promise.reject("One of the mandatory fields is missing");
+        }
         let params: DynamoDB.DocumentClient.ScanInput = {
             ExpressionAttributeValues: {
-                ':accountEmail' : email,
-                ':startDate' : startDate,
-                ':endDate' : endDate
+                ':accountEmail' : payload.email,
+                ':startDate' : payload.startDate,
+                ':endDate' : payload.endDate,
+                ':strategyName' : payload.strategyName,
+                ':volumeRatioLower': payload.volumeRatio ? payload.volumeRatio[0] : 0,
+                ':volumeRatioUpper': payload.volumeRatio ? payload.volumeRatio[1] : 2000,
+                ':c1VariationLower': payload.c1Variation ? payload.c1Variation[0] : 0,
+                ':c1VariationUpper': payload.c1Variation ? payload.c1Variation[1] : 2000,
+                ':c2VariationLower': payload.c2Variation ? payload.c2Variation[0] : 0,
+                ':c2VariationUpper': payload.c2Variation ? payload.c2Variation[1] : 2000,
+                ':chg24hLower': payload.chg24h ? payload.chg24h[0] : -20,
+                ':chg24Upper': payload.chg24h ? payload.chg24h[1] : 2000,
+                ':volumeBUSD5hLower': payload.volumeBUSD5h ? payload.volumeBUSD5h[0] : 40000,
+                ':volumeBUSD5hUpper': payload.volumeBUSD5h ? payload.volumeBUSD5h[1] : 100000000,
+                ':edgeVariationLower': payload.edgeVariation ? payload.edgeVariation[0] : -1000,
+                ':edgeVariationUpper': payload.edgeVariation ? payload.edgeVariation[1] : 1000,
+                ':maxVariationLower': payload.maxVariation ? payload.maxVariation[0] : -1000,
+                ':maxVariationUpper': payload.maxVariation ? payload.maxVariation[1] : 1000,
+                ':c1MaxVarRatioLower': payload.c1MaxVarRatio ? payload.c1MaxVarRatio[0] : -1000,
+                ':c1MaxVarRatioUpper': payload.c1MaxVarRatio ? payload.c1MaxVarRatio[1] : 1000
             },
             ExpressionAttributeNames: {
                 "#trading_state": "state"
             },
-            FilterExpression: '#trading_state.accountEmail = :accountEmail and #trading_state.endDate between :startDate and :endDate',
+            FilterExpression: '#trading_state.accountEmail = :accountEmail and ' +
+                '#trading_state.endDate between :startDate and :endDate and ' +
+                '#trading_state.strategyDetails.customName = :strategyName and ' +
+                '#trading_state.strategyDetails.metadata.volumeRatio between :volumeRatioLower and :volumeRatioUpper and ' +
+                '#trading_state.last5CandleSticksPercentageVariations[3] between :c1VariationLower and :c1VariationUpper and ' +
+                '#trading_state.last5CandleSticksPercentageVariations[2] between :c2VariationLower and :c2VariationUpper and ' +
+                '#trading_state.marketPercentChangeLast24h between :chg24hLower and :chg24Upper and ' +
+                '#trading_state.strategyDetails.metadata.edgeVariation between :edgeVariationLower and :edgeVariationUpper and ' +
+                '#trading_state.strategyDetails.metadata.maxVariation between :maxVariationLower and :maxVariationUpper and ' +
+                '#trading_state.strategyDetails.metadata.c1MaxVarRatio between :c1MaxVarRatioLower and :c1MaxVarRatioUpper and ' +
+                '#trading_state.strategyDetails.metadata.BUSDVolumeLast5h between :volumeBUSD5hLower and :volumeBUSD5hUpper',
             TableName: 'TradingStates'
         };
         const resultArray: MountainSeekerV2State[] = [];
@@ -171,12 +201,12 @@ export class DynamodbRepository {
                 }
             }
         }
-        // newest states in the beginning of the array
-        return resultArray.sort((s1, s2) => (s1.endDate! > s2.endDate! ? -1 : 1));
+        // newest states in the end of the array
+        return resultArray.sort((s1, s2) => (s1.endDate! < s2.endDate! ? -1 : 1));
     }
 
-    public async deleteTradingStates(email: string, startDate: string, endDate: string): Promise<number> {
-        const itemsToDelete: Array<TradingState> = await this.getTradingStates(email, startDate, endDate);
+    public async deleteTradingStates(payload: any): Promise<number> {
+        const itemsToDelete: Array<TradingState> = await this.getTradingStates(payload);
         let deleted = 0;
         for (const item of itemsToDelete) {
             const params: DynamoDB.DocumentClient.DeleteItemInput = {

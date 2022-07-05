@@ -1,7 +1,7 @@
 #!/bin/bash
 
 aws_host=http://ms-env.eba-vmhpnm8k.eu-west-1.elasticbeanstalk.com
-stop_endpoint=$aws_host/stop/all
+stop_endpoint=$aws_host/api/stop/all
 
 echo "Stopping all strategies..."
 echo "Executing GET request to $stop_endpoint"

@@ -4,19 +4,16 @@ import { DynamodbRepository } from "../repository/dynamodb-repository";
 import { TradingService } from "../services/trading-service";
 import { SellService } from "../services/sell-service";
 import { SimulationService } from "../services/simulation-service";
+import { SimulationUtils } from "../utils/simulation-utils";
 export const adminRoutes = express.Router();
 const dynamodbRepository = container.resolve(DynamodbRepository);
 const tradingService = container.resolve(TradingService);
 
-adminRoutes.get('/', (req, res) =>  {
-    res.send('Server is up');
-});
-
-adminRoutes.get('/stop/all', (req, res) =>  {
+adminRoutes.get('/api/stop/all', (req, res) =>  {
     res.send(tradingService.stopTrading());
 });
 
-adminRoutes.get('/start/all', (req, res) =>  {
+adminRoutes.get('/api/start/all', (req, res) =>  {
     const totalObservers = tradingService.getStatus().total;
     if (totalObservers > 0) {
         return res.status(400).json({
@@ -33,15 +30,21 @@ adminRoutes.get('/start/all', (req, res) =>  {
         });
 });
 
-adminRoutes.get('/status', (req, res) =>  {
+adminRoutes.get('/api/status', (req, res) =>  {
     res.send(tradingService.getStatus());
 });
 
-adminRoutes.post('/tradingstates/get', async (req, res) =>  {
-    const body = req.body;
-    return res.status(200).json(await dynamodbRepository.getTradingStates(body.email, body.startDate, body.endDate));
+adminRoutes.post('/api/tradingstates/get', async (req, res) =>  {
+    try {
+        const states = await dynamodbRepository.getTradingStates(req.body);
+        const response = SimulationUtils.appendSimulationTradingInfo(states, req.body);
+        return res.status(200).json(response);
+    } catch (e) {
+        return res.status(500).json({ errorMsg: e.message ?? e });
+    }
 });
 
-adminRoutes.get('/tradingstates/delete', async (req, res) =>  {
-    return res.status(200).json(await dynamodbRepository.deleteTradingStates("abc", "2022-02-01T01:49:51.714Z", "2022-03-25T20:49:51.714Z"));
+adminRoutes.get('/api/tradingstates/delete', async (req, res) =>  {
+    // return res.status(200).json(await dynamodbRepository.deleteTradingStates("abc", "2022-02-01T01:49:51.714Z", "2022-03-25T20:49:51.714Z"));
+    return res.status(200).json(await dynamodbRepository.deleteTradingStates(req.body));
 });
