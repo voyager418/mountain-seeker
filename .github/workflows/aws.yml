@@ -24,7 +24,7 @@ jobs:
     - name: Run tests
       run: npm run test
 
-     - name: Build UI
+    - name: Build UI
       run: npm run build-ui
 
     - name: Generate application zip
