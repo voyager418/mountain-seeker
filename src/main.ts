@@ -18,10 +18,17 @@ const serverHost = CONFIG.host;
 server.use(express.json())
 server.use(adminRoutes);
 server.use(statisticsRoutes);
-server.use(express.static(path.join(__dirname, '../ui/dist')));
+// server.use(express.static(path.join(__dirname, '../ui/dist')));
 
 server.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../ui/dist/index.html'));
+    // console.log(path.join(__dirname, '../ui/dist/index.html'));
+    // res.sendFile(path.join(__dirname, '../ui/dist/index.html'));
+    // console.log(path.join(__dirname, '../ui/dist', 'index.html'));
+    // res.sendFile(path.join(__dirname, '../ui/dist', 'index.html'));
+    // res.sendFile('./../ui/dist/index.html');
+    console.log(__dirname);
+    // res.send(path.join(__dirname, '../ui/dist', 'index.html'));
+    res.send(__dirname + '--' + path.join(__dirname, '../ui/dist', 'index.html'));
 });
 
 server.listen(serverPort, serverHost, () => {
