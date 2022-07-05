@@ -40,7 +40,7 @@ adminRoutes.post('/api/tradingstates/get', async (req, res) =>  {
         const response = SimulationUtils.appendSimulationTradingInfo(states, req.body);
         return res.status(200).json(response);
     } catch (e) {
-        return res.status(500).json({ errorMsg: e.message ?? e });
+        return res.status(500).json({ errorMsg: new Error(e as any).message ?? e });
     }
 });
 
