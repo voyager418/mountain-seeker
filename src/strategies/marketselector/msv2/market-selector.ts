@@ -52,7 +52,7 @@ export class MarketSelector implements Selector {
         case "strat13-30-30":
             shouldSelect = SelectBy30minV4.shouldSelectMarket(state, market, strategy.customName, true);
             break;
-        case "strat14-30-30":
+        case "strat14-30-30": // short, not working
             shouldSelect = SelectBy30minV5.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat15-5-5":
