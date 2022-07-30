@@ -73,12 +73,12 @@ export class SelectBy5minV4 {
             return undefined;
         }
 
-        // should wait at least 30 minutes for consecutive trades on same market
-        const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
-        if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 0.5) {
-            log.debug(`Date is not Ok for ${market.symbol}. Last trade date was ${lastTradeDate}`)
-            return undefined;
-        }
+        // // should wait at least 30 minutes for consecutive trades on same market
+        // const lastTradeDate = state.marketLastTradeDate!.get(market.symbol + strategyCustomName);
+        // if (lastTradeDate && (Math.abs(lastTradeDate.getTime() - new Date().getTime()) / 3.6e6) <= 0.5) {
+        //     log.debug(`Date is not Ok for ${market.symbol}. Last trade date was ${lastTradeDate}`)
+        //     return undefined;
+        // }
 
         if (market.percentChangeLast24h! < -10) {
             log.debug(`Price change too low for ${market.symbol}`)
