@@ -108,33 +108,40 @@ export class SimulationUtils {
                 totalTrades: number
             }
         } {
-        const maxDrawdown = payload.maxDrawdown;
-        const takeProfit = payload.findMaxProfit ? this.findTakeProfitForMaxProfit(states, maxDrawdown) : payload.takeProfit;
+        const takeProfit = payload.findMaxProfit ? this.findTakeProfitForMaxProfit(states) : payload.takeProfit;
         const statesInfo = [];
         let cumulativeProfitPercent = 0;
+        let cumulativeProfitMoney = payload.initialBalance;
         let nonProfitable = 0;
         for (let i = 0; i < states.length; i++) {
             if (takeProfit && states[i].runUp! >= takeProfit) {
                 cumulativeProfitPercent += takeProfit;
+                cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, takeProfit);
             } else {
                 cumulativeProfitPercent += states[i].profitPercent!;
                 if (states[i].profitPercent! <= 0) {
                     nonProfitable += 1;
+                    cumulativeProfitMoney = NumberUtils.decreaseNumberByPercent(cumulativeProfitMoney, states[i].profitPercent!);
+                } else {
+                    cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, states[i].profitPercent!);
                 }
             }
             statesInfo.push({
                 state: states[i],
                 simulationInfo: {
-                    cumulativeProfitPercent
+                    cumulativeProfitPercent,
+                    cumulativeProfitMoney
                 }
             })
         }
 
         const globalInfo = {
             totalTrades: states.length,
-            totalProfit: NumberUtils.truncateNumber(cumulativeProfitPercent, 2),
             profitable: NumberUtils.truncateNumber(100 - nonProfitable/states.length * 100, 2),
-            takeProfit: takeProfit
+            takeProfit: takeProfit,
+            // below is for simulation only
+            totalProfit: NumberUtils.truncateNumber(cumulativeProfitPercent, 2),
+            simulationMoneyProfitPercent: NumberUtils.getPercentVariation(payload.initialBalance, cumulativeProfitMoney)
         };
 
         return {
@@ -143,7 +150,7 @@ export class SimulationUtils {
         };
     }
 
-    private static findTakeProfitForMaxProfit(states: Array<MountainSeekerV2State>, maxDrawdown: any): number {
+    private static findTakeProfitForMaxProfit(states: Array<MountainSeekerV2State>): number {
         let bestTakeProfit = 1;
         let cumulativeProfitPercent = -10000;
 
