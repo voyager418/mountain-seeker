@@ -101,49 +101,6 @@ export class Strategies {
         }
     }
 
-    static readonly strat12_30_30 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat12-30-30",
-        config: {
-            autoRestart: true,
-            simulation: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 15
-            }
-        }
-    }
-
-    static readonly strat13_30_30 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat13-30-30",
-        config: {
-            autoRestart: true,
-            simulation: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 15
-            }
-        }
-    }
-
-    static readonly strat14_30_30 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat14-30-30",
-        config: {
-            autoRestart: true,
-            simulation: true,
-            short: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 15
-            }
-        }
-    }
-
     static readonly strat15_5_5 : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
         customName: "strat15-5-5",
@@ -268,12 +225,6 @@ export class Strategies {
             return Strategies.strat10_5_5;
         case "strat10-5-10":
             return Strategies.strat10_5_10;
-        case "strat12-30-30":
-            return Strategies.strat12_30_30;
-        case "strat13-30-30":
-            return Strategies.strat13_30_30;
-        case "strat14-30-30":
-            return Strategies.strat14_30_30;
         case "strat15-5-5":
             return Strategies.strat15_5_5;
         case "strat15-5-10":

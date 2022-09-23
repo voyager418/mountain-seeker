@@ -21,6 +21,6 @@ export type BaseStrategyConfig = {
 }
 
 export type StrategyName = "strat4-5-5" | "strat8-5-10"
-    | "strat8-5-10-r" | "strat10-5-5" | "strat10-5-10" | "strat12-30-30"
-    | "strat13-30-30" | "strat14-30-30" | "strat15-5-5" | "strat15-5-10" | "strat16-30-30"
+    | "strat8-5-10-r" | "strat10-5-5" | "strat10-5-10"
+    | "strat15-5-5" | "strat15-5-10" | "strat16-30-30"
     | "strat17-15-15" | "strat18-5-5" | "strat19-5-10" | "strat20-15-30";
