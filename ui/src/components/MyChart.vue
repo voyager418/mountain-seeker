@@ -6,12 +6,12 @@
             <canvas id="percent-line-chart"></canvas>
           </v-row>
         </b-tab>
-        <b-tab title="Cumulative $ chart">
+        <b-tab title="Cumulative $ chart" active>
           <v-row>
             <canvas id="money-line-chart"></canvas>
           </v-row>
         </b-tab>
-        <b-tab title="Monthly chart" active>
+        <b-tab title="Monthly chart">
           <v-row>
             <canvas id="monthly-chart"></canvas>
           </v-row>

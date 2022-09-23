@@ -130,7 +130,7 @@ export class SimulationUtils {
                 state: states[i],
                 simulationInfo: {
                     cumulativeProfitPercent,
-                    cumulativeProfitMoney
+                    cumulativeProfitMoney: NumberUtils.truncateNumber(cumulativeProfitMoney, 2)
                 }
             })
         }
