@@ -45,20 +45,6 @@ export type TradingLoopConfig = {
 }
 
 export class Strategies {
-    static readonly strat1_15_15 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat1-15-15", // based on 15min candlesticks and takes a decision every 15min
-        config: {
-            autoRestart: true,
-            simulation: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 900, // 15min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
-            }
-        }
-    }
-
     static readonly strat4_5_5 : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
         customName: "strat4-5-5", // based on 5min candlesticks and takes a decision every 5min
@@ -67,20 +53,6 @@ export class Strategies {
             simulation: true,
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 300, // 5min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 15
-            }
-        }
-    }
-
-    static readonly strat5_15_30 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat5-15-30", // based on 15min candlesticks and takes a decision every 15min
-        config: {
-            autoRestart: true,
-            simulation: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
                 stopTradingMaxPercentLoss: -4.8,
                 priceWatchInterval: 15
             }
@@ -330,12 +302,8 @@ export class Strategies {
 
     public static getStrategy(customName: StrategyName): Strategy<MountainSeekerV2Config> {
         switch (customName) {
-        case "strat1-15-15":
-            return Strategies.strat1_15_15;
         case "strat4-5-5":
             return Strategies.strat4_5_5;
-        case "strat5-15-30":
-            return Strategies.strat5_15_30;
         case "strat8-5-10":
             return Strategies.strat8_5_10;
         case "strat9-30-30":
