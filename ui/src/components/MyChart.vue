@@ -46,7 +46,8 @@
         <label>c1 variation {{ c1Variation }}</label>
         <v-range-slider
             max="100"
-            min="5"
+            min="1"
+            step="0.5"
             ticks
             v-model="c1Variation"
             @change="getTradingHistory"
@@ -55,6 +56,7 @@
         <v-range-slider
             max="100"
             min="-10"
+            step="0.5"
             ticks
             v-model="c2Variation"
             @change="getTradingHistory"
@@ -125,7 +127,7 @@ export default {
       initialBalance: 1000,
       volumeRatio: [17, 85],
       c1Variation: [8, 50],
-      c2Variation: [-0.9, 7],
+      c2Variation: [-1, 7],
       chg24h: [-10, 30],
       volumeBUSD5h: [60000, 100000000],
       edgeVariation: [1, 10],

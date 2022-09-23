@@ -4,11 +4,9 @@ import { Market } from "../../../models/market";
 import { SelectBy5min } from "./select-by-5min";
 import log from '../../../logging/log.instance';
 import { StrategyUtils } from "../../../utils/strategy-utils";
-import { SelectBy30min } from "./select-by-30min";
 import { MountainSeekerV2State } from "../../state/mountain-seeker-v2-state";
 import { Strategy } from "../../../models/strategy";
 import { MountainSeekerV2Config } from "../../config/mountain-seeker-v2-config";
-import { Strat93030ReleaseSelector } from "./strat9-30-30-release-selector";
 import { Strat8510ReleaseSelector } from "./strat8-5-10-release-selector";
 import { SelectBy5minV2 } from "./select-by-5min-v2";
 import { SelectBy30minV2 } from "./select-by-30min-v2";
@@ -30,9 +28,6 @@ export class MarketSelector implements Selector {
         case "strat4-5-5":
         case "strat8-5-10":
             shouldSelect = SelectBy5min.shouldSelectMarket(state, market, strategy.customName, true);
-            break;
-        case "strat9-30-30":
-            shouldSelect = SelectBy30min.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         case "strat10-5-5":
         case "strat10-5-10":
@@ -66,9 +61,6 @@ export class MarketSelector implements Selector {
             shouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, strategy.customName, true);
             break;
 
-        case "strat9-30-30-r":
-            shouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
-            break;
         case "strat8-5-10-r":
             shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
             break;
@@ -91,9 +83,6 @@ export class MarketSelector implements Selector {
         case "strat4-5-5":
         case "strat8-5-10":
             previousShouldSelect = SelectBy5min.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
-            break;
-        case "strat9-30-30":
-            previousShouldSelect = SelectBy30min.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         case "strat10-5-5":
         case "strat10-5-10":
@@ -127,9 +116,6 @@ export class MarketSelector implements Selector {
             previousShouldSelect = SelectBy5minV4.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
 
-        case "strat9-30-30-r":
-            previousShouldSelect = Strat93030ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
-            break;
         case "strat8-5-10-r":
             previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;

@@ -101,20 +101,6 @@ export class Strategies {
         }
     }
 
-    static readonly strat9_30_30 : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat9-30-30",
-        config: {
-            autoRestart: true,
-            simulation: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
-            }
-        }
-    }
-
     static readonly strat11_30_30 : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
         customName: "strat11-30-30",
@@ -272,20 +258,6 @@ export class Strategies {
 
 
 
-    static readonly strat9_30_30_r : Strategy<MountainSeekerV2Config> = {
-        type: TradingStrategy.MSV2,
-        customName: "strat9-30-30-r",
-        config: {
-            autoRestart: true,
-            tradingLoopConfig: {
-                secondsToSleepAfterTheBuy: 1800, // 30min
-                stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 15,
-                takeProfit: 13.3
-            }
-        }
-    }
-
     static readonly strat8_5_10_r : Strategy<MountainSeekerV2Config> = {
         type: TradingStrategy.MSV2,
         customName: "strat8-5-10-r",
@@ -306,8 +278,6 @@ export class Strategies {
             return Strategies.strat4_5_5;
         case "strat8-5-10":
             return Strategies.strat8_5_10;
-        case "strat9-30-30":
-            return Strategies.strat9_30_30;
         case "strat10-5-5":
             return Strategies.strat10_5_5;
         case "strat10-5-10":
@@ -335,8 +305,6 @@ export class Strategies {
         case "strat20-15-30":
             return Strategies.strat20_15_30;
 
-        case "strat9-30-30-r":
-            return Strategies.strat9_30_30_r;
         case "strat8-5-10-r":
             return Strategies.strat8_5_10_r;
         default:
