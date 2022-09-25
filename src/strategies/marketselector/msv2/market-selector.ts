@@ -13,6 +13,7 @@ import { SelectBy5minV3 } from "./select-by-5min-v3";
 import { SelectBy30minV6 } from "./select-by-30min-v6";
 import { SelectBy15minV2 } from "./select-by-15min-v2";
 import { SelectBy5minV4 } from "./select-by-5min-v4";
+import { Strat1855ReleaseSelector } from "./strat18-5-5-release-selector";
 
 
 @singleton()
@@ -47,6 +48,9 @@ export class MarketSelector implements Selector {
 
         case "strat8-5-10-r":
             shouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
+            break;
+        case "strat18-5-5-r":
+            shouldSelect = Strat1855ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, true);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);
@@ -90,6 +94,9 @@ export class MarketSelector implements Selector {
 
         case "strat8-5-10-r":
             previousShouldSelect = Strat8510ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
+            break;
+        case "strat18-5-5-r":
+            previousShouldSelect = Strat1855ReleaseSelector.shouldSelectMarket(state, market, strategy.customName, false,  candleSticksExceptLast, candleSticksPercentageVariationsExceptLast);
             break;
         default:
             log.error(`Unable to select a market due to unknown strategy name : ${strategy.customName}`);

@@ -215,6 +215,20 @@ export class Strategies {
         }
     }
 
+    static readonly strat18_5_5_r : Strategy<MountainSeekerV2Config> = {
+        type: TradingStrategy.MSV2,
+        customName: "strat18-5-5-r",
+        config: {
+            autoRestart: true,
+            tradingLoopConfig: {
+                secondsToSleepAfterTheBuy: 300, // 5min
+                stopTradingMaxPercentLoss: -4.8,
+                priceWatchInterval: 10,
+                takeProfit: 11.19
+            }
+        }
+    }
+
     public static getStrategy(customName: StrategyName): Strategy<MountainSeekerV2Config> {
         switch (customName) {
         case "strat4-5-5":
@@ -242,6 +256,8 @@ export class Strategies {
 
         case "strat8-5-10-r":
             return Strategies.strat8_5_10_r;
+        case "strat18-5-5-r":
+            return Strategies.strat18_5_5_r;
         default:
             throw new Error("Strategy not found");
         }
