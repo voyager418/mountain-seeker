@@ -64,6 +64,7 @@ export class Strat1855ReleaseSelector {
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
         const volumeRatio = c1[5] / c2[5];
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
+        const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
         const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2); // except the last 2 (c1 & c2)
         const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept2);
         const edgeVariation = Math.abs(NumberUtils.getPercentVariation(twentyCandlesticksExcept2[0][4],
@@ -71,6 +72,10 @@ export class Strat1855ReleaseSelector {
         const c1MaxVarRatio = c1Variation/maxVariation;
 
         if (c1Variation < 9 || c1Variation > 30) {
+            return undefined;
+        }
+
+        if (c2Variation < -2 || c2Variation > 7) {
             return undefined;
         }
 
