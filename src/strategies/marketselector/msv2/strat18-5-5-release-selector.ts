@@ -79,7 +79,7 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (market.percentChangeLast24h! < -10 || market.percentChangeLast24h! > -30) {
+        if (market.percentChangeLast24h! < -10 || market.percentChangeLast24h! > 30) {
             return undefined;
         }
 
