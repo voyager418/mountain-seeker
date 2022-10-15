@@ -71,38 +71,38 @@ export class Strat1855ReleaseSelector {
             twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]));
         const c1MaxVarRatio = c1Variation/maxVariation;
 
-        if (c1Variation < 9 || c1Variation > 30) {
+        if (c1Variation < 10 || c1Variation > 50) {
             return undefined;
         }
 
-        if (c2Variation < -2 || c2Variation > 7) {
+        if (c2Variation < -3 || c2Variation > 7) {
             return undefined;
         }
 
-        if (market.percentChangeLast24h! < -10 || market.percentChangeLast24h! > 30) {
+        if (market.percentChangeLast24h! < -10 || market.percentChangeLast24h! > 60) {
             return undefined;
         }
 
-        if (volumeRatio < 14 || volumeRatio > 60) {
+        if (volumeRatio < 12 || volumeRatio > 295) {
             return undefined;
         }
 
-        if (edgeVariation < 1 || edgeVariation > 10) {
+        if (edgeVariation < 3 || edgeVariation > 10) {
             return undefined;
         }
 
-        if (maxVariation < 1.5 || maxVariation > 20) {
+        if (maxVariation < 0 || maxVariation > 10) {
             return undefined;
         }
 
-        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 3.5) {
+        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 5) {
             return undefined;
         }
 
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 60 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
 
-        if (BUSDVolumeLast5h < 60000) {
+        if (BUSDVolumeLast5h < 45000) {
             return undefined;
         }
 
