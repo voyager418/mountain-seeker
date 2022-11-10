@@ -79,11 +79,11 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (market.percentChangeLast24h! < -10 || market.percentChangeLast24h! > 60) {
+        if (market.percentChangeLast24h! < 0 || market.percentChangeLast24h! > 60) {
             return undefined;
         }
 
-        if (volumeRatio < 12 || volumeRatio > 295) {
+        if (volumeRatio < 12 || volumeRatio > 70) {
             return undefined;
         }
 
