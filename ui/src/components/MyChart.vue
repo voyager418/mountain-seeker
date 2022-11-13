@@ -323,6 +323,7 @@ export default {
                   var span = '<span style="' + style + '"></span>';
                   const cumulProfit = body[0].substring(body[0].lastIndexOf(": ")+2);
                   let hoveredState;
+                  console.log(email);
                   if (!moneyLine) {
                     hoveredState = response.statesInfo.filter(s => s.simulationInfo.cumulativeProfitPercent == cumulProfit)[0];
                   } else {
