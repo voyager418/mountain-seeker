@@ -37,7 +37,7 @@ adminRoutes.get('/api/status', (req, res) =>  {
 adminRoutes.post('/api/tradingstates/get', async (req, res) =>  {
     try {
         const states = await dynamodbRepository.getTradingStates(req.body);
-        const response = SimulationUtils.appendSimulationTradingInfo(states, req.body);
+        const response = SimulationUtils.appendSimulationTradingInfo(states, req.body); // TODO add if, if email not a simulation then call a different method
         return res.status(200).json(response);
     } catch (e) {
         return res.status(500).json({ errorMsg: new Error(e as any).message ?? e });

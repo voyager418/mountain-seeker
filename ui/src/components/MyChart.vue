@@ -109,7 +109,7 @@
 
 <script>
 import Chart from 'chart.js'
-import { getPercentVariation, getTradingHistory } from '@/services/DataService'
+import { getPercentVariation, getTradingHistory, truncateNumber } from '@/services/DataService'
 
 export default {
   name: 'MyChart',
@@ -122,17 +122,17 @@ export default {
       startDate: new Date("2022-06-01").toISOString(),
       endDate: new Date("2023-06-28").toISOString(),
       strategyName: "strat18-5-5",
-      takeProfit: undefined,
+      takeProfit: 11.19,
       maxDrawdown: -4.8,
       initialBalance: 1000,
-      volumeRatio: [17, 85],
-      c1Variation: [8, 50],
-      c2Variation: [-1, 7],
-      chg24h: [-10, 30],
-      volumeBUSD5h: [60000, 100000000],
-      edgeVariation: [1, 10],
-      maxVariation: [0, 100],
-      c1MaxVarRatio: [0, 5],
+      volumeRatio: [10, 50],
+      c1Variation: [10, 50],
+      c2Variation: [-3, 7],
+      chg24h: [0, 60],
+      volumeBUSD5h: [45000, 100000000],
+      edgeVariation: [3, 10],
+      maxVariation: [0, 10],
+      c1MaxVarRatio: [0, 2.5],
       findMaxProfit: false,
       chartOptions: {
         responsive: true,
@@ -218,9 +218,9 @@ export default {
       const yValues = response.statesInfo.map(x => x.simulationInfo.cumulativeProfitMoney);
       this.moneyLineChart.data.labels = xValues;
       this.moneyLineChart.data.datasets = [{
-        label: `profit $ = ${this.email === "simulation" ? yValues[yValues.length - 1] : response.statesInfo[response.statesInfo.length - 1].state.retrievedAmountOfBusd}
-| profit % = ${this.email === "simulation" ? response.globalInfo.simulationMoneyProfitPercent : 0}
-| profitable = ${response.globalInfo.profitable} | take profit = ${response.globalInfo.takeProfit} | trades = ${response.globalInfo.totalTrades}`,
+        label: `profit = ${this.email === "simulation" ? yValues[yValues.length - 1] : response.statesInfo[response.statesInfo.length - 1].state.retrievedAmountOfBusd}$
+/ ${this.email === "simulation" ? response.globalInfo.simulationMoneyProfitPercent : 0}%
+| profitable = ${response.globalInfo.profitable}% | take profit = ${response.globalInfo.takeProfit}% | trades = ${response.globalInfo.totalTrades}`,
         data: yValues,
         backgroundColor: "rgba(71, 183,132,.5)",
         borderColor: "#47b784",
@@ -264,7 +264,8 @@ export default {
       }
 
       this.monthlyChart.data.datasets = [{
-        label: `Average monthly profit ${profitPercentPerMonth.reduce((a, b) => a + b, 0)/profitPercentPerMonth.length}%`,
+        label: `average profit = ${truncateNumber(profitPercentPerMonth.reduce((a, b) => a + b, 0) / profitPercentPerMonth.length, 2)}%
+| average trades = ${truncateNumber(tradesPerMonth.reduce((a, b) => a + b, 0) / tradesPerMonth.length, 1)}`,
         data: profitPercentPerMonth,
         backgroundColor: "rgba(71, 183,132,.5)",
         borderColor: "#47b784",
@@ -330,8 +331,7 @@ export default {
                   console.log(hoveredState); // TODO remove later
                   hoveredState = {
                     y: !moneyLine ? hoveredState.simulationInfo.cumulativeProfitPercent : hoveredState.simulationInfo.cumulativeProfitMoney,
-                    profitPercent: email === "simulation" ? (response.globalInfo.takeProfit && response.globalInfo.takeProfit <= hoveredState.state.runUp ? response.globalInfo.takeProfit : hoveredState.state.profitPercent)
-                            : hoveredState.state.profitPercent,
+                    profitPercent: hoveredState.state.profitPercent,
                     profitMoney: hoveredState.state.profitMoney,
                     market: hoveredState.state.marketSymbol,
                     metadata: hoveredState.state.strategyDetails.metadata,

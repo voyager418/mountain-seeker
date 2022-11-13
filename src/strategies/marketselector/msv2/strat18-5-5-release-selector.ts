@@ -30,14 +30,14 @@ export class Strat1855ReleaseSelector {
         const candleSticksPercentageVariationsCopy = cloneDeep(candleSticksPercentageVariations);
         let past = false;
 
-        // allowed to start 15 seconds earlier or 40 seconds late
+        // allowed to start 15 seconds earlier or 15 seconds late
         if (withoutLastCandle) {
             const fetchingDateOfDefaultCandle = new Date(candlesticksCopy[candlesticksCopy.length - 1][6]!);
             let timeIsOk = false;
             const dateInFuture = new Date();
             dateInFuture.setSeconds(dateInFuture.getSeconds() + 15);
             const dateInPast = new Date();
-            dateInPast.setSeconds(dateInPast.getSeconds() - 41);
+            dateInPast.setSeconds(dateInPast.getSeconds() - 16);
 
             if (!this.isADecisionMinute(fetchingDateOfDefaultCandle.getMinutes()) && this.isADecisionMinute(dateInFuture.getMinutes())) {
                 timeIsOk = true;
@@ -95,7 +95,7 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 5) {
+        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 2.5) {
             return undefined;
         }
 

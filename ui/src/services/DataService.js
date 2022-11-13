@@ -16,7 +16,7 @@ export function getPercentVariation(start, end) {
     }
 }
 
-function truncateNumber(number, digitsAfterDot) {
+export function truncateNumber(number, digitsAfterDot) {
     if (number.toString().split(".")[1]?.length > digitsAfterDot) {
         return Math.trunc(number * Math.pow(10, digitsAfterDot)) / Math.pow(10, digitsAfterDot);
     }
