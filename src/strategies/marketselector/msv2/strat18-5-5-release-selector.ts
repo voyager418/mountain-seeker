@@ -75,27 +75,27 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (c2Variation < -3 || c2Variation > 7) {
+        if (c2Variation < -1 || c2Variation > 7) {
             return undefined;
         }
 
-        if (market.percentChangeLast24h! < 0 || market.percentChangeLast24h! > 60) {
+        if (market.percentChangeLast24h! < 0 || market.percentChangeLast24h! > 30) {
             return undefined;
         }
 
-        if (volumeRatio < 12 || volumeRatio > 70) {
+        if (volumeRatio < 10 || volumeRatio > 60) {
             return undefined;
         }
 
-        if (edgeVariation < 3 || edgeVariation > 10) {
+        if (edgeVariation < 2.5 || edgeVariation > 10) {
             return undefined;
         }
 
-        if (maxVariation < 0 || maxVariation > 10) {
+        if (maxVariation < 4 || maxVariation > 15) {
             return undefined;
         }
 
-        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 2.5) {
+        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 3.5) {
             return undefined;
         }
 
@@ -110,10 +110,6 @@ export class Strat1855ReleaseSelector {
             log.debug("Late selection");
         }
 
-        log.debug(`Edge variation between ${twentyCandlesticksExcept2[0][4]} & ${twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]}`);
-        log.debug(`twentyCandlesticksExcept2: ${JSON.stringify(twentyCandlesticksExcept2)}`);
-        log.debug(`Market: ${JSON.stringify(market.symbol)}`);
-        log.debug(`c1Variation: ${c1Variation}`);
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
             volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
