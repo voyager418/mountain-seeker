@@ -37,7 +37,7 @@
       <v-col>
         <label>Volume ratio {{ volumeRatio }}</label>
         <v-range-slider
-            max="500"
+            max="2000"
             min="0"
             ticks
             v-model="volumeRatio"
