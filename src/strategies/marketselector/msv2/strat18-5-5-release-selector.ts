@@ -75,7 +75,7 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (c2Variation < -1 || c2Variation > 7) {
+        if (c2Variation < -1.5 || c2Variation > 7) {
             return undefined;
         }
 
@@ -83,7 +83,7 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (volumeRatio < 10 || volumeRatio > 60) {
+        if (volumeRatio < 14 || volumeRatio > 800) {
             return undefined;
         }
 
@@ -95,14 +95,14 @@ export class Strat1855ReleaseSelector {
             return undefined;
         }
 
-        if (c1MaxVarRatio < 0 || c1MaxVarRatio > 3.5) {
+        if (c1MaxVarRatio < 1 || c1MaxVarRatio > 3.5) {
             return undefined;
         }
 
         const BUSDVolumeLast5h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 60 - 1, -1)); // without counting v1
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
 
-        if (BUSDVolumeLast5h < 45000) {
+        if (BUSDVolumeLast5h < 80000) {
             return undefined;
         }
 

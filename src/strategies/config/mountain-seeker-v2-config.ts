@@ -68,7 +68,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 600, // 10min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
@@ -96,7 +96,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 600, // 10min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
@@ -110,7 +110,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 300, // 5min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
@@ -124,7 +124,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 600, // 10min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
@@ -166,7 +166,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 300, // 5min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
@@ -180,7 +180,7 @@ export class Strategies {
             tradingLoopConfig: {
                 secondsToSleepAfterTheBuy: 600, // 10min
                 stopTradingMaxPercentLoss: -4.8,
-                priceWatchInterval: 10
+                priceWatchInterval: 15
             }
         }
     }
