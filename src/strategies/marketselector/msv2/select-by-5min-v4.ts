@@ -62,6 +62,7 @@ export class SelectBy5minV4 {
 
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
+        const volumeRatio = c1[5] / c2[5];
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const twentyCandlesticksExcept2 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 2, -2); // except the last 2 (c1 & c2)
         const maxVariation = StrategyUtils.getMaxVariation(twentyCandlesticksExcept2);
@@ -69,7 +70,11 @@ export class SelectBy5minV4 {
             twentyCandlesticksExcept2[twentyCandlesticksExcept2.length - 1][4]));
 
         // if before last candle percent change is below minimal threshold
-        if (c1Variation < 7) {
+        if (c1Variation < 8) {
+            return undefined;
+        }
+
+        if (volumeRatio < 12) {
             return undefined;
         }
 
@@ -80,7 +85,7 @@ export class SelectBy5minV4 {
         //     return undefined;
         // }
 
-        if (market.percentChangeLast24h! < -10) {
+        if (market.percentChangeLast24h! < -5) {
             log.debug(`Price change too low for ${market.symbol}`)
             return undefined;
         }
@@ -94,7 +99,7 @@ export class SelectBy5minV4 {
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
 
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
-            volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+            volumeRatio, c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {
