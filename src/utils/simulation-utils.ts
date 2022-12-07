@@ -6,6 +6,13 @@ import { NumberUtils } from "./number-utils";
 import { GlobalUtils } from "./global-utils";
 import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
 
+interface SimulationData {
+    statesInfo: any;
+    globalInfo: {
+        totalTrades: number
+    };
+}
+
 export class SimulationUtils {
 
     public static getSimulatedMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell",
@@ -101,32 +108,29 @@ export class SimulationUtils {
         };
     }
 
-    static appendSimulationTradingInfo(states: Array<MountainSeekerV2State>, payload: any):
-        {
-            statesInfo: any,
-            globalInfo: {
-                totalTrades: number
-            }
-        } {
+    static appendSimulationTradingInfo(states: Array<MountainSeekerV2State>, payload: any): SimulationData {
         const takeProfit = payload.findMaxProfit ? this.findTakeProfitForMaxProfit(states) : payload.takeProfit;
+        const defaultDecreasePercent = payload.defaultDecreasePercent ? payload.defaultDecreasePercent : 0;
         const statesInfo = [];
         let cumulativeProfitPercent = 0;
         let cumulativeProfitMoney = payload.initialBalance;
         let nonProfitable = 0;
         for (let i = 0; i < states.length; i++) {
+            cumulativeProfitPercent -= defaultDecreasePercent;
             if (takeProfit && states[i].runUp! >= takeProfit) {
                 cumulativeProfitPercent += takeProfit;
-                cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, takeProfit);
+                cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, takeProfit - defaultDecreasePercent);
                 if (payload.email === "simulation") { // TODO remove the if and create a completely new method for non simulation trades
                     states[i].profitPercent = takeProfit;
                 }
             } else {
                 cumulativeProfitPercent += states[i].profitPercent!;
-                if (states[i].profitPercent! <= 0) {
+                const profit = states[i].profitPercent! - defaultDecreasePercent;
+                if (profit <= 0) {
                     nonProfitable += 1;
-                    cumulativeProfitMoney = NumberUtils.decreaseNumberByPercent(cumulativeProfitMoney, states[i].profitPercent!);
+                    cumulativeProfitMoney = NumberUtils.decreaseNumberByPercent(cumulativeProfitMoney, profit);
                 } else {
-                    cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, states[i].profitPercent!);
+                    cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, profit);
                 }
             }
             statesInfo.push({

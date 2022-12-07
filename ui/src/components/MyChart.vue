@@ -27,6 +27,7 @@
         <v-text-field label="Take profit" v-model.number="takeProfit" @input="getTradingHistory"/>
         <v-text-field label="Max drawdown" v-model.number="maxDrawdown" disabled @input="getTradingHistory"/>
         <v-text-field label="Initial balance" v-model.number="initialBalance" v-if="this.email==='simulation'" @input="getTradingHistory"/>
+        <v-text-field label="Default decrease percent" v-model.number="defaultDecreasePercent" v-if="this.email==='simulation'" @input="getTradingHistory"/>
         <v-checkbox
             v-model="findMaxProfit"
             label="find max profit "
@@ -134,6 +135,7 @@ export default {
       maxVariation: [4, 15],
       c1MaxVarRatio: [1, 3.5],
       findMaxProfit: false,
+      defaultDecreasePercent: 0.5,
       chartOptions: {
         responsive: true,
         maintainAspectRatio: true,
@@ -192,7 +194,8 @@ export default {
         edgeVariation: this.edgeVariation,
         maxVariation: this.maxVariation,
         c1MaxVarRatio: this.c1MaxVarRatio,
-        findMaxProfit: this.findMaxProfit
+        findMaxProfit: this.findMaxProfit,
+        defaultDecreasePercent: this.defaultDecreasePercent
       }).then(response => {
         this.updatePercentLineChart(response);
         this.updateMoneyLineChart(response);
