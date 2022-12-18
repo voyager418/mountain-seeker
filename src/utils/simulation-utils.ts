@@ -121,7 +121,7 @@ export class SimulationUtils {
                 cumulativeProfitPercent += takeProfit;
                 cumulativeProfitMoney = NumberUtils.increaseNumberByPercent(cumulativeProfitMoney, takeProfit - defaultDecreasePercent);
                 if (payload.email === "simulation") { // TODO remove the if and create a completely new method for non simulation trades
-                    states[i].profitPercent = takeProfit;
+                    states[i].profitPercent = takeProfit - defaultDecreasePercent;
                 }
             } else {
                 cumulativeProfitPercent += states[i].profitPercent!;
