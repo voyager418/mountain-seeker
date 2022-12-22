@@ -7,10 +7,8 @@ import { Currency } from "../../src/enums/trading-currencies.enum";
 
 describe("strat4-5-5 selector", () => {
     const CURRENT_DIRECTORY_PATH = __dirname;
-    let candlesticks = JSON.parse(fs.readFileSync(CURRENT_DIRECTORY_PATH + "/FIDA_5m_candlesticks.json", "utf8")) as Array<TOHLCVF>;
-    candlesticks = candlesticks.slice(0, -77);
-    let candleSticksPercentageVariations = JSON.parse(fs.readFileSync(CURRENT_DIRECTORY_PATH + "/FIDA_5m_candlesticks_percentage_variations.json", "utf8")) as Array<number>;
-    candleSticksPercentageVariations = candleSticksPercentageVariations.slice(0, -77);
+    const candlesticks = JSON.parse(fs.readFileSync(CURRENT_DIRECTORY_PATH + "/FIDA_5m_candlesticks.json", "utf8")) as Array<TOHLCVF>;
+    const candleSticksPercentageVariations = JSON.parse(fs.readFileSync(CURRENT_DIRECTORY_PATH + "/FIDA_5m_candlesticks_percentage_variations.json", "utf8")) as Array<number>;
 
     test("Should correctly select", () => {
         const state: MountainSeekerV2State = { accountEmail: "", id: "", marketLastTradeDate: new Map<string, Date>() };
@@ -28,7 +26,7 @@ describe("strat4-5-5 selector", () => {
         expect(res).toBeDefined();
         expect(res!.edgeVariation).toEqual(1.447);
         expect(res!.maxVariation).toEqual(1.794);
-        expect(res!.volumeRatio).toEqual(2.1635044866832946);
+        expect(res!.volumeRatio).toEqual(85.65856980703745);
     });
 
 });

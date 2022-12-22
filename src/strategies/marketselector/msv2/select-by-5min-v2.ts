@@ -76,6 +76,7 @@ export class SelectBy5minV2 {
 
         const c1 = StrategyUtils.getCandleStick(candlesticksCopy, 0);
         const c2 = StrategyUtils.getCandleStick(candlesticksCopy, 1);
+        const volumeRatio = c1[5] / c2[5];
         const c1Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 0);
         const c2Variation = StrategyUtils.getCandleStickPercentageVariation(candleSticksPercentageVariationsCopy, 1);
         const twentyCandlesticksExcept5 = candlesticksCopy.slice(candlesticksCopy.length - 20 - 5, -5); // except the last 5
@@ -100,6 +101,10 @@ export class SelectBy5minV2 {
 
         // if before before last candle percent change is above maximal threshold
         if (c2Variation > 7) {
+            return undefined;
+        }
+
+        if (volumeRatio < 7) {
             return undefined;
         }
 
@@ -133,7 +138,7 @@ export class SelectBy5minV2 {
         const BUSDVolumeLast10h = StrategyUtils.getOriginAssetVolume(candlesticksCopy.slice(candlesticksCopy.length - 120 - 1, -1));
 
         return { market, interval: this.INTERVAL, strategyCustomName, maxVariation, edgeVariation,
-            volumeRatio: c1[5] / c2[5], c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
+            volumeRatio, c1MaxVarRatio: c1Variation/maxVariation, earlyStart: !past, BUSDVolumeLast5h, BUSDVolumeLast10h };
     }
 
     static isADecisionMinute(minute: number): boolean {
