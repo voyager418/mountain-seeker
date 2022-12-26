@@ -45,7 +45,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         private binanceDataService: BinanceDataService,
         private marketSelector: MarketSelector,
         private dynamoDbRepository: DynamodbRepository) {
-        if (!this.configService.isSimulation() && process.env.NODE_ENV !== "prod") {
+        if (!this.configService.isLocalSimulation() && process.env.NODE_ENV !== "prod") {
             log.warn("WARNING : this is not a simulation");
         }
     }
@@ -119,7 +119,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         this.market = await this.selectMarketForTrading().catch(e => Promise.reject(e));
 
         if (!this.market) {
-            if (this.configService.isSimulation()) {
+            if (this.configService.isLocalSimulation()) {
                 log.debug("No market was found");
             }
             return Promise.resolve();
@@ -179,7 +179,7 @@ export class MountainSeekerV2 implements BaseStrategy {
         while (GlobalUtils.getCurrentBelgianDate() < endTradingDate) {
             await GlobalUtils.sleep(tradingLoopConfig.priceWatchInterval);
 
-            marketUnitPrice = await this.binanceConnector.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isSimulation(), 10)
+            marketUnitPrice = await this.binanceConnector.getUnitPrice(this.market!.originAsset, this.market!.targetAsset, this.configService.isLocalSimulation(), 10)
                 .catch(e => Promise.reject(e));
 
             priceChange = Number(NumberUtils.getPercentVariation(buyOrder.average, marketUnitPrice).toFixed(3));
@@ -258,7 +258,7 @@ export class MountainSeekerV2 implements BaseStrategy {
      * @return A market which will be used for trading. Or `undefined` if not found
      */
     private async selectMarketForTrading(): Promise<Market | undefined> {
-        if (this.configService.isSimulation()) {
+        if (this.configService.isLocalSimulation()) {
             this.strategy = Strategies.getStrategy(this.account.activeStrategies[0]);
             return this.markets[0];
         }
@@ -350,7 +350,14 @@ export class MountainSeekerV2 implements BaseStrategy {
      * and the max money to trade)
      */
     private computeAmountToInvest(availableAmountOfBusd: number): number {
-        return Math.min(availableAmountOfBusd, this.account.maxMoneyAmount);
+        if (this.strategy!.config.simulation) {
+            return 100;
+        }
+        const busdAmount = Math.min(availableAmountOfBusd, this.account.maxMoneyAmount);
+        if (busdAmount <= 0) {
+            throw new Error(`Aborting due to insufficient funds: ${busdAmount} BUSD`);
+        }
+        return busdAmount;
     }
 
     /**

@@ -9,7 +9,7 @@ export class ConfigService {
         return this.config;
     }
 
-    public isSimulation(): boolean {
+    public isLocalSimulation(): boolean {
         return this.config.simulation;
     }
 

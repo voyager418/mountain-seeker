@@ -26,7 +26,7 @@ server.get('/', (req, res) => {
 
 server.listen(serverPort, serverHost, () => {
     log.info(`⛰ Server is running at ${serverHost}:${serverPort}`);
-    if (container.resolve(ConfigService).isSimulation()) {
+    if (container.resolve(ConfigService).isLocalSimulation()) {
         container.resolve(SimulationService).startSimulations();
     } else {
         container.resolve(SellService).sellUnfinishedTrades()

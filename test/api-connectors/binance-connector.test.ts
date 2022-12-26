@@ -32,7 +32,7 @@ describe("Binance connector", () => {
     beforeAll(() => {
         jest.spyOn(GlobalUtils, 'sleep').mockImplementation(() => Promise.resolve());
         configService = TestHelper.getMockedConfigService();
-        configService.isSimulation = jest.fn(() => false);
+        configService.isLocalSimulation = jest.fn(() => false);
 
         binanceConnector = new BinanceConnector(configService);
         binanceConnector.setup(account)
@@ -206,7 +206,7 @@ describe("Binance connector", () => {
 
         test("Should not call binance API if it is a simulation", async() => {
             // arrange
-            configService.isSimulation = jest.fn(() => true);
+            configService.isLocalSimulation = jest.fn(() => true);
             binanceConnector.getUnitPrice = jest.fn(async () => 5);
 
             // act
@@ -216,7 +216,7 @@ describe("Binance connector", () => {
             // assert
             expect(binanceInstance.createOrder).not.toHaveBeenCalled();
             expect(res).toBeDefined();
-            configService.isSimulation = jest.fn(() => false);
+            configService.isLocalSimulation = jest.fn(() => false);
         });
 
         test("Should correctly create a MARKET BUY order", async() => {
@@ -293,7 +293,7 @@ describe("Binance connector", () => {
 
         test("Should not call binance API if it is a simulation", async() => {
             // arrange
-            configService.isSimulation = jest.fn(() => true);
+            configService.isLocalSimulation = jest.fn(() => true);
             binanceConnector.getUnitPrice = jest.fn(async () => 5);
 
             // act
@@ -302,7 +302,7 @@ describe("Binance connector", () => {
             // assert
             expect(binanceInstance.createMarketBuyOrder).not.toHaveBeenCalled();
             expect(res).toBeDefined();
-            configService.isSimulation = jest.fn(() => false);
+            configService.isLocalSimulation = jest.fn(() => false);
         });
 
         test("Should correctly create a MARKET BUY order", async() => {
@@ -388,7 +388,7 @@ describe("Binance connector", () => {
 
         test("Should not call binance API if it is a simulation", async() => {
             // arrange
-            configService.isSimulation = jest.fn(() => true);
+            configService.isLocalSimulation = jest.fn(() => true);
 
             // act
             const res = await binanceConnector.createStopLimitOrder(Currency.EUR, "BNB", "sell",
@@ -397,7 +397,7 @@ describe("Binance connector", () => {
             // assert
             expect(binanceInstance.createOrder).not.toHaveBeenCalled();
             expect(res).toBeDefined();
-            configService.isSimulation = jest.fn(() => false);
+            configService.isLocalSimulation = jest.fn(() => false);
         });
 
         test("Should correctly create a STOP_LIMIT SELL order", async() => {

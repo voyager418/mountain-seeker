@@ -37,7 +37,7 @@ describe("Test things with Binance", () => {
 
     beforeAll(() => {
         configService = TestHelper.getMockedConfigService();
-        configService.isSimulation = jest.fn(() => false);
+        configService.isLocalSimulation = jest.fn(() => false);
         binanceConnector = new BinanceConnector(configService);
         binanceConnector.setup(account);
         binanceInstance = binanceConnector.getBinanceInstance();

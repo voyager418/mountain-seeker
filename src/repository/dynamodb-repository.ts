@@ -23,9 +23,9 @@ export class DynamodbRepository {
         });
         this.documentClient = new AWS.DynamoDB.DocumentClient();
         this.db = new AWS.DynamoDB();
-        if (configService.isSimulation()) {
-            this.createLocalAccountTable();
-        }
+        // if (configService.isLocalSimulation()) {
+        //     this.createLocalAccountTable();
+        // }
     }
 
     public async updateAccount(account: Account): Promise<Account> {
@@ -69,7 +69,7 @@ export class DynamodbRepository {
     }
 
     public saveState(state: MountainSeekerV2State): void {
-        if (this.configService.isSimulation()) {
+        if (this.configService.isLocalSimulation()) {
             return;
         }
         const params = {
@@ -223,7 +223,7 @@ export class DynamodbRepository {
     }
 
     private createLocalAccountTable() {
-        if(!this.configService.isSimulation() || AWS.config.endpoint.startsWith("https")) {
+        if(!this.configService.isLocalSimulation() || AWS.config.endpoint.startsWith("https")) {
             return;
         }
         this.db.deleteTable({ TableName: "Accounts" }, (err: any, data: any) => {

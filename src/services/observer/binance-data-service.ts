@@ -33,7 +33,7 @@ export class BinanceDataService implements Subject {
     /** Number of candlesticks that will be fetched */
     private readonly defaultNumberOfCandlesticks = 400;
     private readonly minimumNumberOfCandlesticks = 400;
-    private readonly minimumPercentFor24hVariation = this.configService.isSimulation() ? 10 : -35; // so that local testing is faster
+    private readonly minimumPercentFor24hVariation = this.configService.isLocalSimulation() ? 10 : -35; // so that local testing is faster
     private readonly authorizedCurrencies = [Currency.BUSD];
     private readonly writer = createNamespace('logger');
 
@@ -66,13 +66,13 @@ export class BinanceDataService implements Subject {
 
 
     registerObserver(newObserver: BaseStrategy): void {
-        if (this.configService.isSimulation() && this.observers.length < 1) { // if simulation then add only 1 strategy
+        if (this.configService.isLocalSimulation() && this.observers.length < 1) { // if simulation then add only 1 strategy
             this.observers.push(newObserver);
             log.info(`Added ${newObserver.getState().accountEmail} account for trading`);
             return;
         }
         // only 1 strategy can run per account, except if it is a simulation account
-        if (!this.configService.isSimulation() &&
+        if (!this.configService.isLocalSimulation() &&
             !this.observers.some(o =>
                 o.getState().accountEmail === newObserver.getState().accountEmail && o.getState().accountEmail !== Emails.SIMULATION)) {
             this.observers.push(newObserver);

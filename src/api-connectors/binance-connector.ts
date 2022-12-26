@@ -260,7 +260,7 @@ export class BinanceConnector {
      */
     public async createMarketOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         awaitCompletion?: boolean, retries?: number, amountToInvest?: number, marketAmountPrecision?: number, simulation?: boolean): Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
                 .catch(e => Promise.reject(e));
             const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, side, currentMarketPrice, amountToInvest, amount);
@@ -373,7 +373,7 @@ export class BinanceConnector {
      */
     public async createMarketBuyOrder(originAsset: Currency, targetAsset: string, quoteAmount: number,
         awaitCompletion?: boolean, retries?: number, simulation?: boolean): Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
                 .catch(e => Promise.reject(e));
             const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "buy", currentMarketPrice, quoteAmount);
@@ -459,7 +459,7 @@ export class BinanceConnector {
      */
     public async createMarketSellOrder(originAsset: Currency, targetAsset: string, amount: number,
         awaitCompletion?: boolean, retries?: number, marketAmountPrecision?: number, simulation?: boolean): Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             const currentMarketPrice = await this.getUnitPrice(originAsset, targetAsset, false, 5)
                 .catch(e => Promise.reject(e));
             const o = SimulationUtils.getSimulatedMarketOrder(originAsset, targetAsset, "sell", currentMarketPrice, undefined, amount);
@@ -529,7 +529,7 @@ export class BinanceConnector {
      */
     public async createStopLimitOrder(originAsset: Currency, targetAsset: string, side: "buy" | "sell", amount: number,
         stopPrice: number, limitPrice: number, retries?: number, simulation?: boolean): Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             const simulatedOrder: Order = SimulationUtils.getSimulatedStopLimitOrder(originAsset, targetAsset, side, stopPrice, limitPrice);
             log.info(`Executing simulated order ${JSON.stringify(simulatedOrder)}`);
             return Promise.resolve(simulatedOrder);
@@ -592,7 +592,7 @@ export class BinanceConnector {
      */
     public async createLimitSellOrder(originAsset: Currency, targetAsset: string, amount: number,
         limitPrice: number, retries?: number): Promise<Order> {
-        if (this.configService.isSimulation()) {
+        if (this.configService.isLocalSimulation()) {
             const simulatedOrder: Order = SimulationUtils.getSimulatedLimitOrder(originAsset, targetAsset, "sell");
             log.info(`Executing simulated order ${JSON.stringify(simulatedOrder)}`);
             return Promise.resolve(simulatedOrder);
@@ -648,7 +648,7 @@ export class BinanceConnector {
      * @return {@link Order} if it has been closed and `undefined` if still not after x `retries`
      */
     public async waitForOrderCompletion(order: Order, originAsset: Currency, targetAsset: string, retries: number): Promise<Order | undefined> {
-        if (this.configService.isSimulation()) {
+        if (this.configService.isLocalSimulation()) {
             return Promise.resolve(undefined);
         }
         if (order.status === "closed") {
@@ -678,7 +678,7 @@ export class BinanceConnector {
      */
     public async getOrder(externalId: string, originAsset: Currency, targetAsset: string,
         internalOrderId: string, orderType: OrderType, retries?: number, verbose?: boolean, simulation?: boolean) : Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             return SimulationUtils.getSimulatedGetOrder(originAsset, targetAsset);
         }
         if (verbose) {
@@ -740,7 +740,7 @@ export class BinanceConnector {
      */
     public async cancelOrder(externalOrderId: string, internalOrderId: string, originAsset: Currency, targetAsset: string,
         retries: number, simulation?: boolean) : Promise<Order> {
-        if (this.configService.isSimulation() || simulation) {
+        if (this.configService.isLocalSimulation() || simulation) {
             const o = SimulationUtils.getSimulatedCancelOrder();
             log.info(`Executing simulated cancel order ${JSON.stringify(o)}`);
             return Promise.resolve(o);
@@ -810,7 +810,7 @@ export class BinanceConnector {
      * @param numberOfCandleSticks Must not exceed 1000 (limited by Binance)
      */
     public async fetchCandlesticks(markets: Array<Market>, interval: CandlestickInterval, numberOfCandleSticks: number): Promise<void> {
-        if (this.configService.isSimulation()) {
+        if (this.configService.isLocalSimulation()) {
             log.info(`Fetching candlesticks for ${markets.length} markets`);
         }
         if (numberOfCandleSticks > 1000) {
@@ -841,7 +841,7 @@ export class BinanceConnector {
             getHalf(this, oneFifth * 2, oneFifth * 3),
             getHalf(this, oneFifth * 3, oneFifth * 4),
             getHalf(this, oneFifth * 4, markets.length),
-            GlobalUtils.sleep(this.configService.isSimulation() ? 0 : 6)]).catch(e => Promise.reject(e));
+            GlobalUtils.sleep(this.configService.isLocalSimulation() ? 0 : 6)]).catch(e => Promise.reject(e));
         const stop = new Date();
         if ((stop.getTime() - start.getTime())/1000 >= 30) {
             log.warn(`Fetching candlesticks took ${(stop.getTime() - start.getTime())/1000} seconds`);

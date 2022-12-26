@@ -27,7 +27,7 @@ export class EmailService {
     }
 
     public async sendEmail(account: Account, subject: string, emailText: string): Promise<void> {
-        if (!this.configService.isSimulation()) {
+        if (!this.configService.isLocalSimulation()) {
             let retries = 5;
             let errorMessage;
             while (retries-- > 0) {
@@ -51,7 +51,7 @@ export class EmailService {
 
     public async sendInitialEmail(account: Account, strategy: Strategy<any>, state: MountainSeekerV2State, market: Market, investedAmount: number,
         averageFilledPrice: number, initialWalletBalance: Map<string, number>): Promise<void> {
-        if (!this.configService.isSimulation() && account.mailPreferences.onNewTrade) {
+        if (!this.configService.isLocalSimulation() && account.mailPreferences.onNewTrade) {
             let emailText = "Portefeuille initial:\n";
             for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + ": " + value + "\n";
@@ -85,7 +85,7 @@ export class EmailService {
     public async sendFinalMail(account: Account, strategy: Strategy<any>, state: MountainSeekerV2State, market: Market,
         investedAmount: number, lastOrder: Order, initialWalletBalance: Map<string, number>,
         endWalletBalance: Map<string, number>): Promise<void> {
-        if (!this.configService.isSimulation() && account.mailPreferences.onEndTrade) {
+        if (!this.configService.isLocalSimulation() && account.mailPreferences.onEndTrade) {
             let emailText = "Portefeuille initial:\n";
             for (const [key, value] of initialWalletBalance) {
                 emailText += "    " + key + ": " + value + "\n";
