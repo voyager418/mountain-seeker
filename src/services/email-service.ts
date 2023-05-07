@@ -7,7 +7,8 @@ import { NumberUtils } from "../utils/number-utils";
 import { GlobalUtils } from "../utils/global-utils";
 import { Order } from "../models/order";
 import { MountainSeekerV2State } from "../strategies/state/mountain-seeker-v2-state";
-import { Account, Emails } from "../models/account";
+import { Account } from "../models/account";
+import { Email } from "../enums/email.enum";
 
 const nodemailer = require('nodemailer');
 
@@ -34,7 +35,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Email.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: subject,
                         text: emailText
                     });
@@ -67,7 +68,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Email.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: `Trading started on ${market.symbol} (${strategy.customName})`,
                         text: emailText
                     });
@@ -110,7 +111,7 @@ export class EmailService {
                 try {
                     await this.transporter.sendMail({
                         from: `"MS 🏔" <${process.env.PROVIDER_EMAIL_ADDRESS}>`, // sender address
-                        to: account.email === Emails.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
+                        to: account.email === Email.SIMULATION ? process.env.ADMIN_EMAIL : account.email, // list of receivers
                         subject: `Trading finished on ${market!.symbol} (${plusPrefix}${state.profitPercent}%, ${plusPrefix}${state.profitMoney} ${market.originAsset}) (${strategy.customName})`,
                         text: emailText
                     });

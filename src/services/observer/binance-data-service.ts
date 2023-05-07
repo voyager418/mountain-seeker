@@ -11,7 +11,7 @@ import { GlobalUtils } from "../../utils/global-utils";
 import { Currency } from "../../enums/trading-currencies.enum";
 import { Observer } from "./observer.interface";
 import ccxt from "ccxt";
-import { Emails } from "../../models/account";
+import { Email } from "../../enums/email.enum";
 const createNamespace = require('continuation-local-storage').createNamespace;
 const shortUUID = require('short-uuid');
 
@@ -74,7 +74,7 @@ export class BinanceDataService implements Subject {
         // only 1 strategy can run per account, except if it is a simulation account
         if (!this.configService.isLocalSimulation() &&
             !this.observers.some(o =>
-                o.getState().accountEmail === newObserver.getState().accountEmail && o.getState().accountEmail !== Emails.SIMULATION)) {
+                o.getState().accountEmail === newObserver.getState().accountEmail && o.getState().accountEmail !== Email.SIMULATION)) {
             this.observers.push(newObserver);
             log.info(`Added ${newObserver.getState().accountEmail} account for trading`);
         }

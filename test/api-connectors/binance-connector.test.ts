@@ -131,7 +131,7 @@ describe("Binance connector", () => {
 
         test("Should retry when can not get wallet balance", async() => {
             // arrange
-            binanceInstance.fetchBalance = jest.fn(async() => Promise.reject(undefined));
+            binanceInstance.fetchBalance = jest.fn(async() => Promise.reject("DDoSProtection: binance temporary banned: {\"code\":-2015,\"msg\":\"Invalid API-key, IP, or permissions for action.\"}"));
 
             // act
             try {
@@ -139,7 +139,7 @@ describe("Binance connector", () => {
                 fail("Should throw an exception");
             } catch (e) {
                 expect(binanceInstance.fetchBalance).toHaveBeenCalledTimes(4);
-                expect(e).toEqual("Failed to fetch wallet balance for [\"EUR\",\"BNB\",\"BTC\",\"ETH\"] after 3 retries");
+                expect(e).toEqual("Failed to fetch wallet balance for [\"EUR\",\"BNB\",\"BTC\",\"ETH\"] after 3 retries. DDoSProtection: binance temporary banned: {\"code\":-2015,\"msg\":\"Invalid API-key, IP, or permissions for action.\"}");
             }
         });
 

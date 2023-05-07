@@ -69,8 +69,8 @@ export class StrategyUtils {
     }
 
     /**
-     * @return Markets that are not defined in {@link MountainSeekerConfig.ignoredMarkets} and that do not have
-     * as targetAsset the one that is contained in the ignore markets array.
+     * @return Markets that are not defined in {@link MountainSeekerV2Config.ignoredMarkets} and that do not have
+     * as targetAsset the one that is contained in the ignored markets array.
      *
      * Example: if ignored markets = ["KNC/BTC"]
      * Then this method returns all markets except ["KNC/BTC", "KNC/BNB", ... ]
@@ -95,7 +95,7 @@ export class StrategyUtils {
     }
 
     /**
-     * @return Markets that are defined in {@link MountainSeekerConfig.authorizedMarkets}
+     * @return Markets that are defined in {@link MountainSeekerV2Config.authorizedMarkets}
      */
     static filterByAuthorizedMarkets(markets: Array<Market>, authorizedMarkets?: Array<string>): Array<Market> {
         if (authorizedMarkets && authorizedMarkets.length > 0) {
@@ -171,7 +171,7 @@ export class StrategyUtils {
      */
     static barsSince(condition: (x: Array<number>, y: Array<number>) => boolean, x: Array<number>, y: Array<number>): number {
         let res = 0;
-        for (let i = 1; i < x.length - 1; i++) {
+        for (let i = 1; i < x.length - 1; i++) { // TODO or for (let i = x.length - 1; i > 1; i--) ?
             if (condition(x.slice(0, x.length - i), y.slice(0, y.length - i))) {
                 return res;
             }

@@ -5,6 +5,7 @@ import { TradingService } from "../services/trading-service";
 import { SellService } from "../services/sell-service";
 import { SimulationService } from "../services/simulation-service";
 import { SimulationUtils } from "../utils/simulation-utils";
+
 export const adminRoutes = express.Router();
 const dynamodbRepository = container.resolve(DynamodbRepository);
 const tradingService = container.resolve(TradingService);

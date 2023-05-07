@@ -149,7 +149,7 @@ export class BinanceConnector {
      */
     public async getBalance(assets: Array<string>, retries: number, sleepBeforeFetch?: boolean): Promise<Map<string, number>> {
         assert(retries > 0, "`retries` must be a positive number");
-        let balance;
+        let balance: ccxt.Balances;
         while (retries-- > -1) {
             if (sleepBeforeFetch) {
                 await GlobalUtils.sleep(2);
@@ -158,14 +158,14 @@ export class BinanceConnector {
                 balance = await this.binance.fetchBalance();
             } catch (e) {
                 log.error(`Failed to fetch wallet balance : ${e}`);
+                if (retries == -1) {
+                    return Promise.reject(`Failed to fetch wallet balance for ${JSON.stringify(assets)} after ${Math.abs(retries) + 2} retries. ${e}`);
+                }
             }
-        }
-        if (!balance) {
-            return Promise.reject(`Failed to fetch wallet balance for ${JSON.stringify(assets)} after ${Math.abs(retries) + 1} retries`);
         }
 
         const res = new Map<string, number>();
-        for (const currency of balance.info.balances) {
+        for (const currency of balance!.info.balances) {
             if (assets.indexOf(currency.asset) >= 0) {
                 res.set(currency.asset, Number(currency.free));
             }

@@ -1,5 +1,5 @@
 import { BaseStrategy } from "./base-strategy.interface";
-import { Account, AccountStats, Emails } from "../models/account";
+import { Account, AccountStats } from "../models/account";
 import log from '../logging/log.instance';
 import { Strategy } from "../models/strategy";
 import { BinanceConnector } from "../api-connectors/binance-connector";
@@ -20,6 +20,7 @@ import { SelectorResult } from "./marketselector/selector.interface";
 import { DynamodbRepository } from "../repository/dynamodb-repository";
 import { CandlestickInterval } from "../enums/candlestick-interval.enum";
 import { cloneDeep } from "lodash";
+import { Email } from "../enums/email.enum";
 
 /**
  * Mountain Seeker V2.
@@ -260,7 +261,7 @@ export class MountainSeekerV2 implements BaseStrategy {
     private async selectMarketForTrading(): Promise<Market | undefined> {
         if (this.configService.isLocalSimulation()) {
             this.strategy = Strategies.getStrategy(this.account.activeStrategies[0]);
-            return this.markets[0];
+            return undefined;
         }
         const potentialMarkets: Array<SelectorResult> = [];
         for (const market of this.markets) {
@@ -452,7 +453,7 @@ export class MountainSeekerV2 implements BaseStrategy {
 
             // the next "if" is needed because a simulation account mimics multiple accounts with different strategies
             // so we should not overwrite active strategies
-            if (this.account.email === Emails.SIMULATION) {
+            if (this.account.email === Email.SIMULATION) {
                 this.account = { ...updatedAccount, activeStrategies: this.account.activeStrategies, mailPreferences: this.account.mailPreferences };
             } else {
                 this.account = updatedAccount;

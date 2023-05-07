@@ -2,7 +2,8 @@ import { singleton } from "tsyringe";
 import { DynamodbRepository } from "../repository/dynamodb-repository";
 import { BinanceConnector } from "../api-connectors/binance-connector";
 import log from "../logging/log.instance";
-import { Account, Emails } from "../models/account";
+import { Account } from "../models/account";
+import { Email } from "../enums/email.enum";
 
 /**
  * If server restarts and there are incomplete trades, this class
@@ -19,7 +20,7 @@ export class SellService {
         const accounts = await this.dynamodbRepository.getAllAccounts();
         let error = false;
         for (const account of accounts) {
-            if (account.isActive && account.runningState && account.email !== Emails.SIMULATION) {
+            if (account.isActive && account.runningState && account.email !== Email.SIMULATION) {
                 log.info(`Account ${account.email} has unfinished trade: ${JSON.stringify(account.runningState)}`);
                 this.binanceConnector.setup(account);
                 try {

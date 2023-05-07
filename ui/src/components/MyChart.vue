@@ -102,6 +102,7 @@
             v-model="c1MaxVarRatio"
             @change="getTradingHistory"
         ></v-range-slider>
+        <v-text-field label="Max dead times" v-model.number="maxDeadTimes" @input="getTradingHistory"/>
       </v-col>
 
     </v-row>
@@ -124,6 +125,7 @@ export default {
       endDate: new Date("2023-06-28").toISOString(),
       strategyName: "strat18-5-5",
       takeProfit: 11.19,
+      maxDeadTimes: 1000,
       maxDrawdown: -4.8,
       initialBalance: 1000,
       volumeRatio: [14, 800],
@@ -195,7 +197,8 @@ export default {
         maxVariation: this.maxVariation,
         c1MaxVarRatio: this.c1MaxVarRatio,
         findMaxProfit: this.findMaxProfit,
-        defaultDecreasePercent: this.defaultDecreasePercent
+        defaultDecreasePercent: this.defaultDecreasePercent,
+        maxDeadTimes: this.maxDeadTimes
       }).then(response => {
         this.updatePercentLineChart(response);
         this.updateMoneyLineChart(response);

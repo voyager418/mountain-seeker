@@ -1,8 +1,9 @@
 import { StrategyName } from "../models/strategy";
-import { Account, Emails } from "../models/account";
+import { Account } from "../models/account";
 import { container, singleton } from "tsyringe";
 import { BinanceDataService } from "./observer/binance-data-service";
 import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
+import { Email } from "../enums/email.enum";
 
 
 /**
@@ -10,17 +11,17 @@ import { MountainSeekerV2 } from "../strategies/mountain-seeker-v2";
  */
 @singleton()
 export class SimulationService {
+    private simulationStrategies: Array<StrategyName> = ["strat4-5-5",
+        "strat8-5-10", "strat10-5-5", "strat10-5-10", "strat15-5-5",
+        "strat15-5-10", "strat16-30-30", "strat17-15-15",
+        "strat18-5-5", "strat19-5-10", "strat20-15-30"];
 
     constructor(private binanceDataService: BinanceDataService) {}
 
     public startSimulations(): void {
-        const simulationStrategies: Array<StrategyName> = ["strat4-5-5",
-            "strat8-5-10", "strat10-5-5", "strat10-5-10", "strat15-5-5",
-            "strat15-5-10", "strat16-30-30", "strat17-15-15",
-            "strat18-5-5", "strat19-5-10", "strat20-15-30"];
-        for (const strategy of simulationStrategies) {
+        for (const strategy of this.simulationStrategies) {
             const account: Account = {
-                email: Emails.SIMULATION,
+                email: Email.SIMULATION,
                 maxMoneyAmount: 1000,
                 apiKey: process.env.BINANCE_API_KEY!,
                 apiSecret: process.env.BINANCE_API_SECRET!,

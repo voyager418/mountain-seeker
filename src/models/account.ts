@@ -29,10 +29,6 @@ export type Account = {
     stats?: AccountStats;
 }
 
-export enum Emails {
-    SIMULATION = "simulation"
-}
-
 export type AccountStats = {
     cumulativeProfitPercent: number;
     cumulativeProfitBUSD: number;

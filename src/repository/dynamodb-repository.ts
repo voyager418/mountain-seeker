@@ -141,7 +141,7 @@ export class DynamodbRepository {
         return res;
     }
 
-    public async getTradingStates(payload: any): Promise<Array<TradingState>> {
+    public async getTradingStates(payload: any): Promise<Array<MountainSeekerV2State>> {
         if (!payload.email || !payload.startDate || !payload.endDate || !payload.strategyName) {
             return Promise.reject("One of the mandatory fields is missing");
         }
@@ -166,7 +166,9 @@ export class DynamodbRepository {
                 ':maxVariationLower': payload.maxVariation ? payload.maxVariation[0] : -1000,
                 ':maxVariationUpper': payload.maxVariation ? payload.maxVariation[1] : 1000,
                 ':c1MaxVarRatioLower': payload.c1MaxVarRatio ? payload.c1MaxVarRatio[0] : -1000,
-                ':c1MaxVarRatioUpper': payload.c1MaxVarRatio ? payload.c1MaxVarRatio[1] : 1000
+                ':c1MaxVarRatioUpper': payload.c1MaxVarRatio ? payload.c1MaxVarRatio[1] : 1000,
+                ':deadTimesLower': 0,
+                ':deadTimesUpper': payload.maxDeadTimes !== undefined ? payload.maxDeadTimes : 1000
             },
             ExpressionAttributeNames: {
                 "#trading_state": "state"
@@ -181,6 +183,7 @@ export class DynamodbRepository {
                 '#trading_state.strategyDetails.metadata.edgeVariation between :edgeVariationLower and :edgeVariationUpper and ' +
                 '#trading_state.strategyDetails.metadata.maxVariation between :maxVariationLower and :maxVariationUpper and ' +
                 '#trading_state.strategyDetails.metadata.c1MaxVarRatio between :c1MaxVarRatioLower and :c1MaxVarRatioUpper and ' +
+                '#trading_state.strategyDetails.metadata.isDeadTimes between :deadTimesLower and :deadTimesUpper and ' +
                 '#trading_state.strategyDetails.metadata.BUSDVolumeLast5h between :volumeBUSD5hLower and :volumeBUSD5hUpper',
             TableName: 'TradingStates'
         };
