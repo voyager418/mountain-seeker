@@ -27,7 +27,7 @@
     "@vue/cli": "5.0.6",
     "aws-sdk": "2.959.0",
     "axios": "0.24.0",
-    "ccxt": "1.56.64",
+    "ccxt": "1.89.76",
     "cli-progress": "3.9.0",
     "config": "3.3.3",
     "continuation-local-storage": "3.2.1",
